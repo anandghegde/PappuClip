@@ -1,0 +1,282 @@
+# Requirement traceability. Checked by `pappu-dev trace check` in CI.
+#
+# Every requirement ID in docs/PRD.md and docs/spec/*.md has one entry here, and nothing else does.
+#   priority   from the requirement's own table row
+#   milestone  where docs/implementation-plan.md §11 lands it; `completes` where a later milestone finishes it
+#   tests      `TestTarget/testFunctionName`, or `manual:<path>` for a checklist that a person runs
+#
+# A P0 or P1 requirement whose milestone is at or before `current_milestone` must list at least one test.
+# Raising `current_milestone` is part of closing a milestone (plan §2, definition of done).
+
+schema: 1
+current_milestone: M0
+
+requirements:
+
+  # Activation and selection reading (PRD §7.1, safety spec)
+  ACT-1: { priority: P0, milestone: M1, tests: [] }
+  ACT-2: { priority: P0, milestone: M1, tests: [] }
+  ACT-3: { priority: P0, milestone: M1, tests: [] }
+  ACT-4: { priority: P1, milestone: M4, tests: [] }
+  ACT-5: { priority: P0, milestone: M1, tests: [] }
+  ACT-6a: { priority: P0, milestone: M1, tests: [] }
+  ACT-6b: { priority: P1, milestone: M4, tests: [] }
+  ACT-7: { priority: P0, milestone: M1, tests: [] }
+  ACT-8: { priority: P0, milestone: M1, tests: [] }
+  ACT-9: { priority: P0, milestone: M1, tests: [] }
+  ACT-10a: { priority: P0, milestone: M1, tests: [] }
+  ACT-10b: { priority: P0, milestone: M1, tests: [] }
+  ACT-10c: { priority: P0, milestone: M1, tests: [] }
+  ACT-10d: { priority: P0, milestone: M1, tests: [] }
+  ACT-10e: { priority: P0, milestone: M1, tests: [] }
+  ACT-10f: { priority: P0, milestone: M1, tests: [] }
+  ACT-10g: { priority: P0, milestone: M1, tests: [] }
+  ACT-10h: { priority: P0, milestone: M1, tests: [] }
+  ACT-10i: { priority: P0, milestone: M1, tests: [] }
+  ACT-10j: { priority: P0, milestone: M1, tests: [] }
+  ACT-11a: { priority: P0, milestone: M1, tests: [] }
+  ACT-11b: { priority: P1, milestone: M5, tests: [] }
+  ACT-12: { priority: P0, milestone: M1, tests: [] }
+  ACT-13: { priority: P1, milestone: M4, tests: [] }
+  ACT-14: { priority: P0, milestone: M1, tests: [] }
+  ACT-15: { priority: P0, milestone: M1, tests: [] }
+  ACT-16a: { priority: P0, milestone: M1, tests: [] }
+  ACT-16b: { priority: P0, milestone: M1, tests: [] }
+  ACT-16c: { priority: P0, milestone: M1, tests: [] }
+  ACT-17a: { priority: P0, milestone: M1, tests: [] }
+  ACT-17b: { priority: P1, milestone: M4, tests: [] }
+  ACT-18: { priority: P0, milestone: M1, tests: [] }
+  ACT-19: { priority: P0, milestone: M1, tests: [] }
+
+  # Bar (PRD §7.2)
+  BAR-1: { priority: P0, milestone: M1, completes: M4, tests: [], note: "Focus restoration for explicitly opened surfaces completes with the palette in M4." }
+  BAR-2: { priority: P0, milestone: M1, tests: [] }
+  BAR-3: { priority: P0, milestone: M1, tests: [] }
+  BAR-4: { priority: P1, milestone: M4, tests: [] }
+  BAR-5a: { priority: P1, milestone: M4, tests: [] }
+  BAR-5b: { priority: P1.x, milestone: 1.x, tests: [] }
+  BAR-6: { priority: P0, milestone: M1, tests: [] }
+  BAR-7: { priority: P1, milestone: M4, tests: [] }
+  BAR-8a: { priority: P0, milestone: M1, tests: [] }
+  BAR-8b: { priority: P1, milestone: M4, tests: [] }
+  BAR-8c: { priority: P1.x, milestone: 1.x, tests: [] }
+  BAR-9a: { priority: P0, milestone: M1, tests: [] }
+  BAR-9b: { priority: P1, milestone: M4, tests: [] }
+  BAR-10: { priority: P0, milestone: M1, tests: [] }
+  BAR-11: { priority: P0, milestone: M1, tests: [] }
+  BAR-12a: { priority: P0, milestone: M1, tests: [] }
+  BAR-12b: { priority: P1, milestone: M2, completes: M3, tests: [], note: "Display in M2; click-to-paste in M3." }
+  BAR-13: { priority: P1, milestone: M3, tests: [] }
+  BAR-14: { priority: P0, milestone: M1, tests: [] }
+  BAR-15: { priority: P2, milestone: post-1.0, tests: [] }
+  BAR-16: { priority: P1, milestone: M4, tests: [] }
+  BAR-17: { priority: P1, milestone: M3, completes: M4, tests: [], note: "Functional in M3; finished in M4." }
+
+  # Filtering (PRD §7.3)
+  FLT-1: { priority: P0, milestone: M1, tests: [] }
+  FLT-2: { priority: P0, milestone: M1, tests: [] }
+  FLT-3: { priority: P0, milestone: M1, tests: [] }
+  FLT-4: { priority: P1, milestone: M3, tests: [] }
+  FLT-5: { priority: P0, milestone: M2, tests: [] }
+  FLT-6: { priority: P0, milestone: M1, tests: [] }
+
+  # Apps and layout management
+  ALM-1: { priority: P0, milestone: M1, tests: [] }
+  ALM-2a: { priority: P1, milestone: M4, tests: [] }
+  ALM-2b: { priority: P1.x, milestone: 1.x, tests: [] }
+  ALM-3a: { priority: P1, milestone: M4, tests: [] }
+  ALM-3b: { priority: P1.x, milestone: 1.x, tests: [] }
+  ALM-4a: { priority: P1, milestone: M4, tests: [] }
+  ALM-4b: { priority: P1.x, milestone: 1.x, tests: [] }
+  ALM-5: { priority: P1, milestone: M4, tests: [] }
+  ALM-6: { priority: P0, milestone: M2, tests: [] }
+  ALM-7: { priority: P2, milestone: post-1.0, tests: [] }
+  ALM-8: { priority: P1, milestone: M4, tests: [] }
+  ALM-9: { priority: P1.x, milestone: 1.x, tests: [] }
+
+  # Extension management and consent
+  EXM-1: { priority: P0, milestone: M2, tests: [] }
+  EXM-2: { priority: P0, milestone: M2, tests: [] }
+  EXM-3: { priority: P1, milestone: M3, tests: [] }
+  EXM-4: { priority: P1, milestone: M3, tests: [] }
+  EXM-5a: { priority: P0, milestone: M2, tests: [] }
+  EXM-5b: { priority: P0, milestone: M2, tests: [] }
+  EXM-5c: { priority: P0, milestone: M2, tests: [] }
+  EXM-5d: { priority: P0, milestone: M2, tests: [] }
+  EXM-5e: { priority: P1, milestone: M5, tests: [] }
+  EXM-5f: { priority: P1, milestone: M3, tests: [] }
+  EXM-5g: { priority: P0, milestone: M2, tests: [] }
+  EXM-5h: { priority: P1, milestone: M5, tests: [] }
+  EXM-6: { priority: P1, milestone: M4, tests: [] }
+  EXM-7: { priority: P1, milestone: M4, tests: [] }
+  EXM-8: { priority: P1, milestone: M4, tests: [] }
+  EXM-9: { priority: P0, milestone: M2, tests: [] }
+  EXM-10: { priority: P1, milestone: M3, tests: [] }
+  EXM-11: { priority: P1, milestone: M3, tests: [] }
+  EXM-12: { priority: P1, milestone: M5, tests: [], note: "The staged-package shape is built in M2; update activation lands in M5." }
+  EXM-13: { priority: P1, milestone: M5, tests: [] }
+  EXM-14: { priority: P1, milestone: M5, tests: [] }
+  EXM-15a: { priority: P1, milestone: M3, tests: [] }
+  EXM-15b: { priority: P1, milestone: M3, tests: [] }
+  EXM-15c: { priority: P1, milestone: M3, tests: [] }
+  EXM-15d: { priority: P1, milestone: M3, tests: [] }
+
+  # Invocation runtime (safety spec)
+  RUN-1a: { priority: P0, milestone: M1, tests: [] }
+  RUN-1b: { priority: P0, milestone: M1, tests: [] }
+  RUN-1c: { priority: P0, milestone: M1, tests: [] }
+  RUN-2a: { priority: P0, milestone: M1, tests: [] }
+  RUN-2b: { priority: P0, milestone: M1, tests: [] }
+  RUN-2c: { priority: P0, milestone: M1, tests: [] }
+  RUN-2d: { priority: P0, milestone: M1, tests: [] }
+  RUN-2e: { priority: P1, milestone: M3, completes: M4, tests: [], note: "Mechanism in M3; polish in M4." }
+  RUN-2f: { priority: P0, milestone: M1, tests: [] }
+  RUN-2g: { priority: P0, milestone: M1, tests: [] }
+  RUN-2h: { priority: P0, milestone: M1, tests: [] }
+  RUN-3a: { priority: P0, milestone: M1, tests: [] }
+  RUN-3b: { priority: P0, milestone: M1, tests: [] }
+  RUN-3c: { priority: P0, milestone: M1, tests: [] }
+  RUN-3d: { priority: P0, milestone: M1, tests: [] }
+  RUN-3e: { priority: P0, milestone: M1, tests: [] }
+  RUN-3f: { priority: P0, milestone: M1, tests: [] }
+  RUN-4: { priority: P0, milestone: M1, tests: [] }
+  RUN-5: { priority: P0, milestone: M1, tests: [] }
+
+  # Security (safety spec)
+  SEC-1a: { priority: P1, milestone: M3, tests: [] }
+  SEC-1b: { priority: P1, milestone: M3, tests: [] }
+  SEC-1c: { priority: P1, milestone: M3, tests: [] }
+  SEC-1d: { priority: P1, milestone: M3, tests: [] }
+  SEC-2: { priority: P1, milestone: M3, tests: [] }
+  SEC-3: { priority: P1, milestone: M3, tests: [] }
+  SEC-4a: { priority: P0, milestone: M2, tests: [] }
+  SEC-4b: { priority: P0, milestone: M2, tests: [] }
+  SEC-5: { priority: P1, milestone: M5, tests: [] }
+  SEC-6: { priority: P1, milestone: M3, tests: [] }
+  SEC-7a: { priority: P0, milestone: M2, tests: [] }
+  SEC-7b: { priority: P1, milestone: M3, tests: [] }
+  SEC-7c: { priority: P0, milestone: M2, tests: [] }
+  SEC-7d: { priority: P0, milestone: M2, tests: [] }
+  SEC-8a: { priority: P0, milestone: M2, tests: [] }
+  SEC-8b: { priority: P0, milestone: M2, tests: [] }
+  SEC-8c: { priority: P0, milestone: M2, tests: [] }
+  SEC-8d: { priority: P0, milestone: M2, tests: [] }
+  SEC-8e: { priority: P1, milestone: M5, tests: [] }
+  SEC-8f: { priority: P1, milestone: M5, tests: [] }
+  SEC-8g: { priority: P1, milestone: M5, tests: [] }
+  SEC-8h: { priority: P1, milestone: M4, completes: M5, tests: [], note: "Import in M4; rollback in M5." }
+  SEC-9: { priority: P1, milestone: M5, tests: [] }
+
+  # Package format (extension spec)
+  FMT-1: { priority: P0, milestone: M2, tests: [] }
+  FMT-2: { priority: P1, milestone: M3, tests: [] }
+  FMT-3: { priority: P0, milestone: M2, tests: [] }
+  FMT-4: { priority: P0, milestone: M2, tests: [] }
+  FMT-5: { priority: P0, milestone: M2, tests: [] }
+  FMT-6: { priority: P0, milestone: M2, tests: [] }
+  FMT-7: { priority: P0, milestone: M2, tests: [] }
+
+  # JavaScript runtime (extension spec)
+  JS-1: { priority: P1, milestone: M3, tests: [] }
+  JS-2: { priority: P1, milestone: M3, tests: [] }
+  JS-3: { priority: P1, milestone: M3, tests: [] }
+  JS-4: { priority: P1, milestone: M3, tests: [] }
+  JS-5: { priority: P1, milestone: M3, tests: [] }
+  JS-6: { priority: P1, milestone: M3, tests: [] }
+  JS-7: { priority: P1, milestone: M3, tests: [] }
+  JS-8: { priority: P1, milestone: M3, tests: [] }
+  JS-9: { priority: P1, milestone: M3, tests: [] }
+  JS-10: { priority: P1, milestone: M3, tests: [] }
+  JS-11: { priority: P1, milestone: M3, tests: [] }
+  JS-12: { priority: P1, milestone: M3, tests: [] }
+  JS-13: { priority: P1, milestone: M3, tests: [] }
+  JS-14: { priority: P1, milestone: M3, tests: [] }
+  JS-15: { priority: P1, milestone: M3, tests: [] }
+  JS-16: { priority: P1, milestone: M3, tests: [] }
+  JS-17: { priority: P1, milestone: M3, tests: [] }
+  JS-18: { priority: P1, milestone: M3, tests: [] }
+  JS-19: { priority: P1, milestone: M3, tests: [] }
+
+  # Configuration export and import
+  CFG-1: { priority: P1, milestone: M4, tests: [] }
+  CFG-2: { priority: P1, milestone: M4, tests: [] }
+  CFG-3: { priority: P1, milestone: M4, tests: [] }
+
+  # Scripting and URL commands
+  SCR-1: { priority: P1, milestone: M4, tests: [] }
+  SCR-2: { priority: P1, milestone: M4, completes: M5, tests: [], note: "URL commands in M4; install links in M5." }
+
+  # Onboarding
+  ONB-1: { priority: P0, milestone: M1, tests: [] }
+  ONB-2: { priority: P1, milestone: M6, tests: [] }
+  ONB-3: { priority: P1, milestone: M6, tests: [] }
+  ONB-4: { priority: P1, milestone: M6, tests: [] }
+  ONB-5: { priority: P1, milestone: M2, tests: [] }
+  ONB-6: { priority: P1, milestone: M3, tests: [] }
+
+  # Diagnostics
+  DIA-1: { priority: P1, milestone: M3, tests: [] }
+  DIA-2: { priority: P1, milestone: M4, tests: [], note: "AttemptTrace capture exists from M1; the user-facing part lands in M4." }
+  DIA-3: { priority: P1, milestone: M3, tests: [] }
+  DIA-4: { priority: P1, milestone: M3, tests: [] }
+
+  # Developer tooling
+  DEV-1: { priority: P1, milestone: M3, tests: [] }
+  DEV-2: { priority: P1, milestone: M3, tests: [] }
+  DEV-3: { priority: P1, milestone: M5, tests: [] }
+  DEV-4: { priority: P1, milestone: M5, tests: [] }
+  DEV-5: { priority: P2, milestone: post-1.0, tests: [] }
+  DEV-6: { priority: P2, milestone: post-1.0, tests: [] }
+
+  # Publishing
+  PUB-1: { priority: P1, milestone: M5, tests: [] }
+  PUB-2: { priority: P1, milestone: M5, tests: [] }
+  PUB-3: { priority: P1, milestone: M5, tests: [] }
+  PUB-4: { priority: P1, milestone: M5, tests: [] }
+  PUB-5: { priority: P1, milestone: M5, tests: [] }
+  PUB-6: { priority: P1, milestone: M5, tests: [] }
+  PUB-7: { priority: P1, milestone: M5, tests: [] }
+
+  # Directory
+  DIR-1: { priority: P1, milestone: M5, tests: [] }
+  DIR-2: { priority: P1, milestone: M5, tests: [] }
+  DIR-3: { priority: P1, milestone: M5, tests: [] }
+  DIR-4: { priority: P1, milestone: M5, tests: [] }
+  DIR-5: { priority: P1, milestone: M5, tests: [] }
+  DIR-6: { priority: P2, milestone: post-1.0, tests: [] }
+
+  # In-app store
+  STORE-1: { priority: P1, milestone: M5, tests: [] }
+  STORE-2: { priority: P2, milestone: post-1.0, tests: [] }
+
+  # Catalogue
+  CAT-1: { priority: P1, milestone: M5, tests: [] }
+
+  # Sync (1.x)
+  SYN-1: { priority: P1.x, milestone: 1.x, tests: [], note: "Only the storage shape (stable IDs, tombstones) is built before 1.0, in M2." }
+  SYN-2: { priority: P1.x, milestone: 1.x, tests: [], note: "Only the storage shape (stable IDs, tombstones) is built before 1.0, in M2." }
+  SYN-3: { priority: P1.x, milestone: 1.x, tests: [], note: "Only the storage shape (stable IDs, tombstones) is built before 1.0, in M2." }
+  SYN-4: { priority: P1.x, milestone: 1.x, tests: [], note: "Only the storage shape (stable IDs, tombstones) is built before 1.0, in M2." }
+
+  # Differentiators
+  DIF-1a: { priority: P1, milestone: M4, tests: [] }
+  DIF-1b: { priority: P2, milestone: post-1.0, tests: [] }
+  DIF-2a: { priority: P1, milestone: M4, tests: [] }
+  DIF-2b: { priority: P2, milestone: post-1.0, tests: [] }
+  DIF-3: { priority: P1, milestone: M4, tests: [] }
+  DIF-4a: { priority: P1, milestone: M4, tests: [] }
+  DIF-4b: { priority: P2, milestone: post-1.0, tests: [] }
+  DIF-5: { priority: P2, milestone: post-1.0, tests: [] }
+  DIF-6: { priority: P2, milestone: post-1.0, tests: [] }
+  DIF-7: { priority: P2, milestone: post-1.0, tests: [] }
+  DIF-8: { priority: P2, milestone: post-1.0, tests: [] }
+  DIF-9: { priority: P2, milestone: post-1.0, tests: [] }
+  DIF-10: { priority: P2, milestone: post-1.0, tests: [] }
+
+# Work the plan closes that the PRD describes in prose, without a numbered ID.
+sections:
+  "PRD §7.4 built-ins (Cut, Copy, Paste, Search, Open Link)": { milestone: M1, completes: M3, tests: [], note: "Migrated to the public API in M3." }
+  "PRD §7.4 built-ins (Dictionary, Reveal, Spelling)": { milestone: M4, tests: [] }
+  "PRD §11.1 latency budgets": { milestone: M1, completes: M6, tests: [PappuCoreTests/initialTotalsMatchThePRD, PappuCoreTests/fallbackInheritsTimeSpentOnEarlierStrategies], note: "Table and clock exist from M0; measured against Tier A apps from M1; release gate in M6." }
+  "PRD §11.5 app matrix": { milestone: M1, completes: M6, tests: [PappuHarnessTests/matrixMatchesThePRD] }
+  "Localization: strings externalised from the start": { milestone: M1, completes: M4, tests: [] }

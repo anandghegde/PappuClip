@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Package build and unit tests
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: Packages/PappuKit
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swift --version
+      - name: Build
+        run: swift build
+      - name: Test
+        run: swift test
+      - name: Requirement traceability
+        run: swift run pappu-dev trace check
+      - name: Layering rules
+        run: ../../Scripts/lint-layering.sh
+
+  app:
+    name: App targets build
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      # Ad-hoc: CI has no signing certificate, and nothing built here is run or distributed.
+      - name: Build SpikeLab
+        run: PAPPU_SIGN_IDENTITY="-" Scripts/build.sh SpikeLab

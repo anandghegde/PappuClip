@@ -1,0 +1,195 @@
+{
+  "budgets" : {
+    "accessibility" : {
+      "analysisMs" : 20,
+      "populationMs" : 30,
+      "readMs" : 70,
+      "renderMs" : 30
+    },
+    "clipboardFallback" : {
+      "analysisMs" : 20,
+      "populationMs" : 30,
+      "readMs" : 270,
+      "renderMs" : 30
+    },
+    "hardCutoffMs" : 700,
+    "populationPerFunctionMs" : 15
+  },
+  "durationSeconds" : 0.040514417000000004,
+  "environment" : {
+    "accessibilityTrusted" : false,
+    "architecture" : "arm64",
+    "bundleID" : "app.pappuclip.SpikeLab",
+    "hardwareModel" : "Mac16,10",
+    "osBuild" : "25E253",
+    "osVersion" : "26.4.1",
+    "signing" : {
+      "authority" : "PappuClip Development",
+      "codeHash" : "9956e631a39b700d3f758faaa7d613f781b66c02",
+      "hardenedRuntime" : true,
+      "identifier" : "app.pappuclip.SpikeLab",
+      "isAdHoc" : false
+    }
+  },
+  "findings" : [
+    {
+      "detail" : "signed by PappuClip Development",
+      "key" : "signing.identity",
+      "labels" : {
+
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "Expected to need Accessibility: created=false with accessibility=false inputMonitoring=false postEvent=false",
+      "key" : "tap.active.mouse.created",
+      "labels" : {
+        "events" : "mouse",
+        "tap" : "active"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Expected to need Accessibility: created=false with accessibility=false inputMonitoring=false postEvent=false",
+      "key" : "tap.active.keyDown.created",
+      "labels" : {
+        "events" : "keyDown",
+        "tap" : "active"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Expected to need Input Monitoring: created=true with accessibility=false inputMonitoring=false postEvent=false",
+      "key" : "tap.listenOnly.mouse.created",
+      "labels" : {
+        "events" : "mouse",
+        "tap" : "listenOnly"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "Expected to need Input Monitoring: created=false with accessibility=false inputMonitoring=false postEvent=false",
+      "key" : "tap.listenOnly.keyDown.created",
+      "labels" : {
+        "events" : "keyDown",
+        "tap" : "listenOnly"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "No active key-down tap could be created, so ACT-19 was not measured.",
+      "key" : "keyTap.lease",
+      "labels" : {
+
+      },
+      "outcome" : "inconclusive"
+    }
+  ],
+  "log" : [
+    "   0.008s  Permissions before: accessibility=false inputMonitoring=false postEvent=false",
+    "   0.010s  [info] signing.identity: signed by PappuClip Development",
+    "   0.021s  [confirmed] tap.active.mouse.created: Expected to need Accessibility: created=false with accessibility=false inputMonitoring=false postEvent=false",
+    "   0.021s  [confirmed] tap.active.keyDown.created: Expected to need Accessibility: created=false with accessibility=false inputMonitoring=false postEvent=false",
+    "   0.038s  [refuted] tap.listenOnly.mouse.created: Expected to need Input Monitoring: created=true with accessibility=false inputMonitoring=false postEvent=false",
+    "   0.039s  [confirmed] tap.listenOnly.keyDown.created: Expected to need Input Monitoring: created=false with accessibility=false inputMonitoring=false postEvent=false",
+    "   0.040s  [inconclusive] keyTap.lease: No active key-down tap could be created, so ACT-19 was not measured."
+  ],
+  "measurements" : [
+    {
+      "labels" : {
+        "events" : "mouse",
+        "tap" : "active"
+      },
+      "name" : "tap.create",
+      "summary" : {
+        "count" : 1,
+        "max" : 10.568458,
+        "mean" : 10.568458,
+        "min" : 10.568458,
+        "p50" : 10.568458,
+        "p95" : 10.568458,
+        "p99" : 10.568458
+      },
+      "unit" : "ms",
+      "values" : [
+        10.568458
+      ]
+    },
+    {
+      "labels" : {
+        "events" : "keyDown",
+        "tap" : "active"
+      },
+      "name" : "tap.create",
+      "summary" : {
+        "count" : 1,
+        "max" : 0.29475,
+        "mean" : 0.29475,
+        "min" : 0.29475,
+        "p50" : 0.29475,
+        "p95" : 0.29475,
+        "p99" : 0.29475
+      },
+      "unit" : "ms",
+      "values" : [
+        0.29475
+      ]
+    },
+    {
+      "labels" : {
+        "events" : "mouse",
+        "tap" : "listenOnly"
+      },
+      "name" : "tap.create",
+      "summary" : {
+        "count" : 1,
+        "max" : 16.783916,
+        "mean" : 16.783916,
+        "min" : 16.783916,
+        "p50" : 16.783916,
+        "p95" : 16.783916,
+        "p99" : 16.783916
+      },
+      "unit" : "ms",
+      "values" : [
+        16.783916
+      ]
+    },
+    {
+      "labels" : {
+        "events" : "keyDown",
+        "tap" : "listenOnly"
+      },
+      "name" : "tap.create",
+      "summary" : {
+        "count" : 1,
+        "max" : 1.307542,
+        "mean" : 1.307542,
+        "min" : 1.307542,
+        "p50" : 1.307542,
+        "p95" : 1.307542,
+        "p99" : 1.307542
+      },
+      "unit" : "ms",
+      "values" : [
+        1.307542
+      ]
+    }
+  ],
+  "notes" : "",
+  "parameters" : {
+    "installCeilingMs" : "10.0",
+    "keyTapCycles" : "50",
+    "launchedByLaunchd" : "true",
+    "mode" : "headless",
+    "options" : "listen-only",
+    "permissionsAfter" : "accessibility=false inputMonitoring=false postEvent=false",
+    "permissionsBefore" : "accessibility=false inputMonitoring=false postEvent=false",
+    "tccState" : "No permissions granted; first launch with the stable certificate"
+  },
+  "question" : "Event-tap type versus permission prompts, including installing the key-down tap only while it is needed (ACT-19).",
+  "runID" : "spike-2-taps",
+  "schema" : 1,
+  "startedAt" : "2026-09-20T12:49:10Z",
+  "title" : "2 · Event taps and permissions"
+}

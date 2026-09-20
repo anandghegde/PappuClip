@@ -1,0 +1,388 @@
+{
+  "budgets" : {
+    "accessibility" : {
+      "analysisMs" : 20,
+      "populationMs" : 30,
+      "readMs" : 70,
+      "renderMs" : 30
+    },
+    "clipboardFallback" : {
+      "analysisMs" : 20,
+      "populationMs" : 30,
+      "readMs" : 270,
+      "renderMs" : 30
+    },
+    "hardCutoffMs" : 700,
+    "populationPerFunctionMs" : 15
+  },
+  "durationSeconds" : 24.521519875,
+  "environment" : {
+    "accessibilityTrusted" : false,
+    "architecture" : "arm64",
+    "bundleID" : "app.pappuclip.SpikeLab",
+    "hardwareModel" : "Mac16,10",
+    "osBuild" : "25E253",
+    "osVersion" : "26.4.1",
+    "signing" : {
+      "authority" : "PappuClip Development",
+      "codeHash" : "d63f1fcfe7964400293a88e50969eb5cc6967742",
+      "hardenedRuntime" : true,
+      "identifier" : "app.pappuclip.SpikeLab",
+      "isAdHoc" : false
+    }
+  },
+  "findings" : [
+    {
+      "detail" : "frontmost=unknown systemFocus=? sourceActive=true sourceRole=? selection=unreadable frontWindowCoversScreen=false",
+      "key" : "context.atStart",
+      "labels" : {
+
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#1 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "default",
+        "level" : "floating",
+        "panel" : "1"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#2 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "allSpaces",
+        "level" : "floating",
+        "panel" : "2"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#3 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "allSpaces+fullScreenAux",
+        "level" : "floating",
+        "panel" : "3"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#4 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "moveToActive+fullScreenAux",
+        "level" : "floating",
+        "panel" : "4"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#5 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "default",
+        "level" : "statusBar",
+        "panel" : "5"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#6 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "allSpaces",
+        "level" : "statusBar",
+        "panel" : "6"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#7 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "allSpaces+fullScreenAux",
+        "level" : "statusBar",
+        "panel" : "7"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#8 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "moveToActive+fullScreenAux",
+        "level" : "statusBar",
+        "panel" : "8"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#9 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "default",
+        "level" : "popUpMenu",
+        "panel" : "9"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#10 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "allSpaces",
+        "level" : "popUpMenu",
+        "panel" : "10"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#11 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "allSpaces+fullScreenAux",
+        "level" : "popUpMenu",
+        "panel" : "11"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#12 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "moveToActive+fullScreenAux",
+        "level" : "popUpMenu",
+        "panel" : "12"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#13 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "default",
+        "level" : "screenSaver",
+        "panel" : "13"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#14 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "allSpaces",
+        "level" : "screenSaver",
+        "panel" : "14"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#15 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "allSpaces+fullScreenAux",
+        "level" : "screenSaver",
+        "panel" : "15"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "#16 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+      "key" : "panel.reportedShown",
+      "labels" : {
+        "behaviour" : "moveToActive+fullScreenAux",
+        "level" : "screenSaver",
+        "panel" : "16"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "The system reports these as on screen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16. Compare with what was seen.",
+      "key" : "panel.matrix.reportedShown",
+      "labels" : {
+
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "p95 1.94 ms against a ceiling of 10.0 ms, out of a 30.0 ms render stage",
+      "key" : "panel.showIsCheap",
+      "labels" : {
+
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Accessibility is not granted, so another app's focus cannot be read.",
+      "key" : "focus",
+      "labels" : {
+
+      },
+      "outcome" : "inconclusive"
+    }
+  ],
+  "log" : [
+    "   0.005s  Switch to the app and Space under test and select some text. Starting in 8 s.",
+    "   2.006s  Switch to the app and Space under test and select some text. Starting in 6 s.",
+    "   4.008s  Switch to the app and Space under test and select some text. Starting in 4 s.",
+    "   6.009s  Switch to the app and Space under test and select some text. Starting in 2 s.",
+    "   8.018s  [info] context.atStart: frontmost=unknown systemFocus=? sourceActive=true sourceRole=? selection=unreadable frontWindowCoversScreen=false",
+    "   8.978s  [info] panel.reportedShown: #1 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "   9.883s  [info] panel.reportedShown: #2 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  10.790s  [info] panel.reportedShown: #3 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  11.694s  [info] panel.reportedShown: #4 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  12.607s  [info] panel.reportedShown: #5 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  13.511s  [info] panel.reportedShown: #6 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  14.416s  [info] panel.reportedShown: #7 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  15.322s  [info] panel.reportedShown: #8 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  16.227s  [info] panel.reportedShown: #9 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  17.131s  [info] panel.reportedShown: #10 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  18.041s  [info] panel.reportedShown: #11 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  18.945s  [info] panel.reportedShown: #12 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  19.854s  [info] panel.reportedShown: #13 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  20.760s  [info] panel.reportedShown: #14 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  21.665s  [info] panel.reportedShown: #15 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  22.572s  [info] panel.reportedShown: #16 visible=true activeSpace=true unoccluded=true windowServer=true key=false appActive=false",
+    "  22.572s  [info] panel.matrix.reportedShown: The system reports these as on screen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16. Compare with what was seen.",
+    "  24.521s  [confirmed] panel.showIsCheap: p95 1.94 ms against a ceiling of 10.0 ms, out of a 30.0 ms render stage",
+    "  24.521s  [inconclusive] focus: Accessibility is not granted, so another app's focus cannot be read.",
+    "  24.521s  Finished. Write down the numbers of the panels you saw."
+  ],
+  "measurements" : [
+    {
+      "labels" : {
+
+      },
+      "name" : "panel.build",
+      "summary" : {
+        "count" : 1,
+        "max" : 2.524583,
+        "mean" : 2.524583,
+        "min" : 2.524583,
+        "p50" : 2.524583,
+        "p95" : 2.524583,
+        "p99" : 2.524583
+      },
+      "unit" : "ms",
+      "values" : [
+        2.524583
+      ]
+    },
+    {
+      "labels" : {
+        "behaviour" : "allSpaces+fullScreenAux",
+        "level" : "popUpMenu"
+      },
+      "name" : "panel.show",
+      "summary" : {
+        "count" : 30,
+        "max" : 4.012666,
+        "mean" : 0.7838444333333334,
+        "min" : 0.336958,
+        "p50" : 0.509084,
+        "p95" : 1.943959,
+        "p99" : 4.012666
+      },
+      "unit" : "ms",
+      "values" : [
+        0.484208,
+        0.494041,
+        0.62175,
+        0.383417,
+        0.425333,
+        0.516958,
+        0.509084,
+        0.406875,
+        1.790083,
+        0.340334,
+        0.518958,
+        0.372542,
+        0.531125,
+        0.606,
+        0.643542,
+        0.538916,
+        0.565167,
+        0.381584,
+        0.501541,
+        0.446625,
+        1.016042,
+        1.568125,
+        0.45775,
+        0.398083,
+        0.968,
+        4.012666,
+        1.355,
+        1.943959,
+        0.336958,
+        0.380667
+      ]
+    },
+    {
+      "labels" : {
+
+      },
+      "name" : "panel.hide",
+      "summary" : {
+        "count" : 30,
+        "max" : 4.503833,
+        "mean" : 1.7271846000000002,
+        "min" : 0.224708,
+        "p50" : 0.503708,
+        "p95" : 4.426875,
+        "p99" : 4.503833
+      },
+      "unit" : "ms",
+      "values" : [
+        0.354083,
+        0.344333,
+        0.383375,
+        0.35075,
+        0.422875,
+        0.328,
+        0.265666,
+        3.720542,
+        0.224708,
+        3.699708,
+        0.321291,
+        0.351083,
+        0.357916,
+        0.491584,
+        0.503708,
+        0.315875,
+        2.614833,
+        0.268333,
+        4.214417,
+        0.716125,
+        2.565042,
+        2.024917,
+        4.503833,
+        4.010208,
+        1.274875,
+        3.574375,
+        2.708375,
+        2.495625,
+        3.982208,
+        4.426875
+      ]
+    }
+  ],
+  "notes" : "",
+  "parameters" : {
+    "accessibility" : "false",
+    "activationPolicy" : "accessory",
+    "launchedByLaunchd" : "true",
+    "mode" : "headless",
+    "options" : "focus,matrix",
+    "screens" : "1",
+    "tccState" : "nothing granted; unwatched smoke run; normal Space"
+  },
+  "question" : "Which window level and collection behaviour reliably show the panel above fullscreen apps on macOS 15, 26 and the current beta.",
+  "runID" : "spike-1-panel",
+  "schema" : 1,
+  "startedAt" : "2026-09-20T14:39:07Z",
+  "title" : "1 · Panel above fullscreen, and focus"
+}

@@ -1,0 +1,215 @@
+{
+  "budgets" : {
+    "accessibility" : {
+      "analysisMs" : 20,
+      "populationMs" : 30,
+      "readMs" : 70,
+      "renderMs" : 30
+    },
+    "clipboardFallback" : {
+      "analysisMs" : 20,
+      "populationMs" : 30,
+      "readMs" : 270,
+      "renderMs" : 30
+    },
+    "hardCutoffMs" : 700,
+    "populationPerFunctionMs" : 15
+  },
+  "durationSeconds" : 6.029113375,
+  "environment" : {
+    "accessibilityTrusted" : false,
+    "architecture" : "arm64",
+    "bundleID" : "app.pappuclip.SpikeLab",
+    "hardwareModel" : "Mac16,10",
+    "osBuild" : "25E253",
+    "osVersion" : "26.4.1",
+    "signing" : {
+      "authority" : "PappuClip Development",
+      "codeHash" : "354088949db12ffa98907de211eeaf7cc8f421dd",
+      "hardenedRuntime" : true,
+      "identifier" : "app.pappuclip.SpikeLab",
+      "isAdHoc" : false
+    }
+  },
+  "findings" : [
+    {
+      "detail" : "signed by PappuClip Development",
+      "key" : "signing.identity",
+      "labels" : {
+
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "New build, but the previous run had no Accessibility grant to lose.",
+      "key" : "tcc.grantSurvivesRebuild",
+      "labels" : {
+
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Expected to need Accessibility: created=false with accessibility=false inputMonitoring=false postEvent=false",
+      "key" : "tap.active.mouse.created",
+      "labels" : {
+        "events" : "mouse",
+        "tap" : "active"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Expected to need Accessibility: created=false with accessibility=false inputMonitoring=false postEvent=false",
+      "key" : "tap.active.keyDown.created",
+      "labels" : {
+        "events" : "keyDown",
+        "tap" : "active"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Expected to need Input Monitoring: created=true with accessibility=false inputMonitoring=false postEvent=false",
+      "key" : "tap.listenOnly.mouse.created",
+      "labels" : {
+        "events" : "mouse",
+        "tap" : "listenOnly"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "Expected to need Input Monitoring: created=false with accessibility=false inputMonitoring=false postEvent=false",
+      "key" : "tap.listenOnly.keyDown.created",
+      "labels" : {
+        "events" : "keyDown",
+        "tap" : "listenOnly"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "No events: either none are sent, or nobody clicked.",
+      "key" : "tap.listenOnly.mouse.receivesEvents",
+      "labels" : {
+        "events" : "mouse",
+        "tap" : "listenOnly"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "No active key-down tap could be created, so ACT-19 was not measured.",
+      "key" : "keyTap.lease",
+      "labels" : {
+
+      },
+      "outcome" : "inconclusive"
+    }
+  ],
+  "log" : [
+    "   0.007s  Permissions before: accessibility=false inputMonitoring=false postEvent=false",
+    "   0.011s  [info] signing.identity: signed by PappuClip Development",
+    "   0.011s  [inconclusive] tcc.grantSurvivesRebuild: New build, but the previous run had no Accessibility grant to lose.",
+    "   0.021s  [confirmed] tap.active.mouse.created: Expected to need Accessibility: created=false with accessibility=false inputMonitoring=false postEvent=false",
+    "   0.021s  [confirmed] tap.active.keyDown.created: Expected to need Accessibility: created=false with accessibility=false inputMonitoring=false postEvent=false",
+    "   0.022s  [refuted] tap.listenOnly.mouse.created: Expected to need Input Monitoring: created=true with accessibility=false inputMonitoring=false postEvent=false",
+    "   0.022s  [confirmed] tap.listenOnly.keyDown.created: Expected to need Input Monitoring: created=false with accessibility=false inputMonitoring=false postEvent=false",
+    "   0.022s  Click, drag or scroll anywhere for the next 6 s.",
+    "   6.024s  [inconclusive] tap.listenOnly.mouse.receivesEvents: No events: either none are sent, or nobody clicked.",
+    "   6.024s  [inconclusive] keyTap.lease: No active key-down tap could be created, so ACT-19 was not measured."
+  ],
+  "measurements" : [
+    {
+      "labels" : {
+        "events" : "mouse",
+        "tap" : "active"
+      },
+      "name" : "tap.create",
+      "summary" : {
+        "count" : 1,
+        "max" : 9.960625,
+        "mean" : 9.960625,
+        "min" : 9.960625,
+        "p50" : 9.960625,
+        "p95" : 9.960625,
+        "p99" : 9.960625
+      },
+      "unit" : "ms",
+      "values" : [
+        9.960625
+      ]
+    },
+    {
+      "labels" : {
+        "events" : "keyDown",
+        "tap" : "active"
+      },
+      "name" : "tap.create",
+      "summary" : {
+        "count" : 1,
+        "max" : 0.308125,
+        "mean" : 0.308125,
+        "min" : 0.308125,
+        "p50" : 0.308125,
+        "p95" : 0.308125,
+        "p99" : 0.308125
+      },
+      "unit" : "ms",
+      "values" : [
+        0.308125
+      ]
+    },
+    {
+      "labels" : {
+        "events" : "mouse",
+        "tap" : "listenOnly"
+      },
+      "name" : "tap.create",
+      "summary" : {
+        "count" : 1,
+        "max" : 0.696083,
+        "mean" : 0.696083,
+        "min" : 0.696083,
+        "p50" : 0.696083,
+        "p95" : 0.696083,
+        "p99" : 0.696083
+      },
+      "unit" : "ms",
+      "values" : [
+        0.696083
+      ]
+    },
+    {
+      "labels" : {
+        "events" : "keyDown",
+        "tap" : "listenOnly"
+      },
+      "name" : "tap.create",
+      "summary" : {
+        "count" : 1,
+        "max" : 0.024709,
+        "mean" : 0.024709,
+        "min" : 0.024709,
+        "p50" : 0.024709,
+        "p95" : 0.024709,
+        "p99" : 0.024709
+      },
+      "unit" : "ms",
+      "values" : [
+        0.024709
+      ]
+    }
+  ],
+  "notes" : "",
+  "parameters" : {
+    "installCeilingMs" : "10.0",
+    "keyTapCycles" : "50",
+    "launchedByLaunchd" : "true",
+    "mode" : "headless",
+    "options" : "listen-only,mouse-watch",
+    "permissionsAfter" : "accessibility=false inputMonitoring=false postEvent=false",
+    "permissionsBefore" : "accessibility=false inputMonitoring=false postEvent=false",
+    "tccState" : "No permissions granted. Launched as 'Accessibility only', but SpikeLab was listed under Accessibility with its switch off."
+  },
+  "question" : "Event-tap type versus permission prompts, including installing the key-down tap only while it is needed (ACT-19).",
+  "runID" : "spike-2-taps",
+  "schema" : 1,
+  "startedAt" : "2026-09-20T13:22:20Z",
+  "title" : "2 · Event taps and permissions"
+}

@@ -1,0 +1,23 @@
+# Build output
+/build/
+.build/
+DerivedData/
+*.xcodeproj
+xcuserdata/
+*.xcuserstate
+
+# SwiftPM
+.swiftpm/
+Package.resolved.orig
+
+# macOS
+.DS_Store
+
+# Signing material must never be committed
+*.p12
+*.pem
+*.key
+
+# Local tooling
+.codegraph/
+.serena/

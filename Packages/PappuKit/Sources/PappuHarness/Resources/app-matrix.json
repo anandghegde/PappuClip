@@ -1,0 +1,341 @@
+{
+  "schema": 1,
+  "source": "PRD v0.4 §11.5. The gating list is provisional until spike 3 settles it.",
+  "note": "bundleIDsVerified is true only where the identifier was read from an installed copy of the app. The others are from memory: confirm each against an installed copy before relying on a 'not installed' result. family is a hint for grouping results, not a fact the product may depend on.",
+  "apps": [
+    {
+      "name": "Safari",
+      "tier": "gating",
+      "bundleIDs": [
+        "com.apple.Safari"
+      ],
+      "family": "webkit",
+      "bundleIDsVerified": true
+    },
+    {
+      "name": "Chrome",
+      "tier": "gating",
+      "bundleIDs": [
+        "com.google.Chrome"
+      ],
+      "family": "chromium",
+      "bundleIDsVerified": true
+    },
+    {
+      "name": "Firefox",
+      "tier": "gating",
+      "bundleIDs": [
+        "org.mozilla.firefox"
+      ],
+      "family": "gecko",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Mail",
+      "tier": "gating",
+      "bundleIDs": [
+        "com.apple.mail"
+      ],
+      "family": "appkit",
+      "bundleIDsVerified": true
+    },
+    {
+      "name": "Notes",
+      "tier": "gating",
+      "bundleIDs": [
+        "com.apple.Notes"
+      ],
+      "family": "appkit",
+      "bundleIDsVerified": true
+    },
+    {
+      "name": "Pages",
+      "tier": "gating",
+      "bundleIDs": [
+        "com.apple.iWork.Pages"
+      ],
+      "family": "appkit",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "TextEdit",
+      "tier": "gating",
+      "bundleIDs": [
+        "com.apple.TextEdit"
+      ],
+      "family": "appkit",
+      "bundleIDsVerified": true
+    },
+    {
+      "name": "Preview",
+      "tier": "gating",
+      "bundleIDs": [
+        "com.apple.Preview"
+      ],
+      "family": "appkit",
+      "bundleIDsVerified": true
+    },
+    {
+      "name": "Xcode",
+      "tier": "gating",
+      "bundleIDs": [
+        "com.apple.dt.Xcode"
+      ],
+      "family": "appkit",
+      "bundleIDsVerified": true
+    },
+    {
+      "name": "VS Code",
+      "tier": "gating",
+      "bundleIDs": [
+        "com.microsoft.VSCode"
+      ],
+      "family": "electron",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Slack",
+      "tier": "gating",
+      "bundleIDs": [
+        "com.tinyspeck.slackmacgap"
+      ],
+      "family": "electron",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Notion",
+      "tier": "gating",
+      "bundleIDs": [
+        "notion.id"
+      ],
+      "family": "electron",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Obsidian",
+      "tier": "gating",
+      "bundleIDs": [
+        "md.obsidian"
+      ],
+      "family": "electron",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Messages",
+      "tier": "gating",
+      "bundleIDs": [
+        "com.apple.MobileSMS"
+      ],
+      "family": "catalyst",
+      "bundleIDsVerified": true
+    },
+    {
+      "name": "Terminal",
+      "tier": "gating",
+      "bundleIDs": [
+        "com.apple.Terminal"
+      ],
+      "family": "terminal",
+      "bundleIDsVerified": true
+    },
+    {
+      "name": "Arc",
+      "tier": "tracked",
+      "bundleIDs": [
+        "company.thebrowser.Browser"
+      ],
+      "family": "chromium",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Edge",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.microsoft.edgemac"
+      ],
+      "family": "chromium",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Brave",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.brave.Browser"
+      ],
+      "family": "chromium",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Cursor",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.todesktop.230313mzl4w4u92"
+      ],
+      "family": "electron",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Zed",
+      "tier": "tracked",
+      "bundleIDs": [
+        "dev.zed.Zed"
+      ],
+      "family": "custom",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Sublime Text",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.sublimetext.4"
+      ],
+      "family": "custom",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "BBEdit",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.barebones.bbedit"
+      ],
+      "family": "appkit",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Discord",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.hnc.Discord"
+      ],
+      "family": "electron",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "WhatsApp",
+      "tier": "tracked",
+      "bundleIDs": [
+        "net.whatsapp.WhatsApp"
+      ],
+      "family": "catalyst",
+      "bundleIDsVerified": true
+    },
+    {
+      "name": "Telegram",
+      "tier": "tracked",
+      "bundleIDs": [
+        "ru.keepcoder.Telegram",
+        "org.telegram.desktop"
+      ],
+      "family": "appkit",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Word",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.microsoft.Word"
+      ],
+      "family": "office",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Excel",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.microsoft.Excel"
+      ],
+      "family": "office",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "PowerPoint",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.microsoft.Powerpoint"
+      ],
+      "family": "office",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Outlook",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.microsoft.Outlook"
+      ],
+      "family": "office",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "iTerm2",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.googlecode.iterm2"
+      ],
+      "family": "terminal",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Ghostty",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.mitchellh.ghostty"
+      ],
+      "family": "terminal",
+      "bundleIDsVerified": true
+    },
+    {
+      "name": "Bear",
+      "tier": "tracked",
+      "bundleIDs": [
+        "net.shinyfrog.bear"
+      ],
+      "family": "appkit",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Things",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.culturedcode.ThingsMac"
+      ],
+      "family": "appkit",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Craft",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.lukilabs.lukiapp"
+      ],
+      "family": "catalyst",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Linear",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.linear"
+      ],
+      "family": "electron",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "ChatGPT",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.openai.chat"
+      ],
+      "family": "appkit",
+      "bundleIDsVerified": false
+    },
+    {
+      "name": "Claude",
+      "tier": "tracked",
+      "bundleIDs": [
+        "com.anthropic.claudefordesktop"
+      ],
+      "family": "electron",
+      "bundleIDsVerified": false
+    }
+  ]
+}

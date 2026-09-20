@@ -1,0 +1,77 @@
+# XcodeGen project. The .xcodeproj is generated (Scripts/build.sh) and not committed.
+#
+# The bundle-identifier prefix repeats AppIdentity.bundleIDPrefix in PappuCore, because XcodeGen
+# cannot read Swift constants. A rename changes both.
+name: PappuClip
+
+options:
+  bundleIdPrefix: app.pappuclip
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    ENABLE_HARDENED_RUNTIME: YES
+    # macOS ties the Accessibility grant to the code signature, so every build is signed with the
+    # same local certificate (Scripts/setup-dev-signing.sh). Scripts/build.sh chooses the identity and
+    # exports it for XcodeGen to substitute here. It cannot go on the xcodebuild command line: that
+    # would also apply it to the package's resource-bundle targets, which then demand a team.
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "${PAPPU_SIGN_IDENTITY}"
+    DEVELOPMENT_TEAM: ""
+    MARKETING_VERSION: "0.0.1"
+    CURRENT_PROJECT_VERSION: "1"
+
+packages:
+  PappuKit:
+    path: ../Packages/PappuKit
+
+targets:
+  # Throwaway host for the M0 spikes (implementation plan §3). Deleted when M0 closes; the harness
+  # it drives lives in PappuKit and stays.
+  SpikeLab:
+    type: application
+    platform: macOS
+    sources:
+      - path: SpikeLab
+        excludes: [Info.plist, SpikeLab.entitlements]
+      - path: SpikeShared
+      # Spike 5's JavaScript, copied as a folder so that bench.js also runs in the jsc tool as it is.
+      - path: SpikeFixtures
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.pappuclip.SpikeLab
+        INFOPLIST_FILE: SpikeLab/Info.plist
+        CODE_SIGN_ENTITLEMENTS: SpikeLab/SpikeLab.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        # Xcode's debug builds put the code in SpikeLab.debug.dylib. Under the hardened runtime,
+        # library validation refuses to load it when the signature has no Team ID, which is the case
+        # for the self-signed development certificate. One binary avoids loading anything.
+        ENABLE_DEBUG_DYLIB: NO
+    dependencies:
+      - package: PappuKit
+        product: PappuCore
+      - package: PappuKit
+        product: PappuHarness
+      - target: SpikeJSHost
+
+  # Spike 5's helper: sandboxed, no JIT entitlement, embedded in SpikeLab as an XPC service.
+  SpikeJSHost:
+    type: xpc-service
+    platform: macOS
+    sources:
+      - path: SpikeJSHost
+        excludes: [Info.plist, SpikeJSHost.entitlements]
+      - path: SpikeShared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.pappuclip.SpikeLab.JSHost
+        INFOPLIST_FILE: SpikeJSHost/Info.plist
+        CODE_SIGN_ENTITLEMENTS: SpikeJSHost/SpikeJSHost.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_DEBUG_DYLIB: NO
