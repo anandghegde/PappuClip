@@ -1,0 +1,13 @@
+{
+  "name": { "en": "Open Link" },
+  "identifier": "app.pappuclip.builtin.open-link",
+  "description": { "en": "Open the addresses in the selection. Hold Shift to open background tabs, Option to copy them as a list." },
+  "icon": "symbol:arrow.up.right.square",
+  "actions": [
+    {
+      "identifier": "open-link",
+      "requirements": ["urls"],
+      "executor": { "builtin": "open-link" }
+    }
+  ]
+}

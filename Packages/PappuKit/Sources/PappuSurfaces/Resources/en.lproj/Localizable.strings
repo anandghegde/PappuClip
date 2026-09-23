@@ -1,0 +1,23 @@
+/* The bar's own accessibility label (BAR-14). */
+"bar.accessibility.label" = "PappuClip actions";
+
+/* Announced when the bar appears (BAR-14). */
+"bar.accessibility.appeared" = "PappuClip actions available";
+
+/* Takes back a running action (BAR-12a, RUN-3). */
+"bar.cancel" = "Cancel";
+
+/* An action is running (BAR-12a). */
+"bar.feedback.running" = "Working";
+
+/* The Copy confirmation (BAR-12a). */
+"bar.feedback.copied" = "Copied";
+
+/* An action finished (BAR-12a). */
+"bar.feedback.succeeded" = "Done";
+
+/* An action failed (BAR-12a). */
+"bar.feedback.failed" = "The action did not finish";
+
+/* %1$@ is the action's name, %2$@ is why it cannot be run. */
+"bar.tooltip.disabled" = "%1$@ — %2$@";

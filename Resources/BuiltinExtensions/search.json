@@ -1,0 +1,13 @@
+{
+  "name": { "en": "Search" },
+  "identifier": "app.pappuclip.builtin.search",
+  "description": { "en": "Search for the selection with your chosen engine. Hold Shift to open a background tab, Option to quote the term." },
+  "icon": "symbol:magnifyingglass",
+  "actions": [
+    {
+      "identifier": "search",
+      "requirements": ["text", "!isurl"],
+      "executor": { "builtin": "search" }
+    }
+  ]
+}

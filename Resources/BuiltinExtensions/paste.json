@@ -1,0 +1,13 @@
+{
+  "name": { "en": "Paste" },
+  "identifier": "app.pappuclip.builtin.paste",
+  "description": { "en": "Paste over the selection. Hold Shift to paste as plain text." },
+  "icon": "symbol:doc.on.clipboard",
+  "actions": [
+    {
+      "identifier": "paste",
+      "requirements": ["paste"],
+      "executor": { "builtin": "paste" }
+    }
+  ]
+}

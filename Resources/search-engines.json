@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "sequence": 1,
+  "note": "The Search built-in's presets (PRD §7.4). `***` is the placeholder the custom-URL setting uses too, so a user who outgrows a preset edits one string rather than learning a second syntax. Ordered as the PRD lists them, alphabetically, which is also the order the setting shows. `default` names the one a fresh install uses.",
+  "default": "google",
+  "engines": [
+    { "id": "baidu",       "name": "Baidu",        "template": "https://www.baidu.com/s?wd=***" },
+    { "id": "bing",        "name": "Bing",         "template": "https://www.bing.com/search?q=***" },
+    { "id": "brave",       "name": "Brave",        "template": "https://search.brave.com/search?q=***" },
+    { "id": "duckduckgo",  "name": "DuckDuckGo",   "template": "https://duckduckgo.com/?q=***" },
+    { "id": "ecosia",      "name": "Ecosia",       "template": "https://www.ecosia.org/search?q=***" },
+    { "id": "google",      "name": "Google",       "template": "https://www.google.com/search?q=***" },
+    { "id": "kagi",        "name": "Kagi",         "template": "https://kagi.com/search?q=***" },
+    { "id": "naver",       "name": "NAVER",        "template": "https://search.naver.com/search.naver?query=***" },
+    { "id": "startpage",   "name": "Startpage",    "template": "https://www.startpage.com/sp/search?query=***" },
+    { "id": "yahoo",       "name": "Yahoo",        "template": "https://search.yahoo.com/search?p=***" },
+    { "id": "yahoo-japan", "name": "Yahoo Japan",  "template": "https://search.yahoo.co.jp/search?p=***" },
+    { "id": "yandex",      "name": "Yandex",       "template": "https://yandex.com/search/?text=***" }
+  ]
+}

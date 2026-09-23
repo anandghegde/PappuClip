@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "sequence": 1,
+  "note": "PRD v0.4 ACT-11a, architecture §4.6. Nothing here is set from a measurement yet. Strategy order, the per-app synthetic-copy and quiescence flags and the autoAppear decisions are M0 spike 3's output, and which axEnable attribute an app answers to is spike 4's; the axEnable kinds below are the platform's convention for the app's family (Electron takes AXManualAccessibility, Chromium takes AXEnhancedUserInterface) and are provisional until spike 4 runs. The copiesLineWhenEmpty flags are not provisional: ACT-11a names those apps itself, and the flag only ever takes synthetic copy away. expectedCopyDelta is how far one ⌘C may move the pasteboard's change count (ACT-10e); one clear and one write is what nearly every app does, and the apps that do otherwise are M0 spike 6's unrun 'live' option to find — an empty range (minimum above maximum) is how an app is told never to be asked. Bundle identifiers are those of Packages/PappuKit/Sources/PappuHarness/Resources/app-matrix.json, where most are unverified; the JetBrains prefix is from memory and unverified.",
+
+  "default": {
+    "strategies": ["ax", "webkitMarkers", "axEnable", "appleScript"],
+    "autoAppear": true,
+    "autoSyntheticCopy": false,
+    "hotkeySyntheticCopy": true,
+    "quiescence": true,
+    "expectedCopyDelta": { "minimum": 1, "maximum": 1 }
+  },
+
+  "prefixes": {
+    "com.jetbrains.": { "copiesLineWhenEmpty": true },
+    "com.sublimetext.": { "copiesLineWhenEmpty": true }
+  },
+
+  "apps": {
+    "com.microsoft.VSCode": { "axEnable": "manualAccessibility", "copiesLineWhenEmpty": true },
+    "com.todesktop.230313mzl4w4u92": { "axEnable": "manualAccessibility", "copiesLineWhenEmpty": true },
+    "com.tinyspeck.slackmacgap": { "axEnable": "manualAccessibility" },
+    "notion.id": { "axEnable": "manualAccessibility" },
+    "md.obsidian": { "axEnable": "manualAccessibility" },
+    "com.hnc.Discord": { "axEnable": "manualAccessibility" },
+    "com.linear": { "axEnable": "manualAccessibility" },
+    "com.anthropic.claudefordesktop": { "axEnable": "manualAccessibility" },
+
+    "com.google.Chrome": { "axEnable": "enhancedUserInterface" },
+    "company.thebrowser.Browser": { "axEnable": "enhancedUserInterface" },
+    "com.microsoft.edgemac": { "axEnable": "enhancedUserInterface" },
+    "com.brave.Browser": { "axEnable": "enhancedUserInterface" }
+  }
+}

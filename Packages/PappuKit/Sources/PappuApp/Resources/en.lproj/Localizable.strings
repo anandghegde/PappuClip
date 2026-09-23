@@ -1,0 +1,62 @@
+/* The status item's accessibility label; it shows an icon and no title (PRD §7.5). */
+"menu.accessibility.label" = "PappuClip";
+
+/* The global automatic-appearance toggle (PRD §7.1, §7.5). */
+"menu.appearAutomatically" = "Appear Automatically";
+
+/* A timed pause (ACT-18). */
+"menu.pauseForOneHour" = "Pause for One Hour";
+
+/* A pause with no end until the user says so (ACT-18). */
+"menu.pauseUntilResumed" = "Pause Until Resumed";
+
+/* Ends either pause (ACT-18). */
+"menu.resume" = "Resume";
+
+/* Opens the settings window (PRD §7.5). */
+"menu.settings" = "Settings…";
+
+/* %@ is a time of day, already formatted for the user's locale (ACT-18). */
+"menu.status.pausedUntil" = "Paused until %@";
+
+/* The pause status line when the pause has no end (ACT-18). */
+"menu.status.pausedUntilResumed" = "Paused";
+
+/* Quits the app (PRD §7.5). */
+"menu.quit" = "Quit PappuClip";
+
+/* Opens onboarding when the Accessibility grant is missing (ONB-1). */
+"menu.accessibilityMissing" = "Accessibility Permission Needed…";
+
+/* Opens onboarding when the grant is present but refused (ONB-4). */
+"menu.accessibilityStale" = "Repair Accessibility Permission…";
+
+/* The onboarding window's title (ONB-1). */
+"onboarding.window.title" = "Welcome to PappuClip";
+
+/* The first-run headline (ONB-1). */
+"onboarding.welcome.title" = "Select text. Act on it.";
+
+/* What the app does, on first run (ONB-1). */
+"onboarding.welcome.body" = "Select text anywhere and a small bar appears beside it, with what you can do with that text \U2014 copy it, search for it, open a link, change its case.";
+
+/* Moves on from the explanation to the permission request (ONB-1). */
+"onboarding.welcome.continue" = "Continue";
+
+/* The permission screen's headline (ONB-1). */
+"onboarding.permission.title" = "PappuClip needs Accessibility permission";
+
+/* Why the permission is needed, before it is asked for (ONB-1). */
+"onboarding.permission.body" = "macOS only lets an app read the text you have selected once you allow it in Privacy & Security \U2192 Accessibility. PappuClip reads the selection to decide what to offer you, and nothing else.";
+
+/* Opens the Accessibility pane directly (ONB-1). */
+"onboarding.permission.open" = "Open Accessibility Settings";
+
+/* Says that no Done button is needed, because the window closes itself (ONB-1). */
+"onboarding.permission.waiting" = "This window closes itself as soon as the permission is granted.";
+
+/* The repair screen's headline, for a trusted process macOS refuses anyway (ONB-4). */
+"onboarding.repair.title" = "Accessibility permission needs repairing";
+
+/* How to clear a stale grant (ONB-4). */
+"onboarding.repair.body" = "PappuClip is already listed under Privacy & Security \U2192 Accessibility, but macOS is refusing it \U2014 which happens when an update replaces the app. Remove PappuClip from that list with the \U2212 button, then add it again.";

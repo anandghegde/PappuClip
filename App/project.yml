@@ -1,6 +1,6 @@
 # XcodeGen project. The .xcodeproj is generated (Scripts/build.sh) and not committed.
 #
-# The bundle-identifier prefix repeats AppIdentity.bundleIDPrefix in PappuCore, because XcodeGen
+# The bundle-identifier prefix repeats ProductIdentity.bundleIDPrefix in PappuCore, because XcodeGen
 # cannot read Swift constants. A rename changes both.
 name: PappuClip
 
@@ -30,6 +30,42 @@ packages:
     path: ../Packages/PappuKit
 
 targets:
+  # The product (architecture §19). An agent app: the status item is the whole of the UI, the windows
+  # are made in code, and everything it does lives in PappuKit's PappuApp.
+  PappuClip:
+    type: application
+    platform: macOS
+    sources:
+      - path: PappuClip
+        excludes: [Info.plist, PappuClip.entitlements]
+      # The data the app reads out of its own bundle at launch, filed the way the loaders look for it:
+      # the manifests keep their directory (BuiltinExtensions/) and the rest sit at the top of
+      # Resources/. AppResources.load(from:) reads the same documents from the repository layout, and
+      # AppResourcesTests reads them there, so a typo in one of these fails `swift test`.
+      - path: ../Resources/BuiltinExtensions
+        type: folder
+        buildPhase: resources
+      - path: ../Resources/DetectionPolicies/detection-policies.json
+        buildPhase: resources
+      - path: ../Resources/search-engines.json
+        buildPhase: resources
+      - path: ../Resources/url-schemes.json
+        buildPhase: resources
+      - path: ../Resources/top-level-domains.txt
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.pappuclip.PappuClip
+        INFOPLIST_FILE: PappuClip/Info.plist
+        CODE_SIGN_ENTITLEMENTS: PappuClip/PappuClip.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        # As for SpikeLab: the debug dylib cannot be loaded under the hardened runtime when the
+        # signature has no Team ID, which is the case for the local development certificate.
+        ENABLE_DEBUG_DYLIB: NO
+    dependencies:
+      - package: PappuKit
+        product: PappuApp
+
   # Throwaway host for the M0 spikes (implementation plan §3). Deleted when M0 closes; the harness
   # it drives lives in PappuKit and stays.
   SpikeLab:
@@ -58,6 +94,9 @@ targets:
         product: PappuCore
       - package: PappuKit
         product: PappuHarness
+      # For check-tap-service only, which runs the product's taps on a real session.
+      - package: PappuKit
+        product: PappuSelection
       - target: SpikeJSHost
 
   # Spike 5's helper: sandboxed, no JIT entitlement, embedded in SpikeLab as an XPC service.

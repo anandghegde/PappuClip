@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Question** | "Clipboard transaction ownership and destination verification under delayed copy, concurrent user copy, source edits and app switches. Validate the quiescence tier (RUN-2): how reliably the event tap and frontmost-window checks detect intervening input, and what time window is safe." (PRD §12, item 6) |
-| **Status** | running. The pasteboard half is answered with a design change. The quiescence half and everything per app wait for permissions that SpikeLab does not have on this Mac; see "Not covered" |
+| **Status** | running. The pasteboard half is answered, and every design change it asked for is built: `ClipboardBroker`, M1 week 3, `docs/architecture.md` §5. The first-writer decision this report left open is made below. The quiescence half and everything per app wait for permissions that SpikeLab does not have on this Mac; see "Not covered" |
 | **Result files** | `Tests/results/spike-6-clipboard/20260920T142739-macOS26.4.1-arm64.json` — no permissions, options `general,hung,epoch`<br>`Tests/results/spike-6-clipboard/20260920T142840-macOS26.4.1-arm64.json` — same build, second run<br>`Tests/results/spike-6-clipboard/20260920T142941-macOS26.4.1-arm64.json` — same build, third run<br>Figures below are given as the range over the three files. Every finding had the same outcome in all three |
 | **Machines** | One: Mac16,10 (Apple silicon), macOS 26.4.1 (25E253). **Missing: macOS 15 and the current beta.** The pasteboard-privacy answer is the one most likely to differ on them |
 
@@ -151,8 +151,9 @@ A file promise from `NSFilePromiseProvider` shows as `com.apple.NSFilePromiseIte
 
 ## Consequences
 
-- **Design changes** (proposed; `docs/architecture.md` §5 lists them as found and not yet designed in, and its state
-  machine is unchanged):
+- **Design changes.** All of them are built, in M1 week 3, and `docs/architecture.md` §5 is now the design as
+  built rather than the design these findings argued against. The state machine gained `Settling` and a post-restore
+  `Watching`; `ClipboardTiming` holds the numbers. What each change became:
   - *Attribution.* Split "the count advanced" from "holds a text type". When the count moves inside the window and
     no text type is there yet, wait and look again; abandon only when a short text wait runs out. The measured need
     is under 1 ms for a prompt writer, and an app that works between clearing and writing needs as long as it works,
@@ -170,12 +171,16 @@ A file promise from `NSFilePromiseProvider` shows as `com.apple.NSFilePromiseIte
   - *After the restore.* Add a state the design does not have: keep watching for the rest of the drain window after
     `Restored`, and put the snapshot back once more if an attributable change arrives. Without it, a transaction
     that captured the wrong write leaves the app's real copy on the clipboard.
-  - *The first-writer hole.* A write from another program between the ⌘C and the app's copy is taken for the
-    selection, and nothing the pasteboard offers tells them apart. Candidates, none tested: compare the captured
-    text with what AX can see of the selection where AX gives anything; require the expected delta *and* no further
-    change for a short settle time before capture (which would have caught this scenario, at the cost of that time
-    on every fallback read); treat clipboard-manager apps in the running set as a reason to lengthen the settle.
-    This needs a decision before the broker is built (M1 week 3).
+  - *The first-writer hole.* **Decided: all three candidates, and the hole is still not closed.** The settle is
+    unconditional — 30 ms, and 90 ms when a clipboard manager is in the running set, which is the third candidate
+    folded into the first — and it is what catches the shape this spike produced, a writer still going. The second
+    candidate became `expectedCharacters`: a length from a strategy that found the selection's range but could not
+    read its text, passed to `ClipboardBroker.read`, and it must be a fresh reading rather than ACT-14's mouse-down
+    baseline, which is from before the gesture. It is the only *positive* evidence available, and it is often
+    absent. What is left over is not fixed and is not hidden: ACT-10j keeps strategy 5 off the automatic path for
+    every unlisted app, so the residue only exists where somebody decided an app was worth it or the user asked by
+    name, and an unattributable end is a recorded safety event. The cost of the settle is 30 ms on every fallback
+    read, paid out of the 270 ms read stage, and that is the trade this decision makes.
   - *Drain.* Any finite drain leaves a later copy on the clipboard. The window has to come from the per-app tail of
     copy latency, which the `live` option measures and which has not been run. Apps whose tail is longer than a
     tolerable drain belong on the disable list for the clipboard fallback rather than on a longer drain.
@@ -204,12 +209,18 @@ access on this Mac, and granting them is the owner's decision.
   the expected-delta range and the drain window: the Tier A lists of PRD §11.5, Word first among the tracked apps
   because of its stray-copy issue.
 - **Source edits and app switches during a transaction**, and **destination verification** before a paste. Both
-  need a real frontmost app and AX. They belong to the race suite of M1 week 3, with the per-app figures from `live`
-  as inputs.
+  need a real frontmost app and AX. The race suite of M1 week 3 is written — 160 seeded interleavings against a
+  scripted pasteboard, `ClipboardRaceTests` — and it covers everything the pasteboard alone decides. What it cannot
+  supply is the per-app figures from `live` and anything that depends on a real frontmost app.
 - **A concurrent user copy.** The scripted foreign write stands in for it on the pasteboard side. What differs with a
   real one is that `InputEpoch` advances, which is the untested half.
 - **Pasteboard privacy switched on.** `defaults write app.pappuclip.SpikeLab EnablePasteboardPrivacyDeveloperPreview -bool YES`
   and a `general` run would show what enforcement looks like to the broker. Not done: it may raise a prompt that
   nobody was there to answer. The read is behind a 6 s deadline, so the run would survive it.
 - **macOS 15 and the current beta.**
-- The paste settle delay ("an app's read after ⌘V cannot be observed", architecture §5): nothing here measures it.
+- **The paste hold** ("an app's read after ⌘V cannot be observed", architecture §5): nothing here measures it, and
+  on this Mac nothing can — posting the keystroke needs the grant. `ClipboardTiming.holdMs` is 120 ms and
+  **provisional** on that account. It is the one number in the broker with no observable to fit: a paste moves no
+  change count and leaves no type behind, so too short loses the paste and too long leaves the user's clipboard
+  missing for no reason. What can settle it is a `live` run with the grant, per app, or rows 10–12 of
+  `docs/checklists/m1-manual.md` by hand.

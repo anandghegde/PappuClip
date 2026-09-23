@@ -29,7 +29,7 @@ public final class RunRecorder: Sendable {
     private let startInstant = ContinuousClock.now
     private let state: Mutex<State>
     private let onLog: (@Sendable (String) -> Void)?
-    private let signposter = OSSignposter(subsystem: AppIdentity.logSubsystem, category: "Harness")
+    private let signposter = OSSignposter(subsystem: ProductIdentity.logSubsystem, category: "Harness")
 
     /// - Parameter onLog: Called for every log line, on the calling thread. SpikeLab shows these live.
     public init(

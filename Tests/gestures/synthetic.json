@@ -1,0 +1,261 @@
+[
+  {
+    "name": "drag along one line, left to right",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [120, 300], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "dragged", "location": [180.0, 300.3], "modifiers": [], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [240.0, 300.7], "modifiers": [], "clickCount": 1, "timestampNs": 140000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [300.0, 301.0], "modifiers": [], "clickCount": 1, "timestampNs": 210000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [360.0, 301.3], "modifiers": [], "clickCount": 1, "timestampNs": 280000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [420.0, 301.7], "modifiers": [], "clickCount": 1, "timestampNs": 350000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [480.0, 302.0], "modifiers": [], "clickCount": 1, "timestampNs": 420000000, "windowNumber": 7},
+      {"kind": "up", "location": [480, 302], "modifiers": [], "clickCount": 1, "timestampNs": 450000000, "windowNumber": 7}
+    ],
+    "expected": [{"dragSelect": {"direction": "downwards"}}]
+  },
+  {
+    "name": "drag up across three lines",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [480, 360], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "dragged", "location": [423.3, 353.0], "modifiers": [], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [366.7, 346.0], "modifiers": [], "clickCount": 1, "timestampNs": 140000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [310.0, 339.0], "modifiers": [], "clickCount": 1, "timestampNs": 210000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [253.3, 332.0], "modifiers": [], "clickCount": 1, "timestampNs": 280000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [196.7, 325.0], "modifiers": [], "clickCount": 1, "timestampNs": 350000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [140.0, 318.0], "modifiers": [], "clickCount": 1, "timestampNs": 420000000, "windowNumber": 7},
+      {"kind": "up", "location": [140, 318], "modifiers": [], "clickCount": 1, "timestampNs": 450000000, "windowNumber": 7}
+    ],
+    "expected": [{"dragSelect": {"direction": "upwards"}}]
+  },
+  {
+    "name": "double-click a word",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7},
+      {"kind": "down", "location": [100, 100], "modifiers": [], "clickCount": 2, "timestampNs": 180000000, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": [], "clickCount": 2, "timestampNs": 250000000, "windowNumber": 7}
+    ],
+    "expected": [{"multiClick": {"count": 2, "dragged": false}}]
+  },
+  {
+    "name": "triple-click a paragraph",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7},
+      {"kind": "down", "location": [100, 100], "modifiers": [], "clickCount": 2, "timestampNs": 170000000, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": [], "clickCount": 2, "timestampNs": 240000000, "windowNumber": 7},
+      {"kind": "down", "location": [100, 100], "modifiers": [], "clickCount": 3, "timestampNs": 340000000, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": [], "clickCount": 3, "timestampNs": 410000000, "windowNumber": 7}
+    ],
+    "expected": [{"multiClick": {"count": 2, "dragged": false}}, {"multiClick": {"count": 3, "dragged": false}}]
+  },
+  {
+    "name": "double-click, hold, drag across words",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [200, 300], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "up", "location": [200, 300], "modifiers": [], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7},
+      {"kind": "down", "location": [200, 300], "modifiers": [], "clickCount": 2, "timestampNs": 190000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [236.7, 300.2], "modifiers": [], "clickCount": 2, "timestampNs": 340000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [273.3, 300.3], "modifiers": [], "clickCount": 2, "timestampNs": 490000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [310.0, 300.5], "modifiers": [], "clickCount": 2, "timestampNs": 640000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [346.7, 300.7], "modifiers": [], "clickCount": 2, "timestampNs": 790000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [383.3, 300.8], "modifiers": [], "clickCount": 2, "timestampNs": 940000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [420.0, 301.0], "modifiers": [], "clickCount": 2, "timestampNs": 1090000000, "windowNumber": 7},
+      {"kind": "up", "location": [420, 301], "modifiers": [], "clickCount": 2, "timestampNs": 1120000000, "windowNumber": 7}
+    ],
+    "expected": [{"multiClick": {"count": 2, "dragged": true}}]
+  },
+  {
+    "name": "click, then shift-click further down",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [150, 200], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "up", "location": [150, 200], "modifiers": [], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7},
+      {"kind": "down", "location": [400, 380], "modifiers": ["shift"], "clickCount": 1, "timestampNs": 2600000000, "windowNumber": 7},
+      {"kind": "up", "location": [400, 380], "modifiers": ["shift"], "clickCount": 1, "timestampNs": 2670000000, "windowNumber": 7}
+    ],
+    "expected": [{"shiftClick": {}}]
+  },
+  {
+    "name": "double-click a word, then shift-click to extend",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7},
+      {"kind": "down", "location": [100, 100], "modifiers": [], "clickCount": 2, "timestampNs": 180000000, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": [], "clickCount": 2, "timestampNs": 250000000, "windowNumber": 7},
+      {"kind": "down", "location": [380, 140], "modifiers": ["shift"], "clickCount": 1, "timestampNs": 3100000000, "windowNumber": 7},
+      {"kind": "up", "location": [380, 140], "modifiers": ["shift"], "clickCount": 1, "timestampNs": 3170000000, "windowNumber": 7}
+    ],
+    "expected": [{"multiClick": {"count": 2, "dragged": false}}, {"shiftClick": {}}]
+  },
+  {
+    "name": "long press in a text field",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [220, 240], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "up", "location": [220, 240], "modifiers": [], "clickCount": 1, "timestampNs": 760000000, "windowNumber": 7}
+    ],
+    "expected": [{"longPress": {}}]
+  },
+  {
+    "name": "long press with a tremor inside the slop",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [220, 240], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "dragged", "location": [221.5, 240.5], "modifiers": [], "clickCount": 1, "timestampNs": 180000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [222, 241], "modifiers": [], "clickCount": 1, "timestampNs": 390000000, "windowNumber": 7},
+      {"kind": "up", "location": [222, 241], "modifiers": [], "clickCount": 1, "timestampNs": 810000000, "windowNumber": 7}
+    ],
+    "expected": [{"longPress": {}}]
+  },
+  {
+    "name": "ordinary click",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7}
+    ],
+    "expected": []
+  },
+  {
+    "name": "two slow clicks, not a double-click",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7},
+      {"kind": "down", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 1400000000, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 1470000000, "windowNumber": 7}
+    ],
+    "expected": []
+  },
+  {
+    "name": "scrolling",
+    "source": "synthetic",
+    "events": [
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 16000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 32000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 48000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 64000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 80000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 96000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 112000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 128000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 144000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 160000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 176000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 192000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 208000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 224000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 240000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 256000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 272000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 288000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 304000000, "windowNumber": 7}
+    ],
+    "expected": []
+  },
+  {
+    "name": "click, scroll, click",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 300000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 316000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 332000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 348000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 364000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 380000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 396000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 412000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 428000000, "windowNumber": 7},
+      {"kind": "scroll", "location": [300, 400], "modifiers": [], "clickCount": 0, "timestampNs": 444000000, "windowNumber": 7},
+      {"kind": "down", "location": [300, 420], "modifiers": [], "clickCount": 1, "timestampNs": 900000000, "windowNumber": 7},
+      {"kind": "up", "location": [300, 420], "modifiers": [], "clickCount": 1, "timestampNs": 970000000, "windowNumber": 7}
+    ],
+    "expected": []
+  },
+  {
+    "name": "keyboard-only selection: the recogniser is sent nothing",
+    "source": "synthetic",
+    "events": [],
+    "expected": []
+  },
+  {
+    "name": "shift-click in a window with no earlier press",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [100, 100], "modifiers": ["shift"], "clickCount": 1, "timestampNs": 0, "windowNumber": 12},
+      {"kind": "up", "location": [100, 100], "modifiers": ["shift"], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 12}
+    ],
+    "expected": []
+  },
+  {
+    "name": "click in one window, shift-click in another",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": [], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7},
+      {"kind": "down", "location": [100, 100], "modifiers": ["shift"], "clickCount": 1, "timestampNs": 1500000000, "windowNumber": 9},
+      {"kind": "up", "location": [100, 100], "modifiers": ["shift"], "clickCount": 1, "timestampNs": 1570000000, "windowNumber": 9}
+    ],
+    "expected": []
+  },
+  {
+    "name": "command held through a drag",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [120, 300], "modifiers": ["command"], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "dragged", "location": [180.0, 300.3], "modifiers": ["command"], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [240.0, 300.7], "modifiers": ["command"], "clickCount": 1, "timestampNs": 140000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [300.0, 301.0], "modifiers": ["command"], "clickCount": 1, "timestampNs": 210000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [360.0, 301.3], "modifiers": ["command"], "clickCount": 1, "timestampNs": 280000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [420.0, 301.7], "modifiers": ["command"], "clickCount": 1, "timestampNs": 350000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [480.0, 302.0], "modifiers": ["command"], "clickCount": 1, "timestampNs": 420000000, "windowNumber": 7},
+      {"kind": "up", "location": [480, 302], "modifiers": ["command"], "clickCount": 1, "timestampNs": 450000000, "windowNumber": 7}
+    ],
+    "expected": [{"suppressed": {}}]
+  },
+  {
+    "name": "command pressed halfway through a drag",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [120, 300], "modifiers": [], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "dragged", "location": [180.0, 306.7], "modifiers": [], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [240.0, 313.3], "modifiers": [], "clickCount": 1, "timestampNs": 140000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [300.0, 320.0], "modifiers": ["command"], "clickCount": 1, "timestampNs": 210000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [360.0, 326.7], "modifiers": ["command"], "clickCount": 1, "timestampNs": 280000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [420.0, 333.3], "modifiers": ["command"], "clickCount": 1, "timestampNs": 350000000, "windowNumber": 7},
+      {"kind": "dragged", "location": [480.0, 340.0], "modifiers": ["command"], "clickCount": 1, "timestampNs": 420000000, "windowNumber": 7},
+      {"kind": "up", "location": [480, 340], "modifiers": ["command"], "clickCount": 1, "timestampNs": 450000000, "windowNumber": 7}
+    ],
+    "expected": [{"suppressed": {}}]
+  },
+  {
+    "name": "command-double-click",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [100, 100], "modifiers": ["command"], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": ["command"], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7},
+      {"kind": "down", "location": [100, 100], "modifiers": ["command"], "clickCount": 2, "timestampNs": 180000000, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": ["command"], "clickCount": 2, "timestampNs": 250000000, "windowNumber": 7}
+    ],
+    "expected": [{"suppressed": {}}]
+  },
+  {
+    "name": "command-click on a link",
+    "source": "synthetic",
+    "events": [
+      {"kind": "down", "location": [100, 100], "modifiers": ["command"], "clickCount": 1, "timestampNs": 0, "windowNumber": 7},
+      {"kind": "up", "location": [100, 100], "modifiers": ["command"], "clickCount": 1, "timestampNs": 70000000, "windowNumber": 7}
+    ],
+    "expected": []
+  }
+]

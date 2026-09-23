@@ -3,8 +3,10 @@
 A free, open-source selection bar for macOS: select text, and a small bar of actions appears next to it. It aims to
 run existing PopClip extensions unchanged.
 
-**Status: pre-alpha, milestone M0 (technical spikes).** There is no app to use yet. What exists is the design, the
-package skeleton, and `SpikeLab`, a throwaway app that runs the experiments the design depends on.
+**Status: pre-alpha, milestone M0 (technical spikes).** There is an app that builds and nothing anyone should rely on:
+`PappuClip.app` assembles the bar, the five built-in actions, the menu bar item, Settings and the onboarding flow, and
+it has not been run for long enough by anyone to be called working. The M0 spikes still need a Mac with a person at it
+([what is left](docs/spikes/RUNBOOK.md)), and `SpikeLab` is the throwaway app that runs them.
 
 PappuClip is an independent project. It is not affiliated with, endorsed by, or derived from the code of PopClip or
 Pilotmoon Software. "PopClip" is their trademark and is used here only to describe compatibility.
@@ -32,11 +34,19 @@ swift build
 swift test
 swift run pappu-dev trace check      # Tests/traceability.yaml against the design documents and the tests
 
-# The app targets
+# The app targets: `Scripts/build.sh [scheme] [configuration]`, default SpikeLab Debug
 Scripts/setup-dev-signing.sh         # once per Mac; see below
-Scripts/build.sh                     # generates App/PappuClip.xcodeproj and builds SpikeLab into build/
+Scripts/build.sh PappuClip           # generates App/PappuClip.xcodeproj and builds the app into build/
+open build/DerivedData/Build/Products/Debug/PappuClip.app
+
+Scripts/build.sh                     # SpikeLab, for the M0 spikes
 open build/DerivedData/Build/Products/Debug/SpikeLab.app
 ```
+
+PappuClip is a menu-bar agent: there is no Dock icon and no window at launch, only a paperclip in the menu bar and,
+the first time, a window explaining why it wants the Accessibility permission. Without that permission no bar appears
+on a selection, and the first item in the menu says so. `tccutil reset Accessibility app.pappuclip.PappuClip` puts a
+Mac back to never having been asked.
 
 ### Why a signing certificate
 
@@ -71,6 +81,5 @@ targets that host it. [Architecture §15](docs/architecture.md#15-repository-lay
 
 ## Licence
 
-Not chosen yet. The choice between GPL-3.0 and MIT depends on what the M0 spikes show about code reuse and is made
-at M0 exit, before the project accepts outside contributions ([PRD §13](docs/PRD.md)). Until a `LICENSE` file
-appears, no licence is granted.
+[MIT](LICENSE). The app reuses no code from the GPL-3.0 selection-detection projects, so the permissive option in
+[PRD §13](docs/PRD.md) applies. Extensions are separate works and may use any licence.

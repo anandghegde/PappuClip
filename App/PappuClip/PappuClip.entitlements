@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Deliberately almost empty, and the two absences are the point (PRD §12, SEC-1).
+
+	  There is no `com.apple.security.app-sandbox`: the Accessibility API and a session event tap are
+	  both refused inside the sandbox, and they are how the app reads a selection at all. The hardened
+	  runtime is on instead (project.yml), which is what keeps library validation and the rest of it.
+
+	  There is no `com.apple.security.automation.apple-events`: nothing in the product sends an Apple
+	  event. M0 spike 3 measured the AppleScript route and it is not one of the strategies the shipping
+	  chain uses, so the entitlement that would allow it is not asked for.
+	-->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<false/>
+</dict>
+</plist>

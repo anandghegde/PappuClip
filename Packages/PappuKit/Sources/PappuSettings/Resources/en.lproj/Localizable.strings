@@ -1,0 +1,72 @@
+/* The Settings window's title (PRD §7.5). */
+"settings.window.title" = "PappuClip Settings";
+
+/* The General tab. */
+"settings.tab.general" = "General";
+
+/* The Actions tab (§7.6). */
+"settings.tab.actions" = "Actions";
+
+/* The global automatic-appearance toggle (PRD §7.1). */
+"settings.general.appearAutomatically" = "Appear automatically";
+
+/* Below the toggle: the shortcut is a separate route and is unaffected (ACT-19). */
+"settings.general.appearAutomatically.help" = "Show the bar when you select text. The keyboard shortcut keeps working either way.";
+
+/* The shortcut recorder's label (ACT-5). */
+"settings.general.shortcut" = "Keyboard shortcut";
+
+/* Shown when no shortcut has been chosen; there is no default (ACT-5). */
+"settings.general.shortcut.none" = "None";
+
+/* Starts recording a shortcut. */
+"settings.general.shortcut.record" = "Record";
+
+/* Shown while waiting for the keys. */
+"settings.general.shortcut.recording" = "Press keys…";
+
+/* Forgets the shortcut. */
+"settings.general.shortcut.clear" = "Clear";
+
+/* The name of the space bar in a shortcut. */
+"settings.general.shortcut.space" = "Space";
+
+/* Why a shortcut was refused (ACT-5). */
+"settings.general.shortcut.refused" = "That shortcut needs Control, Option or Command — or a function key on its own.";
+
+/* Which side of the selection the bar appears on (BAR-3). */
+"settings.general.position" = "Position";
+"settings.general.position.above" = "Above the text";
+"settings.general.position.below" = "Below the text";
+
+/* The per-app rules (ACT-17a, ALM-8). */
+"settings.general.rules" = "Rules";
+"settings.general.rules.apps" = "Apps…";
+
+/* The banner when the Accessibility grant is missing (ONB-1). */
+"settings.accessibility.missing" = "PappuClip needs Accessibility permission to read the text you select.";
+
+/* The banner when the grant is present but refused (ONB-4). */
+"settings.accessibility.stale" = "PappuClip is listed under Accessibility, but the permission is no longer working. Remove it from the list and add it again.";
+
+/* Opens the Accessibility pane of System Settings (ONB-1). */
+"settings.accessibility.open" = "Open System Settings…";
+
+/* The Apps sheet (ACT-17a, ALM-8). */
+"settings.apps.title" = "Apps";
+"settings.apps.explanation" = "The bar stays away from these apps. “Never read text here” is stronger: nothing is read there, by any route.";
+"settings.apps.exclude" = "Don’t appear automatically";
+"settings.apps.block" = "Never read text here";
+"settings.apps.add" = "Add App…";
+"settings.apps.remove" = "Remove";
+"settings.apps.empty" = "No app has a rule of its own.";
+
+/* The Actions tab, which is read-only in this version (§7.6, ALM-2a). */
+"settings.actions.explanation" = "The built-in actions. Renaming, reordering and adding actions arrive in a later version.";
+"settings.actions.builtIn" = "Built-in";
+
+/* Shown beside an action that is switched off (ALM-4). */
+"settings.actions.off" = "Off";
+
+/* Closes a sheet. */
+"settings.done" = "Done";

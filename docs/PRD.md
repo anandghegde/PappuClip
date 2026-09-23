@@ -30,7 +30,7 @@ Facts about PopClip come from its public website, developer docs, type definitio
 - **Latency:** the p95 targets are unchanged. A 700 ms hard cutoff replaces "fast or absent" (§5, §11.1), and the JavaScript helper is kept warm (JS-19).
 - **Metrics:** crash-free sessions now has a measurable source (DIA-4); Tier A is split into gating and tracked apps (§11.5); a missed-appearance rate is added.
 - **New requirements:** the keyboard tap exists only while a PappuClip surface needs it (ACT-19); PopClip coexistence (ONB-6).
-- **Decided:** macOS 15 minimum; GitHub Discussions; the source licence is chosen at M0 exit (§18).
+- **Decided:** macOS 15 minimum; GitHub Discussions; the source licence is MIT (§13).
 - **Structure:** §8 and Appendices A–B moved to the extension platform specification; safety detail moved to the safety specification; mixed-priority IDs split; the testing strategy has its own section (§16), so Risks is now §17 and Open questions §18.
 
 ---
@@ -214,7 +214,7 @@ The public beta at the end of M3 is the first build aimed at PopClip switchers. 
 | ACT-17a | **Never read text here** is a hard privacy rule, distinct from appearance exclusions. App rules apply before any selection read and to automatic, hotkey and scripted activation. Secure input always blocks access. Precedence: secure input/hard block/pause, then activation mode, then action filtering (safety spec §S1). | P0 |
 | ACT-17b | Website hard blocks use available page metadata before reading text. If website hard blocks are configured and the current browser URL cannot be established, selection access in that browser is blocked with an explanation. | P1 |
 | ACT-18 | Menu-bar Pause offers **For one hour**, **Until resumed**, and **Resume**. While paused, do not capture selections or start actions through any activation route; cancel pending reads/actions under RUN-3. Hotkeys explain the paused state without reading text. Persist pause across relaunch, use an absolute expiry for timed pause, and show its state in the menu. | P0 |
-| ACT-19 | Key-down events are tapped only while a PappuClip surface needs them: a visible bar (BAR-9 navigation, BAR-10 dismissal) or an in-flight invocation that may mutate text (RUN-2g). At all other times no keyboard tap is installed, so PappuClip never sits in the path of ordinary typing. The global shortcut uses the system hotkey API, not the tap. Modifier state for ACT-7 and BAR-11 comes from mouse-event flags. | P0 |
+| ACT-19 | Key-down events are tapped only while a PappuClip surface needs them: a visible bar (BAR-9 navigation, BAR-10 dismissal), an in-flight invocation that may mutate text (RUN-2g), or an open clipboard transaction (ACT-10), which watches listen-only for the length of its window and consumes no key. At all other times no keyboard tap is installed, so PappuClip never sits in the path of ordinary typing. The global shortcut uses the system hotkey API, not the tap. Modifier state for ACT-7 and BAR-11 comes from mouse-event flags. | P0 |
 
 ### 7.2 The bar
 
@@ -617,7 +617,7 @@ The gating list is provisional until M0 spike 3 settles it. After that an app mo
 PappuClip is fully open source and free. There are no paid tiers, trials or licence keys.
 
 - **Distribution:** official builds are signed with a Developer ID, notarized, and published as GitHub Releases with Sparkle updates. Add a Homebrew cask. The Mac App Store is not possible: the sandbox blocks the Accessibility and event-posting APIs this kind of app depends on, which is why PopClip left it.
-- **Source licence (decided at M0 exit, before the repository goes public at M1):**
+- **Source licence: MIT** (decided 2026-09-23; the `LICENSE` file at the repository root). The app takes no code from the GPL-3.0 projects, so the second option below applies and the first is kept as the record of what was weighed. Borrowing GPL code is now ruled out.
   - **GPL-3.0 for the app, if the M0 spikes show PappuClip will reuse code from the GPL-3.0 selection-detection projects** (Easydict, Selected), which cover the hardest part of the product. It also keeps forks open. The bundled JavaScript libraries and Sparkle are permissively licensed and compatible with it.
   - **MIT for the app if the spikes show no such reuse.** That is simpler and friendlier to reuse, but rules out borrowing GPL code later and allows closed-source forks. The choice cannot be deferred past M1: without a contributor licence agreement, relicensing after outside contributions arrive needs every contributor's consent.
   - **MIT for everything extension authors touch,** in both cases: the TypeScript types, the template repo and example extensions. Authors then carry no obligations from us.
@@ -711,7 +711,7 @@ Each requirement ID, or lettered part, maps to at least one automated test or ma
 **Decisions for the product owner:**
 
 1. *(Decided)* The name is PappuClip.
-2. *(Decided)* Fully open source and free. Still open: the source licence, which is decided at M0 exit and before the repository goes public — GPL-3.0 if the spikes show reuse of GPL selection-detection code, otherwise MIT (§13).
+2. *(Decided)* Fully open source and free, under the MIT licence (§13).
 3. Whether a courtesy contact with the PopClip developer happens before or after a public beta.
 4. *(Decided)* The minimum macOS version is 15. By 1.0, macOS 14 will be three major releases behind, and dropping it removes a third of the fullscreen and event-tap test matrix.
 5. *(Decided)* DIF-1a, DIF-2a, DIF-3 and DIF-4a ship in 1.0 with bounded scope: completed rich results, searchable palette/hybrid activation, one-field prompts and stable-order per-app visibility. Streaming, configurable activation modifiers and per-app custom ordering remain P2.

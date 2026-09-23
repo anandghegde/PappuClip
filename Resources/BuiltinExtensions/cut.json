@@ -1,0 +1,13 @@
+{
+  "name": { "en": "Cut" },
+  "identifier": "app.pappuclip.builtin.cut",
+  "description": { "en": "Cut the selection to the clipboard. Hold Shift to cut as plain text." },
+  "icon": "symbol:scissors",
+  "actions": [
+    {
+      "identifier": "cut",
+      "requirements": ["text", "cut"],
+      "executor": { "builtin": "cut" }
+    }
+  ]
+}

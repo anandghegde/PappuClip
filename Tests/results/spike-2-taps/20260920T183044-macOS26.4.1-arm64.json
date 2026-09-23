@@ -1,0 +1,455 @@
+{
+  "budgets" : {
+    "accessibility" : {
+      "analysisMs" : 20,
+      "populationMs" : 30,
+      "readMs" : 70,
+      "renderMs" : 30
+    },
+    "clipboardFallback" : {
+      "analysisMs" : 20,
+      "populationMs" : 30,
+      "readMs" : 270,
+      "renderMs" : 30
+    },
+    "hardCutoffMs" : 700,
+    "populationPerFunctionMs" : 15
+  },
+  "durationSeconds" : 0.175042459,
+  "environment" : {
+    "accessibilityTrusted" : true,
+    "architecture" : "arm64",
+    "bundleID" : "app.pappuclip.SpikeLab",
+    "hardwareModel" : "Mac16,10",
+    "osBuild" : "25E253",
+    "osVersion" : "26.4.1",
+    "signing" : {
+      "authority" : "PappuClip Development",
+      "codeHash" : "d63f1fcfe7964400293a88e50969eb5cc6967742",
+      "hardenedRuntime" : true,
+      "identifier" : "app.pappuclip.SpikeLab",
+      "isAdHoc" : false
+    }
+  },
+  "findings" : [
+    {
+      "detail" : "signed by PappuClip Development",
+      "key" : "signing.identity",
+      "labels" : {
+
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "created=true with accessibility=true inputMonitoring=true postEvent=true",
+      "key" : "tap.active.mouse.created",
+      "labels" : {
+        "events" : "mouse",
+        "tap" : "active"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "created=true with accessibility=true inputMonitoring=true postEvent=true",
+      "key" : "tap.active.keyDown.created",
+      "labels" : {
+        "events" : "keyDown",
+        "tap" : "active"
+      },
+      "outcome" : "info"
+    },
+    {
+      "detail" : "install p95 0.040 ms, max 0.042 ms over 50 cycles; ceiling 10 ms",
+      "key" : "keyTap.lease.installIsCheap",
+      "labels" : {
+
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "20 of 20 events posted immediately after install reached the tap",
+      "key" : "keyTap.lease.seesKeyPressedRightAfterInstall",
+      "labels" : {
+
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "0 of 100 synthetic key events never reached the tap",
+      "key" : "keyTap.delivery.lost",
+      "labels" : {
+
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "reportsDisabled=true seenWhileDisabled=false seenAfterReenable=true",
+      "key" : "tap.reenable",
+      "labels" : {
+
+      },
+      "outcome" : "confirmed"
+    }
+  ],
+  "log" : [
+    "   0.004s  Permissions before: accessibility=true inputMonitoring=true postEvent=true",
+    "   0.006s  [info] signing.identity: signed by PappuClip Development",
+    "   0.006s  Same build as the previous run, so nothing to learn about rebuilds.",
+    "   0.008s  [info] tap.active.mouse.created: created=true with accessibility=true inputMonitoring=true postEvent=true",
+    "   0.008s  [info] tap.active.keyDown.created: created=true with accessibility=true inputMonitoring=true postEvent=true",
+    "   0.012s  [confirmed] keyTap.lease.installIsCheap: install p95 0.040 ms, max 0.042 ms over 50 cycles; ceiling 10 ms",
+    "   0.015s  [confirmed] keyTap.lease.seesKeyPressedRightAfterInstall: 20 of 20 events posted immediately after install reached the tap",
+    "   0.021s  [confirmed] keyTap.delivery.lost: 0 of 100 synthetic key events never reached the tap",
+    "   0.173s  [confirmed] tap.reenable: reportsDisabled=true seenWhileDisabled=false seenAfterReenable=true"
+  ],
+  "measurements" : [
+    {
+      "labels" : {
+        "events" : "mouse",
+        "tap" : "active"
+      },
+      "name" : "tap.create",
+      "summary" : {
+        "count" : 1,
+        "max" : 1.887125,
+        "mean" : 1.887125,
+        "min" : 1.887125,
+        "p50" : 1.887125,
+        "p95" : 1.887125,
+        "p99" : 1.887125
+      },
+      "unit" : "ms",
+      "values" : [
+        1.887125
+      ]
+    },
+    {
+      "labels" : {
+        "events" : "keyDown",
+        "tap" : "active"
+      },
+      "name" : "tap.create",
+      "summary" : {
+        "count" : 1,
+        "max" : 0.037208,
+        "mean" : 0.037208,
+        "min" : 0.037208,
+        "p50" : 0.037208,
+        "p95" : 0.037208,
+        "p99" : 0.037208
+      },
+      "unit" : "ms",
+      "values" : [
+        0.037208
+      ]
+    },
+    {
+      "labels" : {
+
+      },
+      "name" : "keyTap.install",
+      "summary" : {
+        "count" : 50,
+        "max" : 0.041958,
+        "mean" : 0.0291976,
+        "min" : 0.02375,
+        "p50" : 0.027875,
+        "p95" : 0.039958,
+        "p99" : 0.041958
+      },
+      "unit" : "ms",
+      "values" : [
+        0.039958,
+        0.030542,
+        0.03525,
+        0.032334,
+        0.026333,
+        0.027875,
+        0.031458,
+        0.030291,
+        0.026084,
+        0.026833,
+        0.0405,
+        0.041958,
+        0.027,
+        0.039292,
+        0.034584,
+        0.027875,
+        0.034375,
+        0.030667,
+        0.024625,
+        0.025084,
+        0.02575,
+        0.027375,
+        0.0245,
+        0.02875,
+        0.025666,
+        0.027875,
+        0.033084,
+        0.026125,
+        0.028833,
+        0.028625,
+        0.0265,
+        0.02825,
+        0.026542,
+        0.029208,
+        0.028667,
+        0.025542,
+        0.029084,
+        0.026875,
+        0.028125,
+        0.027042,
+        0.027084,
+        0.02725,
+        0.02375,
+        0.025417,
+        0.028209,
+        0.027583,
+        0.025209,
+        0.034084,
+        0.026666,
+        0.029292
+      ]
+    },
+    {
+      "labels" : {
+
+      },
+      "name" : "keyTap.remove",
+      "summary" : {
+        "count" : 50,
+        "max" : 0.050917,
+        "mean" : 0.025309939999999996,
+        "min" : 0.012292,
+        "p50" : 0.024792,
+        "p95" : 0.036792,
+        "p99" : 0.050917
+      },
+      "unit" : "ms",
+      "values" : [
+        0.0395,
+        0.050917,
+        0.016167,
+        0.036792,
+        0.025042,
+        0.024666,
+        0.027459,
+        0.029958,
+        0.026042,
+        0.015375,
+        0.015375,
+        0.033375,
+        0.027,
+        0.01575,
+        0.017333,
+        0.031791,
+        0.034292,
+        0.024792,
+        0.025084,
+        0.026083,
+        0.02425,
+        0.023833,
+        0.027083,
+        0.031166,
+        0.026791,
+        0.015834,
+        0.026125,
+        0.019625,
+        0.021875,
+        0.024125,
+        0.022416,
+        0.019875,
+        0.022167,
+        0.021375,
+        0.033,
+        0.012292,
+        0.030333,
+        0.024375,
+        0.034458,
+        0.02675,
+        0.02125,
+        0.025541,
+        0.020541,
+        0.0205,
+        0.0255,
+        0.02275,
+        0.02475,
+        0.020541,
+        0.027292,
+        0.026291
+      ]
+    },
+    {
+      "labels" : {
+
+      },
+      "name" : "keyTap.firstEventAfterInstall",
+      "summary" : {
+        "count" : 20,
+        "max" : 0.071208,
+        "mean" : 0.0348124,
+        "min" : 0.026792,
+        "p50" : 0.032792,
+        "p95" : 0.043166,
+        "p99" : 0.071208
+      },
+      "unit" : "ms",
+      "values" : [
+        0.071208,
+        0.043166,
+        0.039417,
+        0.033,
+        0.033541,
+        0.035875,
+        0.036166,
+        0.032333,
+        0.029042,
+        0.032209,
+        0.028458,
+        0.030208,
+        0.03725,
+        0.030833,
+        0.026792,
+        0.034541,
+        0.033,
+        0.028667,
+        0.02775,
+        0.032792
+      ]
+    },
+    {
+      "labels" : {
+
+      },
+      "name" : "keyTap.eventDelivery",
+      "summary" : {
+        "count" : 100,
+        "max" : 0.050625,
+        "mean" : 0.03088748000000001,
+        "min" : 0.025041,
+        "p50" : 0.030083,
+        "p95" : 0.037125,
+        "p99" : 0.04275
+      },
+      "unit" : "ms",
+      "values" : [
+        0.04275,
+        0.03325,
+        0.033292,
+        0.037125,
+        0.030584,
+        0.030958,
+        0.028583,
+        0.029292,
+        0.029917,
+        0.030459,
+        0.03025,
+        0.030709,
+        0.029792,
+        0.029541,
+        0.028709,
+        0.033292,
+        0.029833,
+        0.028333,
+        0.039084,
+        0.033167,
+        0.034417,
+        0.035083,
+        0.032708,
+        0.032209,
+        0.031083,
+        0.028833,
+        0.031542,
+        0.038625,
+        0.029917,
+        0.033916,
+        0.035458,
+        0.030125,
+        0.028875,
+        0.029042,
+        0.029792,
+        0.031459,
+        0.030042,
+        0.028625,
+        0.026667,
+        0.030583,
+        0.028583,
+        0.030333,
+        0.027625,
+        0.028375,
+        0.026791,
+        0.0365,
+        0.025041,
+        0.029125,
+        0.028583,
+        0.029375,
+        0.029708,
+        0.030375,
+        0.050625,
+        0.029166,
+        0.030333,
+        0.028917,
+        0.033041,
+        0.035917,
+        0.030375,
+        0.0315,
+        0.029916,
+        0.032417,
+        0.029208,
+        0.027958,
+        0.031167,
+        0.033625,
+        0.030459,
+        0.031,
+        0.030083,
+        0.028583,
+        0.030666,
+        0.038333,
+        0.027708,
+        0.027708,
+        0.02675,
+        0.026417,
+        0.027583,
+        0.0295,
+        0.029083,
+        0.028,
+        0.028125,
+        0.029584,
+        0.028625,
+        0.030667,
+        0.031166,
+        0.027541,
+        0.030375,
+        0.030084,
+        0.03,
+        0.030833,
+        0.031666,
+        0.031875,
+        0.0295,
+        0.0295,
+        0.029084,
+        0.031167,
+        0.0305,
+        0.035417,
+        0.028958,
+        0.029708
+      ]
+    }
+  ],
+  "notes" : "",
+  "parameters" : {
+    "installCeilingMs" : "10.0",
+    "keyTapCycles" : "50",
+    "launchedByLaunchd" : "true",
+    "mode" : "headless",
+    "options" : "none",
+    "permissionsAfter" : "accessibility=true inputMonitoring=true postEvent=true",
+    "permissionsBefore" : "accessibility=true inputMonitoring=true postEvent=true",
+    "tccState" : "Accessibility only; active taps only, nobody at the mouse; baseline for the rebuild check"
+  },
+  "question" : "Event-tap type versus permission prompts, including installing the key-down tap only while it is needed (ACT-19).",
+  "runID" : "spike-2-taps",
+  "schema" : 1,
+  "startedAt" : "2026-09-20T18:30:44Z",
+  "title" : "2 · Event taps and permissions"
+}

@@ -1,0 +1,13 @@
+{
+  "name": { "en": "Copy" },
+  "identifier": "app.pappuclip.builtin.copy",
+  "description": { "en": "Copy the selection to the clipboard. Hold Shift to copy as plain text." },
+  "icon": "symbol:doc.on.doc",
+  "actions": [
+    {
+      "identifier": "copy",
+      "requirements": ["text"],
+      "executor": { "builtin": "copy" }
+    }
+  ]
+}

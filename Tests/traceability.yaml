@@ -14,74 +14,877 @@ current_milestone: M0
 requirements:
 
   # Activation and selection reading (PRD §7.1, safety spec)
-  ACT-1: { priority: P0, milestone: M1, tests: [] }
-  ACT-2: { priority: P0, milestone: M1, tests: [] }
-  ACT-3: { priority: P0, milestone: M1, tests: [] }
+  ACT-1:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuSelectionTests/aDragBeyondTheSlopIsADragSelectWithItsDirection
+      - PappuSelectionTests/doubleAndTripleClicksReportTheirCount
+      - PappuSelectionTests/aDoubleClickAndDragIsOneMultiClick
+      - PappuSelectionTests/aShiftClickExtendsFromAnEarlierPressInTheSameWindow
+      - PappuSelectionTests/everyRecordingReplaysToItsExpectedGestures
+      - PappuSelectionTests/aDragThatSelectsTextShowsTheBar
+  ACT-2:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuSelectionTests/nothingIsReportedUntilTheButtonIsReleased
+      - PappuSelectionTests/aDoubleClickAndHoldNeverArmsTheLongPress
+      - PappuSelectionTests/noBarAppearsWhileTheButtonIsStillDown
+  ACT-3:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuSelectionTests/aLongPressIsReportedAtHalfASecondWhileTheButtonIsDown
+      - PappuSelectionTests/movementOrReleaseCancelsTheLongPress
+      - PappuSelectionTests/aLongPressInAFieldShowsABarWithNoSelectionSoPasteIsReachable
+      - PappuSelectionTests/aLongPressOnAParagraphOneCannotTypeIntoShowsNothing
+      - PappuRuntimeTests/aCaretWithNoSelectionOffersPasteAlone
+      - PappuCoreTests/pasteIsTheOneBuiltinThatDoesNotNeedASelection
+      - PappuSelectionTests/aCaretIsAnsweredWithoutReadingAnyText
+      - PappuSelectionTests/aCaretStopsTheChainBeforeTheClipboard
+      - PappuCoreTests/cutIsNotOfferedAtACaretEvenWhenTheEditMenuSaysItIsAvailable
+      - PappuAppTests/aCaretInAFieldOffersPasteAlone
+      - PappuAppTests/aCaretWithNothingToPasteHasNoBar
+      - PappuAppTests/aVerdictThatShowsNoBarIsNotResolvedAtAll
   ACT-4: { priority: P1, milestone: M4, tests: [] }
-  ACT-5: { priority: P0, milestone: M1, tests: [] }
-  ACT-6a: { priority: P0, milestone: M1, tests: [] }
+  ACT-5:
+    priority: P0
+    milestone: M1
+    note: >-
+      Three parts. The shortcut itself — what may be one, registering it, and the presses coming back —
+      the rules it does and does not override, which are the gate's, and the route through
+      `ActivationCoordinator.activate(route:)`, which reads the selection with no gesture and no
+      baseline behind it. The bar it hands the answer to is `BarController`, built in M1 week 4; the
+      shortcut's own bar is `aShortcutBarStartsInKeyboardModeWithTheFirstButtonHighlighted` below. The
+      recorder is a fourth part and lives in Settings (PRD §7.5): `ShortcutStore` decides what may be a
+      shortcut, and `SettingsModel.record` is where its refusal becomes a sentence the user can read
+      rather than a key press that silently did nothing. `ShortcutText` is what the field says at the next
+      launch — a shortcut is remembered as a virtual key code, so naming it is a table, and it is the same
+      table that decides which function keys may stand alone.
+    tests:
+      - PappuCoreTests/secureInputRefusesEveryRoute
+      - PappuCoreTests/aHardBlockedAppRefusesEveryRouteIncludingTheShortcut
+      - PappuCoreTests/pauseRefusesEveryRouteIncludingTheShortcut
+      - PappuCoreTests/theShortcutPassesAnAppearanceExclusionThatStopsTheBar
+      - PappuCoreTests/turningAppearAutomaticallyOffLeavesTheShortcutWorking
+      - PappuSelectionTests/theRuleIsAControlOptionOrCommandOrABareFunctionKey
+      - PappuSelectionTests/aShortcutIsRegisteredAndItsPressesArriveInOrder
+      - PappuSelectionTests/nothingIsRegisteredUntilTheUserChoosesOne
+      - PappuSelectionTests/changingTheShortcutTakesTheOldCombinationBack
+      - PappuSelectionTests/clearingTheShortcutUnregistersItAndTheKeyGoesBackToTheApps
+      - PappuSelectionTests/aCombinationThatIsNotAShortcutIsRefused
+      - PappuSelectionTests/aRefusedChoiceEndsWithNoShortcutRatherThanTheOldOne
+      - PappuSelectionTests/aCombinationAnotherAppHoldsIsReportedAsTaken
+      - PappuSelectionTests/theShortcutShowsTheBarWithNoGestureAtAll
+      - PappuSelectionTests/theShortcutShowsTheSelectionTheUserAlreadyHad
+      - PappuSurfacesTests/aShortcutBarStartsInKeyboardModeWithTheFirstButtonHighlighted
+      - PappuSettingsTests/aShortcutThatCouldBeTypedIsRefusedAndSaysWhy
+      - PappuSettingsTests/theNextAttemptClearsTheRefusal
+      - PappuSettingsTests/aFunctionKeyOnItsOwnIsAllowed
+      - PappuSettingsTests/clearingTheShortcutPutsItBackToNone
+      - PappuSettingsTests/aShortcutIsNamedTheWayAMenuNamesIt
+      - PappuSettingsTests/everyFunctionKeyIsNamedFromTheTableThatAllowsIt
+  ACT-6a:
+    priority: P0
+    milestone: M1
+    note: >-
+      The one place a route decides something about the bar's keyboard: `BarKeyboardMode.init` opens
+      with the first button highlighted when the route is deliberate, and with nothing highlighted
+      otherwise. An automatic bar that grabbed the arrow keys on sight would take the key that
+      deselects text away from every app on the Mac, which is the other half of the same test.
+    tests:
+      - PappuSurfacesTests/theShortcutOpensCompactKeyboardMode
+      - PappuSurfacesTests/anEmptyBarHasNoKeyboardModeToOpen
+      - PappuSurfacesTests/aBarThatAppearedByItselfDoesNotHoldTheArrowKeysUntilOneIsPressed
+      - PappuSurfacesTests/aShortcutBarStartsInKeyboardModeWithTheFirstButtonHighlighted
+      - PappuSurfacesTests/anAutomaticBarLeavesTheArrowKeysAloneUntilOneIsPressed
   ACT-6b: { priority: P1, milestone: M4, tests: [] }
-  ACT-7: { priority: P0, milestone: M1, tests: [] }
-  ACT-8: { priority: P0, milestone: M1, tests: [] }
-  ACT-9: { priority: P0, milestone: M1, tests: [] }
-  ACT-10a: { priority: P0, milestone: M1, tests: [] }
-  ACT-10b: { priority: P0, milestone: M1, tests: [] }
-  ACT-10c: { priority: P0, milestone: M1, tests: [] }
-  ACT-10d: { priority: P0, milestone: M1, tests: [] }
-  ACT-10e: { priority: P0, milestone: M1, tests: [] }
-  ACT-10f: { priority: P0, milestone: M1, tests: [] }
-  ACT-10g: { priority: P0, milestone: M1, tests: [] }
-  ACT-10h: { priority: P0, milestone: M1, tests: [] }
-  ACT-10i: { priority: P0, milestone: M1, tests: [] }
-  ACT-10j: { priority: P0, milestone: M1, tests: [] }
-  ACT-11a: { priority: P0, milestone: M1, tests: [] }
+  ACT-7:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuSelectionTests/commandAtAnyPointInTheGestureSuppressesIt
+      - PappuSelectionTests/commandOnTheFirstClickSuppressesTheDoubleClick
+      - PappuSelectionTests/commandSuppressesALongPress
+      - PappuSelectionTests/holdingCommandThroughAGestureReadsNothingAtAll
+  ACT-8:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuSelectionTests/noKeyTapExistsUntilSomeoneLeasesIt
+      - PappuSelectionTests/keysNeverReachTheEventStream
+  ACT-9:
+    priority: P0
+    milestone: M1
+    note: >-
+      Three pieces, all built. `DetectionPolicy.chain(for:)` answers which strategies run, in what
+      order, on each route. `AXSelectionReader` is strategies 1 and 3 — one body, because strategy 3
+      *is* strategy 1 with a switch thrown first — on the AX actor, every call bounded by the read
+      stage's budget. `SelectionStrategyChain` is the order between them and the single decision each
+      answer forces: a strategy that could not run leaves the question open, one that ran and found
+      nothing closes it, and only when every strategy has said the first does the attempt come back
+      refused. Strategy 5 is `ClipboardBroker`, whose own tests are ACT-10a-j.
+      Strategies 2 and 4 are not built and are skipped rather than answered, so a chain containing
+      them still reaches strategy 5: strategy 2 wants `AXTextMarkerRange`, an opaque Core Foundation
+      type the `AXWorld` seam does not carry, and strategy 4 wants Automation consent and the
+      per-browser scripts of M0 spike 3. `SelectionStrategyChain.unimplemented` names both, and a test
+      asserts the set, so the day either lands the traceability moves with it.
+    tests:
+      - PappuSelectionTests/anUnlistedAppTriesTheAXStrategiesAutomaticallyAndAddsSyntheticCopyOnTheShortcut
+      - PappuSelectionTests/aDeliberateRouteMayUseSyntheticCopyWhereTheAutomaticPathMayNot
+      - PappuSelectionTests/strategyThreeIsDroppedWhenTheAppHasNoAttributeToEnableAndKeptWhenItHasOne
+      - PappuSelectionTests/syntheticCopyIsNeverPartOfADeclaredStrategyOrder
+      - PappuSelectionTests/theReadIsGivenThePermitTheGateMintedAndTheChainThePolicyAllows
+      - PappuSelectionTests/readsTheCopyAndPutsTheClipboardBack
+      - PappuSelectionTests/aSelectionComesBackWithItsRangeAndItsRectangle
+      - PappuSelectionTests/textWithoutARangeIsStillText
+      - PappuSelectionTests/noFocusedElementIsUnavailable
+      - PappuSelectionTests/aRefusedGrantIsUnavailableAndSaysWhy
+      - PappuSelectionTests/enablingWritesTheSpellingTheAppWants
+      - PappuSelectionTests/theSwitchIsWrittenOncePerProcessAndNotOncePerRead
+      - PappuSelectionTests/aFaultedSwitchStillReads
+      - PappuSelectionTests/aFaultedSwitchIsCarriedIntoTheTrace
+      - PappuSelectionTests/releaseSwitchesTheTreeBackOffAndForgetsIt
+      - PappuSelectionTests/releaseAllPutsEveryProcessBack
+      - PappuSelectionTests/strategyOneAnswersAndNothingBehindItRuns
+      - PappuSelectionTests/anAppWithNoTreeReachesTheClipboardFallback
+      - PappuSelectionTests/strategyThreeThrowsTheSwitchTheAppsPolicyNames
+      - PappuSelectionTests/strategyThreeIsSkippedForAnAppWithNothingToEnable
+      - PappuSelectionTests/anUnimplementedStrategyIsSkippedAndNotAnswered
+      - PappuSelectionTests/aStrategyBehindAnUnimplementedOneStillRuns
+      - PappuSelectionTests/anEmptyChainIsRefusedAndNotEmptyHanded
+      - PappuSelectionTests/aStrategyThatRanAndFoundNothingIsNothing
+      - PappuSelectionTests/anAmbiguousTransactionIsNotAnEmptySelection
+      - PappuSelectionTests/anEmptyStringIsNothingAndNotText
+      - PappuSelectionTests/everyCallIsBoundedByTheReadStagesBudget
+      - PappuSelectionTests/anExhaustedBudgetIsAFloorAndNeverZero
+  ACT-10a:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuSelectionTests/keepsEveryItemAndTypeInOrder
+      - PappuSelectionTests/carriesTypesItDoesNotKnow
+      - PappuSelectionTests/putsAnEmptyClipboardBackAsEmpty
+      - PappuSelectionTests/readsTheCopyAndPutsTheClipboardBack
+  ACT-10b:
+    priority: P0
+    milestone: M1
+    note: >-
+      One requirement with two halves. A representation that cannot be put back: a file promise, or a
+      listed type whose bytes never arrive when asked for (M0 spike 6 saw both). A snapshot that does
+      not fit: over the byte ceiling, or over what is left of the read stage, because a snapshot that
+      would overrun the budget is one that cannot be taken safely either.
+    tests:
+      - PappuSelectionTests/refusesAFilePromise
+      - PappuSelectionTests/refusesARepresentationThatHandsBackNothing
+      - PappuSelectionTests/refusesWhatIsOverTheCeiling
+      - PappuSelectionTests/refusesWhenAReadWouldPromptOrFail
+      - PappuSelectionTests/refusesWhenThereIsNotEnoughOfTheReadStageLeft
+      - PappuSelectionTests/refusesWhenTheSnapshotCannotBeTakenInTime
+  ACT-10c:
+    priority: P0
+    milestone: M1
+    note: >-
+      The broker is an actor with one transaction slot, so a second caller is answered `brokerBusy`
+      rather than queued: a queued transaction would post its copy into the first one's window.
+    tests:
+      - PappuSelectionTests/refusesASecondTransactionWhileOneIsOpen
+  ACT-10d:
+    priority: P0
+    milestone: M1
+    note: >-
+      The count alone proves nothing, which is the whole of this requirement. The broker keeps the
+      count `clearContents()` returned, the instant it posted the copy, the settle it has not yet
+      finished, and the app's own expected delta, and attributes the clipboard to the copy only when
+      all of them agree. `cannotSeeAWriteThatArrivesBeforeTheCopy` pins the one shape none of that can
+      take apart, which ACT-10g covers.
+    tests:
+      - PappuSelectionTests/waitsForTextThatAppearsAfterTheCount
+      - PappuSelectionTests/acceptsALengthThatAgrees
+      - PappuSelectionTests/refusesWhenTheCountMovesAgainDuringTheSettle
+      - PappuSelectionTests/settlesForLongerWhenAClipboardManagerIsRunning
+      - PappuSelectionTests/cannotSeeAWriteThatArrivesBeforeTheCopy
+  ACT-10e:
+    priority: P0
+    milestone: M1
+    note: >-
+      The race suite is the general statement: over 160 seeded interleavings, a restore happens only
+      on an attributable outcome, the broker writes to the clipboard at most once, and what it writes
+      is the snapshot it took.
+    tests:
+      - PappuSelectionTests/readsTheCopyAndPutsTheClipboardBack
+      - PappuSelectionTests/believesTheAppsOwnDelta
+      - PappuSelectionTests/putsTheClipboardBackWhenTheCopyArrivesLate
+      - PappuSelectionTests/restoresEvenWhenTheTextReadIsAbandoned
+      - PappuSelectionTests/noInterleavingLosesAWriteWithoutSayingSo
+      - PappuSelectionTests/aRangeWithNoTextKeepsTheRange
+      - PappuSelectionTests/theLengthAnEarlierStrategySawIsCheckedAgainstThePasteboard
+  ACT-10f:
+    priority: P0
+    milestone: M1
+    note: >-
+      Ambiguity is a refusal to write, never a guess: the race suite asserts that no ambiguous outcome
+      ever clears or restores. One hole cannot be closed and is therefore reported instead — the gap
+      between checking the count and `clearContents()`, 0.13-0.36 ms in M0 spike 6, which is knowable
+      only from what the clear returns (`noticesAWriteItDestroyedInTheGap`, `destroyedANewerWrite`).
+    tests:
+      - PappuSelectionTests/refusesWhenTheUserTypedDuringTheWindow
+      - PappuSelectionTests/refusesWhenKeystrokesCannotBeWatched
+      - PappuSelectionTests/leavesAForeignWriteDuringTheDrainAlone
+      - PappuSelectionTests/noticesAWriteItDestroyedInTheGap
+      - PappuSelectionTests/noInterleavingLosesAWriteWithoutSayingSo
+  ACT-10g:
+    priority: P0
+    milestone: M1
+    note: >-
+      A write the broker did not cause must never be read as the selection. Two of the three shapes
+      are decidable from the count and the app's delta; the third is not. A first writer that lands
+      between the clear and the app's own copy is indistinguishable from the copy, and the only thing
+      that catches it is a length the accessibility read took moments earlier, which is why the permit
+      carries `expectedCharacters`. Where no length is available the hole stays open and is written
+      down in architecture §5 rather than papered over; spike 6 hit it 10 times out of 10.
+    tests:
+      - PappuSelectionTests/catchesTheFirstWriterWithALengthThatDisagrees
+      - PappuSelectionTests/cannotSeeAWriteThatArrivesBeforeTheCopy
+      - PappuSelectionTests/believesTheAppsOwnDelta
+      - PappuSelectionTests/reportsNothingCopiedAndTouchesNothing
+  ACT-10h:
+    priority: P0
+    milestone: M1
+    note: >-
+      The markers are coded and idempotent, so a clipboard that already carried `concealed` gets one
+      of it back, and both kinds of broker write carry them — the restore, and the result a paste holds
+      up for the app to take. The alert sound is the other half and is not done: the beep is the target app's own
+      response to a key equivalent it cannot use, made before any clipboard write exists to mark, and
+      nothing the broker posts can silence it. What is feasible instead is not posting at all, which
+      is the chain's decision (ACT-10j). Named as open for M1's exit in docs/spikes/RUNBOOK.md.
+    tests:
+      - PappuSelectionTests/asksClipboardManagersToIgnoreTheRestore
+      - PappuSelectionTests/readsTheCopyAndPutsTheClipboardBack
+      - PappuSelectionTests/putsTheResultUpPostsTheKeystrokeAndTakesItBackDown
+  ACT-10i:
+    priority: P0
+    milestone: M1
+    note: >-
+      Mostly a measurement against named clipboard managers and a published result, which is the
+      checklist's. The part that is code is knowing that a manager is running, and the settle that
+      depends on it (ACT-10d's `settlesForLongerWhenAClipboardManagerIsRunning`).
+    tests:
+      - PappuAppTests/aClipboardManagerIsNotPopClip
+      - manual:docs/checklists/clipboard-managers.md
+  ACT-10j:
+    priority: P0
+    milestone: M1
+    note: >-
+      Decided by the chain rather than by the broker: strategy 5 is not in the automatic chain unless
+      the policy allows it, and never while PopClip runs. The broker's own half of it is the permit,
+      which only `DetectionPolicyStore` can mint and which the broker cannot be called without: a route
+      or a policy that forbids strategy 5 yields no permit, and no permit is not a refusal the broker
+      has to remember to make, it is a call that does not compile.
+    tests:
+      - PappuAppTests/popClipAlreadyRunningAtLaunchIsSeenAtOnce
+      - PappuAppTests/popClipLaunchingAndQuittingLaterIsFollowed
+      - PappuSelectionTests/anUnlistedAppTakesTheDefaultAndTheDefaultRefusesAutomaticSyntheticCopy
+      - PappuSelectionTests/aWholeLineCopyAppNeverGetsSyntheticCopyOnTheAutomaticPath
+      - PappuSelectionTests/popClipStopsSyntheticCopyOnTheAutomaticPathAndNowhereElse
+      - PappuSelectionTests/theShippedDefaultRefusesSyntheticCopyOnTheAutomaticPath
+      - PappuSelectionTests/everyAppACT11aCallsAWholeLineCopierIsFlagged
+      - PappuSelectionTests/aCaretStopsTheChainBeforeTheClipboard
+      - PappuSelectionTests/popClipTakesTheFallbackAwayOnTheAutomaticPath
+  ACT-11a:
+    priority: P0
+    milestone: M1
+    note: >-
+      `DetectionPolicy`, `DetectionPolicies` and `DetectionPolicyStore` in PappuSelection, over
+      `Resources/DetectionPolicies/detection-policies.json`. The mechanism is closed; the file's
+      per-app strategy order and flags are M0 spike 3's output and the `axEnable` kinds are spike 4's,
+      so what the file says will change while what it may say will not.
+    tests:
+      - PappuSelectionTests/anUnlistedAppTakesTheDefaultAndTheDefaultRefusesAutomaticSyntheticCopy
+      - PappuSelectionTests/aWholeLineCopyAppNeverGetsSyntheticCopyOnTheAutomaticPath
+      - PappuSelectionTests/aSparseRecordOverridesOnlyWhatItNames
+      - PappuSelectionTests/anExactEntryBeatsAPrefixAndTheLongestPrefixWins
+      - PappuSelectionTests/aProcessWithNoBundleIdentifierTakesTheDefault
+      - PappuSelectionTests/aCeilingCanNeverGrant
+      - PappuSelectionTests/aMergeIsNeverLooserThanEitherSide
+      - PappuSelectionTests/theShippedFileLoadsAtTheSchemaThisBuildReads
+      - PappuSelectionTests/everyAppACT11aCallsAWholeLineCopierIsFlagged
+      - PappuSelectionTests/anAppWhosePolicyForbidsTheAutomaticBarIsReadOnlyWhenAsked
   ACT-11b: { priority: P1, milestone: M5, tests: [] }
-  ACT-12: { priority: P0, milestone: M1, tests: [] }
+  ACT-12:
+    priority: P0
+    milestone: M1
+    note: >-
+      The gate refuses on either flag. Reading the flags is split: the system-wide one is
+      `SecureInput` in PappuSelection, and the focused element's role is `AXFocusProbe` on the AX
+      actor, which reads `AXRole` and `AXSubrole` and never an attribute that can hold text. A role
+      the app will not give is not taken for secure, because the system-wide flag is what catches
+      password fields and failing closed would refuse every app with no AX tree. "The bar never
+      appears" is the gate's refusal stopping the attempt in `ActivationCoordinator`, before any
+      strategy runs; the bar that consequently has nothing to show is M1 week 4. The same closed-list
+      argument covers what PappuClip asks an app to *tell* it: `AXNotification` has two cases, both of
+      them events that say something moved without saying what it moved to.
+    tests:
+      - PappuCoreTests/secureInputRefusesEveryRoute
+      - PappuCoreTests/secureInputIsAnsweredBeforeAnyOtherRule
+      - PappuSelectionTests/aSecureFieldIsRecognisedByRoleOrBySubrole
+      - PappuSelectionTests/anOrdinaryTextFieldIsNotSecure
+      - PappuSelectionTests/anAppThatWillNotSayIsNotTakenForSecure
+      - PappuSelectionTests/aSecureFieldRefusesTheReadThroughTheGate
+      - PappuSelectionTests/theMouseDownProbeReadsNoAttributeThatCanHoldText
+      - PappuSelectionTests/theBaselineIsARangeAndNeverTheText
+      - PappuSelectionTests/secureInputStopsTheAttemptBeforeAnyStrategyRuns
+      - PappuSelectionTests/aSecureFieldStopsTheAttemptOnTheRoleTheProbeRead
+      - PappuSelectionTests/anAppThatWouldNotAnswerTheProbeIsRecordedAsAFaultAndReadAnyway
+      - PappuSelectionTests/theOnlyThingsItAsksAnAppToTellItAreTheTwoThatCarryNoText
   ACT-13: { priority: P1, milestone: M4, tests: [] }
-  ACT-14: { priority: P0, milestone: M1, tests: [] }
-  ACT-15: { priority: P0, milestone: M1, tests: [] }
-  ACT-16a: { priority: P0, milestone: M1, tests: [] }
-  ACT-16b: { priority: P0, milestone: M1, tests: [] }
-  ACT-16c: { priority: P0, milestone: M1, tests: [] }
-  ACT-17a: { priority: P0, milestone: M1, tests: [] }
+  ACT-14:
+    priority: P0
+    milestone: M1
+    note: >-
+      `AXFocusProbe` reads the signals at mouse-down — the role under the pointer, the focused
+      element's role, and a baseline range that is a range and never the text — and
+      `ActivationRules.verdict(for:)` weighs them, the route and the gesture into one answer. The
+      cursor shape is not among them: there is nothing in the decision that reads it, which is a
+      stronger statement than the requirement asks for and is why no test names it.
+    tests:
+      - PappuSelectionTests/theRoleUnderThePointerIsReadOnlyWhenThereIsAPointer
+      - PappuSelectionTests/aRoleTheAppWillNotGiveIsNothingToGoOnRatherThanAnEmptyRole
+      - PappuSelectionTests/theBaselineIsARangeAndNeverTheText
+      - PappuSelectionTests/aCaretIsAnAnswerAndNotAFailure
+      - PappuSelectionTests/aBaselineIsOnlyReadForTheProcessTheGateJudged
+      - PappuSelectionTests/aSelectionThatIsWhereItWasBeforeTheGestureShowsNoBar
+      - PappuSelectionTests/aGestureThatSelectedNothingNeverShowsABar
+      - PappuSelectionTests/anAppNoStrategyCanReadIsCalledUnreadableRatherThanEmpty
+      - PappuSelectionTests/aLongPressOnAParagraphOneCannotTypeIntoShowsNothing
+  ACT-15:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuSelectionTests/aTapSwitchedOffWhileInUseIsSwitchedBackOnAtOnce
+      - PappuSelectionTests/aKeyTapSwitchedOffWhileInUseIsSwitchedBackOnAtOnce
+      - PappuSelectionTests/aTapFoundOffIsSwitchedBackOn
+      - PappuSelectionTests/aTapWhosePortIsGoneIsRebuilt
+      - PappuSelectionTests/aGrantGivenLaterIsPickedUpByTheNextHealthCheck
+      - PappuSelectionTests/aWithdrawnGrantIsReportedAsRefused
+      - PappuSelectionTests/aDisabledNoticeIsReadFromTheTypeAlone
+      - PappuSelectionTests/aLostMouseUpDoesNotWedgeTheMachine
+      - PappuSelectionTests/everyNoticeRunsAHealthCheck
+      - PappuSelectionTests/aTapThatWentAwayWhileTheMachineSleptIsRebuiltOnWake
+      - PappuSelectionTests/aGrantGivenWhileAnotherAppWasInFrontIsPickedUpOnActivation
+      - PappuSelectionTests/aWithdrawnGrantShowsAsRefusedRatherThanHealthy
+      - PappuSelectionTests/aTapInterruptionRetiresWhateverWasInFlight
+  ACT-16a:
+    priority: P0
+    milestone: M1
+    note: >-
+      `ActivationCoordinator.invalidate(_:)` is the one way an attempt stops being current, and the
+      reason is kept per attempt so that a read still out reads its own. The events the coordinator
+      sees itself — a newer gesture, a newer press, a scroll, a tap interruption — are wired and
+      tested, and so are the two watchers outside it: `AttemptWatcher` holds an `AXObserver` on the app
+      the attempt is about and takes `NSWorkspace`'s activation notices, and raises an `AttemptNotice`
+      carrying the attempt it was watching, which reaches the coordinator through `watch(_:)` and
+      retires that attempt or nothing. Each watcher needs a rule for telling the user moving on from
+      the echo of the gesture that started the attempt, because both notices can arrive after mouse-up:
+      a selection notice counts only once the read is back, and an activation notice is filtered by
+      pid. `SystemAXObserver` and `WorkspaceActivationWatcher` need a live session and are covered by
+      no test.
+    tests:
+      - PappuSelectionTests/aNewerGestureRetiresTheOneStillReading
+      - PappuSelectionTests/aShortcutWhileAGestureIsStillReadingRetiresTheGesture
+      - PappuSelectionTests/aFocusChangeWhileReadingWithholdsTheBar
+      - PappuSelectionTests/anotherApplicationComingForwardWhileReadingWithholdsTheBar
+      - PappuSelectionTests/aTapInterruptionRetiresWhateverWasInFlight
+      - PappuSelectionTests/anAppComingForwardWhileAnAttemptIsArmedRetiresIt
+      - PappuSelectionTests/theAppTheAttemptIsAboutComingForwardRetiresNothing
+      - PappuSelectionTests/aSelectionThatMovesBeforeTheReadIsBackRetiresNothing
+      - PappuSelectionTests/aSelectionThatMovesAfterTheReadIsBackRetiresTheAttempt
+      - PappuSelectionTests/aFocusChangeAfterTheReadIsBackRetiresTheAttempt
+      - PappuSelectionTests/onlyTheFirstNoticeRetiresAnAttempt
+      - PappuSelectionTests/aNoticeAfterTheAttemptIsOverRetiresNothing
+      - PappuSelectionTests/disarmingAnAttemptANewerOneReplacedLeavesTheNewerOneArmed
+      - PappuSelectionTests/aReadThatComesBackForAReplacedAttemptDoesNotArmTheNewerOne
+      - PappuSelectionTests/aGesturesOwnSelectionNoticeDoesNotStopItsOwnBar
+      - PappuSelectionTests/theCoordinatorRegistersWithTheAppItIsReadingAndDisarmsWhenItIsDone
+      - PappuSelectionTests/aNoticeFromTheWatchersWithholdsTheBarOfTheAttemptItWasRaisedFor
+      - PappuSelectionTests/aNoticeForAnAttemptThatIsOverLeavesTheCurrentOneAlone
+      - PappuSelectionTests/theCutoffIsCheckedBetweenStrategiesAndNotOnlyAtTheEnd
+  ACT-16b:
+    priority: P0
+    milestone: M1
+    note: >-
+      A late completion cannot show a bar because it cannot get the thing a bar needs: `BarPresenting`
+      takes an `AppearancePermit`, which only the coordinator mints and only for an attempt that is
+      still current. `BarController` taking one is M1 week 4 (ACT-16b in the architecture, §3.1).
+    tests:
+      - PappuSelectionTests/aBarOnlyAppearsForTheAttemptThatIsStillCurrent
+      - PappuSelectionTests/aNewerGestureRetiresTheOneStillReading
+      - PappuSelectionTests/aFocusChangeWhileReadingWithholdsTheBar
+      - PappuSelectionTests/anotherApplicationComingForwardWhileReadingWithholdsTheBar
+  ACT-16c:
+    priority: P0
+    milestone: M1
+    note: >-
+      The 700 ms cutoff is checked where it matters, after the read and before anything with an
+      effect, and what is left of it rides on the permit so that the bar's own work is inside the same
+      budget. The synthetic-copy half is the broker's: a copy that lands after the window is restored
+      over and reported late rather than used, a foreign write during the drain is left alone, a text
+      read that never comes back is abandoned and the clipboard still goes back, and a snapshot that
+      will not fit the time that is left is never started.
+    tests:
+      - PappuSelectionTests/aReadThatOverrunsTheHardCutoffShowsNothing
+      - PappuSelectionTests/aBarOnlyAppearsForTheAttemptThatIsStillCurrent
+      - PappuSelectionTests/putsTheClipboardBackWhenTheCopyArrivesLate
+      - PappuSelectionTests/leavesAForeignWriteDuringTheDrainAlone
+      - PappuSelectionTests/restoresEvenWhenTheTextReadIsAbandoned
+      - PappuSelectionTests/refusesWhenTheSnapshotCannotBeTakenInTime
+      - PappuCoreTests/targetsStayBelowTheHardCutoff
+      - PappuCoreTests/targetBudgetAndHardCutoffAreSeparateThresholds
+  ACT-17a:
+    priority: P0
+    milestone: M1
+    note: >-
+      The rules are `PrivacyRules` and the precedence is `PrivacyGate`'s, both tested over values. What
+      says *which* app they are applied to is `FrontmostApp`, and it matters most on the route that has
+      no pointer to read an app from: a shortcut is judged against whatever came forward last. It
+      ignores our own activations, because opening Settings or the onboarding window would otherwise
+      make PappuClip the app in front and a shortcut pressed straight afterwards would be judged
+      against our own rules rather than the user's editor.
+    tests:
+      - PappuCoreTests/aHardBlockedAppRefusesEveryRouteIncludingTheShortcut
+      - PappuCoreTests/aHardBlockIsAnsweredBeforeTheActivationMode
+      - PappuCoreTests/secureInputIsAnsweredBeforeAnyOtherRule
+      - PappuCoreTests/theShortcutPassesAnAppearanceExclusionThatStopsTheBar
+      - PappuCoreTests/anAppTurnedOffRefusesTheShortcutToo
+      - PappuCoreTests/aProcessWithNoBundleIdentifierTakesTheDefaultMode
+      - PappuCoreTests/aDenialWrittenOutHoldsNothingButCodesAndIdentifiers
+      - PappuAppTests/aHardBlockedAppGetsNoBarEvenAfterTheSelectionWasRead
+      - PappuSettingsTests/excludingAnAppDoesNotBlockReadingIt
+      - PappuSettingsTests/removingAnAppForgetsBothOfItsRules
+      - PappuAppTests/theAppInFrontIsTheLastOneToComeForward
+      - PappuAppTests/ourOwnWindowsDoNotBecomeTheAppInFront
+      - PappuAppTests/theReaderHandedOutSeesEveryLaterChange
   ACT-17b: { priority: P1, milestone: M4, tests: [] }
-  ACT-18: { priority: P0, milestone: M1, tests: [] }
-  ACT-19: { priority: P0, milestone: M1, tests: [] }
+  ACT-18:
+    priority: P0
+    milestone: M1
+    note: >-
+      Pause as a rule, as stored state, and now as the menu the user sets it from. `MenuBarMenu` is the
+      menu as a value — which commands exist in which state, what the status line says, where the
+      dividing lines fall — so that the AppKit host has nothing left to decide; the two pauses and Resume
+      are never offered together, because a menu that offers both is a menu that has to be read twice.
+      Cancelling the reads and actions already in flight is RUN-3f, and a pause that begins between the
+      read and the appearance is caught by the second gate evaluation in `SelectionBridge`.
+    tests:
+      - PappuCoreTests/pauseRefusesEveryRouteIncludingTheShortcut
+      - PappuCoreTests/aPauseThatHasRunOutStopsRefusing
+      - PappuCoreTests/pausingForAnHourEndsAnHourLater
+      - PappuCoreTests/pausingUntilResumedNeverEndsOnItsOwn
+      - PappuCoreTests/aPauseSurvivesRelaunch
+      - PappuCoreTests/anExpiryInThePastReadsAsRunningAndIsClearedAway
+      - PappuCoreTests/resumingLeavesNothingBehind
+      - PappuSelectionTests/aPausedAppIsNeverRead
+      - PappuAppTests/nothingIsPausedOnAFreshInstallAndBothPausesAreOffered
+      - PappuAppTests/aPausedMenuOffersResumeAndNeitherPause
+      - PappuAppTests/aPauseWithNoEndSaysOnlyThatItIsPaused
+      - PappuAppTests/aTimedPauseNamesTheTimeItEnds
+      - PappuAppTests/aPauseWhoseHourIsUpIsNotAPause
+      - PappuAppTests/theTickFollowsTheAppearAutomaticallySetting
+      - PappuAppTests/settingsAndQuitKeepTheirShortcuts
+      - PappuAppTests/noDividingLineIsStrandedInAnyState
+      - PappuAppTests/everyCommandIsReachableFromSomeState
+      - PappuAppTests/thePauseStatusPutsTheTimeIntoTheSentence
+      - PappuAppTests/everyStringTheAppSaysIsInTheCatalogue
+      - PappuSettingsTests/aChangeMadeSomewhereElseReachesAnOpenWindow
+      - PappuSettingsTests/everyStringTheSettingsWindowSaysIsInTheCatalogue
+      - PappuSettingsTests/nothingTheSettingsWindowSaysIsWrittenInPlace
+      - PappuAppTests/aPauseThatBeganSinceTheReadGetsNoBar
+  ACT-19:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuSelectionTests/noKeyTapExistsUntilSomeoneLeasesIt
+      - PappuSelectionTests/theKeyTapLivesFromTheFirstLeaseToTheLast
+      - PappuSelectionTests/aLeaseThatIsDroppedGivesTheTapUp
+      - PappuSelectionTests/releasingTwiceDoesNotTakeAnotherHoldersTap
+      - PappuSelectionTests/everyHolderSeesAKeyAndAnyOfThemCanConsumeIt
+      - PappuSelectionTests/aRefusedKeyTapGivesNoLease
+      - PappuSelectionTests/theKeyTapIsLookedAfterOnlyWhileItIsLeased
+      - PappuSelectionTests/aRegisteredShortcutInstallsNoKeyTap
+      - PappuSurfacesTests/theKeyTapIsTakenWhenTheBarAppearsAndGivenBackWhenItGoes
+      - PappuSurfacesTests/aKeyPressedWithNoBarUpIsNotOurs
+      - PappuSurfacesTests/aBarWithNoKeyTapStillAppears
+      - PappuSurfacesTests/theBarConsumesOnlyItsOwnKeys
+      - PappuSurfacesTests/aSecondKeyArrivingBehindADismissalGoesToTheApp
 
   # Bar (PRD §7.2)
-  BAR-1: { priority: P0, milestone: M1, completes: M4, tests: [], note: "Focus restoration for explicitly opened surfaces completes with the palette in M4." }
-  BAR-2: { priority: P0, milestone: M1, tests: [] }
-  BAR-3: { priority: P0, milestone: M1, tests: [] }
+  BAR-1:
+    priority: P0
+    milestone: M1
+    completes: M4
+    note: >-
+      `canBecomeKey` is false and the panel is non-activating, and the tests assert the configuration
+      value rather than the panel: an `NSPanel` cannot be constructed in a headless test process, which
+      takes it down. `BarPanel`'s own overrides are checked by hand, in docs/checklists/voiceover-bar.md
+      row 10 and in spike 1's run. Focus restoration for explicitly opened surfaces completes with the
+      palette in M4.
+    tests:
+      - PappuSurfacesTests/theBarCanNeverBecomeKey
+      - PappuSurfacesTests/theBarDoesNotHideWhenWeAreNotTheActiveApp
+      - PappuSurfacesTests/theBarSitsAtThePopUpMenuLevelUntilSpikeOneSaysOtherwise
+      - manual:docs/checklists/voiceover-bar.md
+  BAR-2:
+    priority: P0
+    milestone: M1
+    note: >-
+      Two halves with two kinds of evidence. Which display the bar lands on and how it is clamped to
+      that display's visible frame are `BarLayout.place`, a pure function over `BarScreen` values, and
+      are tested. Being there over a fullscreen app, in every Space and under Stage Manager is the
+      panel's collection behaviour, which is a value here and spike 1's sixteen-combination matrix run
+      on hardware; until that run happens `BarPanelConfiguration.bar` says it is provisional.
+    tests:
+      - PappuSurfacesTests/aSelectionOnTheSecondDisplayPutsTheBarThere
+      - PappuSurfacesTests/aSelectionStraddlingTwoDisplaysGoesToTheOneHoldingMostOfIt
+      - PappuSurfacesTests/withNoBoundsTheBarFollowsThePointerOntoItsDisplay
+      - PappuSurfacesTests/withNoDisplaysAtAllThereIsNoPlacement
+      - PappuSurfacesTests/aBarIsClampedToTheLeftEdgeOfTheVisibleFrame
+      - PappuSurfacesTests/aBarIsClampedToTheRightEdgeOfTheVisibleFrame
+      - PappuSurfacesTests/theBarStaysOutOfTheMenuBar
+      - PappuSurfacesTests/theWindowIsToldWhichDisplayTheBarLandedOn
+      - PappuSurfacesTests/theBarIsThereInEverySpaceAndOverAFullscreenApp
+      - PappuSurfacesTests/aRectangleOnTheMainDisplayFlipsAboutItsHeight
+      - PappuSurfacesTests/flippingARectangleTwiceGivesItBack
+  BAR-3:
+    priority: P0
+    milestone: M1
+    note: >-
+      The signals the placement needs — which way the drag went, where the pointer was released, the
+      selection's bounds — reach the bar on `AttemptPresentation`, and `BarLayout.place` turns them into
+      a frame, a side and an arrow. The flip for room and the clamp are in here too, because a bar that
+      cannot honour the preference still has to appear somewhere.
+    tests:
+      - PappuSelectionTests/aDragThatSelectsTextShowsTheBar
+      - PappuSurfacesTests/aBarSitsAboveASingleLineSelectionAndIsCentredOnIt
+      - PappuSurfacesTests/thePositionPreferencePutsTheBarUnderTheSelection
+      - PappuSettingsTests/whatTheWindowWritesIsWhatTheNextLaunchReads
+      - PappuSurfacesTests/aBarWithNoRoomAboveFlipsBelow
+      - PappuSurfacesTests/aBarWithNoRoomBelowFlipsAbove
+      - PappuSurfacesTests/aSelectionTallerThanTheDisplayStillGetsABarButNoArrow
+      - PappuSurfacesTests/aMultiLineSelectionDraggedDownwardsPutsTheBarBelowThePointer
+      - PappuSurfacesTests/aMultiLineSelectionDraggedUpwardsPutsTheBarAboveTheSelection
+      - PappuSurfacesTests/aMultiLineSelectionWithNoDragDirectionFallsBackToThePreference
+      - PappuSurfacesTests/aSelectionOfASingleTallLineIsStillASingleLine
+      - PappuSurfacesTests/anAnchorIsTakenStraightOffThePresentation
+      - PappuSurfacesTests/aPermittedAttemptPutsABarOnTheScreen
+      - PappuSelectionTests/aSelectionComesBackWithItsRangeAndItsRectangle
+      - PappuSelectionTests/noRectangleIsNotAFailure
+      - PappuSelectionTests/aDegenerateRectangleIsNoRectangle
   BAR-4: { priority: P1, milestone: M4, tests: [] }
   BAR-5a: { priority: P1, milestone: M4, tests: [] }
   BAR-5b: { priority: P1.x, milestone: 1.x, tests: [] }
-  BAR-6: { priority: P0, milestone: M1, tests: [] }
+  BAR-6:
+    priority: P0
+    milestone: M1
+    note: >-
+      The two icon forms a bundled built-in needs — an SF Symbol drawn as a template so the highlight
+      can tint it, and one or two letters — plus text buttons, and the tooltip's words. The full
+      icon-specifier grammar of architecture §8.11 arrives with extensions in M2. The tooltip's
+      *appearing* is `NSView.toolTip`, which needs a window server; what is tested is that a disabled
+      button's tooltip says why rather than just repeating the name.
+    tests:
+      - PappuSurfacesTests/aDisabledButtonSaysWhyInItsTooltipAndToVoiceOver
+      - PappuSurfacesTests/anIconButtonIsSquareInsideTheBarsHeight
+      - PappuSurfacesTests/aTextButtonIsAsWideAsItsWords
+      - PappuSurfacesTests/onlyTheButtonsThatFitAreHandedToTheWindow
+      - PappuSurfacesTests/aBarOnANarrowDisplayShowsAsManyButtonsAsFit
+      - PappuSurfacesTests/oneButtonAlwaysFitsHoweverNarrowTheDisplay
+      - PappuSurfacesTests/theBarNeverGrowsPastItsMaximumWidth
+      - PappuSurfacesTests/aBarWithNoButtonsIsStillTheMinimumWidth
+      - PappuSurfacesTests/anSFSymbolIsDrawnAsOne
+      - PappuSurfacesTests/aShortTextSpecifierIsDrawnInTheIconsPlace
+      - PappuSurfacesTests/showAsTextDrawsTheNameEvenWhenThereIsAnIcon
+      - PappuSurfacesTests/anIconThisBuildCannotDrawBecomesTheName
+      - PappuSurfacesTests/anExplicitNoIconDrawsTheName
+      - PappuSurfacesTests/anIconButtonStillCarriesItsName
   BAR-7: { priority: P1, milestone: M4, tests: [] }
-  BAR-8a: { priority: P0, milestone: M1, tests: [] }
+  BAR-8a:
+    priority: P0
+    milestone: M1
+    note: >-
+      `BarAppearance.resolve` is the whole of it: one function from the colour preference and the three
+      accessibility settings to a background style, a highlight style, a border and a motion. The arrow
+      is `BarLayout`'s, since where it may sit is a geometry question — it never crosses a rounded
+      corner, and there is none at all when the bar had to be clamped away from what it would point at.
+    tests:
+      - PappuSurfacesTests/theBarFollowsTheSystemColourMode
+      - PappuSurfacesTests/aPinnedColourModeBeatsTheSystem
+      - PappuSurfacesTests/theOrdinaryBarHasAnAccentHighlightAndNoBorder
+      - PappuSurfacesTests/theWindowIsTheBarPlusItsArrow
+      - PappuSurfacesTests/theArrowNeverSitsOnARoundedCorner
+      - PappuSurfacesTests/aBarClampedPastItsAnchorPointsAtNothing
+      - manual:docs/checklists/voiceover-bar.md
   BAR-8b: { priority: P1, milestone: M4, tests: [] }
   BAR-8c: { priority: P1.x, milestone: 1.x, tests: [] }
-  BAR-9a: { priority: P0, milestone: M1, tests: [] }
+  BAR-9a:
+    priority: P0
+    milestone: M1
+    note: >-
+      `BarKeyboardMode` is a value and not a controller because the decision is made on the event tap's
+      thread, which must answer at once: `BarController` keeps one behind a mutex and the highlight
+      catches up on the main actor afterwards. The highlight clamps rather than wrapping. ↑ and ↓ are
+      ordinary keys until folders arrive in BAR-9b (M4). Tooltips during navigation are the window's,
+      and are row 5 of docs/checklists/voiceover-bar.md.
+    tests:
+      - PappuSurfacesTests/theFirstRightArrowTakesTheFirstButton
+      - PappuSurfacesTests/theFirstLeftArrowTakesTheLastButton
+      - PappuSurfacesTests/theHighlightClampsRatherThanWrapping
+      - PappuSurfacesTests/returnRunsTheHighlightedButton
+      - PappuSurfacesTests/returnWithNothingHighlightedBelongsToTheApp
+      - PappuSurfacesTests/returnOnEitherKeypadIsReturn
+      - PappuSurfacesTests/aBareArrowIsTheBarsAndAModifiedOneIsNot
+      - PappuSurfacesTests/theBarConsumesOnlyItsOwnKeys
+      - PappuSurfacesTests/upAndDownAreOrdinaryKeysForNow
+      - PappuSurfacesTests/anArrowKeyMovesTheHighlightAndIsConsumed
+      - PappuSurfacesTests/returnInvokesTheHighlightedButtonThroughTheInvoker
+      - PappuSurfacesTests/aDismissedBarForgetsItsKeyboardMode
   BAR-9b: { priority: P1, milestone: M4, tests: [] }
-  BAR-10: { priority: P0, milestone: M1, tests: [] }
-  BAR-11: { priority: P0, milestone: M1, tests: [] }
-  BAR-12a: { priority: P0, milestone: M1, tests: [] }
+  BAR-10:
+    priority: P0
+    milestone: M1
+    note: >-
+      No timer, and nowhere to put one: `BarDismissal.reason(for:barFrame:)` is a function of an event
+      and a rectangle, and `BarDismissalReason` has no case that a clock could raise. Pointer departure
+      is the one reason the requirement names that is **not** implemented, and it is recorded as open in
+      docs/architecture.md §7 rather than faked: the mouse tap carries no moved events, a tracking area
+      sees only the bar's own window, and what "departure" should mean once the pointer is back over the
+      app is a design question the hover work has to answer first.
+    tests:
+      - PappuSurfacesTests/aClickOutsideTheBarTakesItAway
+      - PappuSurfacesTests/aClickOnTheBarIsAButtonPressAndNotADismissal
+      - PappuSurfacesTests/aClickOnTheArrowIsStillOnTheBar
+      - PappuSurfacesTests/aScrollAnywhereTakesTheBarAway
+      - PappuSurfacesTests/draggingAndLettingGoLeaveTheBarAlone
+      - PappuSurfacesTests/everyDismissalReasonIsAnEvent
+      - PappuSurfacesTests/anOrdinaryKeyDismissesTheBarAndGoesOnToTheApp
+      - PappuSurfacesTests/escapeDismissesTheBarAndGoesNoFurther
+      - PappuSurfacesTests/aClickOffTheBarReachesTheControllerAndHidesTheWindow
+      - PappuSurfacesTests/aClickOnTheBarIsNotADismissal
+      - PappuSurfacesTests/aScrollTakesTheBarAway
+      - PappuSurfacesTests/aModifiedArrowKeyBelongsToTheAppAndTakesTheBarAway
+      - PappuSurfacesTests/escapeTakesTheBarAwayAndGoesNoFurther
+      - PappuSurfacesTests/anAttemptThatIsNoLongerCurrentTakesItsBarAway
+      - PappuSurfacesTests/pauseOrASecureFieldTakesTheBarAway
+      - PappuSurfacesTests/showingASecondBarReplacesTheFirst
+  BAR-11:
+    priority: P0
+    milestone: M1
+    note: >-
+      The modifiers ride on the click rather than being read again when the action runs: by then the
+      user has let go, and ACT-19 forbids a keyboard tap that is not a surface's own. A keyboard press
+      carries no modifiers at all and says so, since `BarKey` treats any modified key as not the bar's.
+    tests:
+      - PappuSurfacesTests/aClickInvokesTheActionWithTheModifiersThatWereHeld
+      - PappuSurfacesTests/aDisabledButtonDoesNothing
+      - PappuSurfacesTests/returnInvokesTheHighlightedButtonThroughTheInvoker
+      - PappuAppTests/theModifiersHeldAtTheClickReachTheBuiltin
+  BAR-12a:
+    priority: P0
+    milestone: M1
+    note: >-
+      `BarFeedback` holds the state and the thing to announce, and refuses to say the same thing twice
+      running. Both ends are wired now: a press reaches `SelectionBridge`, which turns a
+      `BuiltinRunner.Report` back into a state — "Copied" for Copy, a tick for the rest, a shake for
+      anything that did not happen, including the run that found nothing to do, because a tick there
+      would be a lie — and the bar keeps that answer on screen for `BridgeTiming.confirmation` before it
+      dismisses itself with `.actionRun`. That wait is a clock and not a timer in BAR-10's sense: the
+      user pressed something, so the dismissal is theirs, and the pause exists only so the answer can be
+      seen. A press while the spinner is up is "stop" (RUN-3), and the bridge cancels every invocation
+      the bar could still be waiting on.
+    tests:
+      - PappuSurfacesTests/everyStateButIdleSaysSomething
+      - PappuSurfacesTests/aStateChangedToItselfIsNotAnnouncedTwice
+      - PappuSurfacesTests/resettingGoesBackToIdleAndSaysNothing
+      - PappuSurfacesTests/onlyARunningActionCanBeTakenBack
+      - PappuSurfacesTests/reduceMotionStopsTheShakeAndLeavesTheSpinner
+      - PappuSurfacesTests/aFinishedActionDoesNotMove
+      - PappuSurfacesTests/everyFeedbackStateIsDrawnAndSaid
+      - PappuSurfacesTests/aFailureShakesUnlessReduceMotionIsOn
+      - PappuSurfacesTests/aPressWhileAnActionIsRunningTakesItBack
+      - PappuAppTests/copyingLeavesTheSelectionOnTheClipboardAndSaysSo
+      - PappuAppTests/theConfirmationIsHeldBeforeTheBarGoes
+      - PappuAppTests/aClickFromARetiredAttemptRunsNothing
+      - PappuAppTests/aClickOnSomethingThatWasNotOfferedRunsNothing
+      - PappuAppTests/cancellingEndsWhateverTheBarStarted
   BAR-12b: { priority: P1, milestone: M2, completes: M3, tests: [], note: "Display in M2; click-to-paste in M3." }
   BAR-13: { priority: P1, milestone: M3, tests: [] }
-  BAR-14: { priority: P0, milestone: M1, tests: [] }
+  BAR-14:
+    priority: P0
+    milestone: M1
+    note: >-
+      Every part of this that is a decision is a value and is tested: which string is said, that a
+      status change is announced once, that the highlighted button's name is read as it moves, and what
+      each of the three accessibility settings turns into. Whether VoiceOver running for real reads any
+      of it is docs/checklists/voiceover-bar.md, which is written and **not yet run** — it needs a bar
+      on a screen, so it waits on the Accessibility grant and spike 1. "Later surfaces inherit this
+      baseline" is M3's and M4's to honour.
+    tests:
+      - PappuSurfacesTests/theBarSaysItIsThere
+      - PappuSurfacesTests/theHighlightedButtonsNameIsSaidAsItMoves
+      - PappuSurfacesTests/aDisabledButtonSaysWhyInItsTooltipAndToVoiceOver
+      - PappuSurfacesTests/everyStringTheBarSaysIsInTheCatalogue
+      - PappuSurfacesTests/nothingTheBarSaysIsWrittenInPlace
+      - PappuSurfacesTests/reduceTransparencyTakesTheVibrancyAway
+      - PappuSurfacesTests/reduceMotionTakesTheMovementAway
+      - PappuSurfacesTests/increaseContrastDrawsABorderASolidBackgroundAndAPlainHighlight
+      - PappuSurfacesTests/reduceTransparencyReachesTheWindow
+      - manual:docs/checklists/voiceover-bar.md
   BAR-15: { priority: P2, milestone: post-1.0, tests: [] }
   BAR-16: { priority: P1, milestone: M4, tests: [] }
   BAR-17: { priority: P1, milestone: M3, completes: M4, tests: [], note: "Functional in M3; finished in M4." }
 
   # Filtering (PRD §7.3)
-  FLT-1: { priority: P0, milestone: M1, tests: [] }
-  FLT-2: { priority: P0, milestone: M1, tests: [] }
-  FLT-3: { priority: P0, milestone: M1, tests: [] }
+  FLT-1:
+    priority: P0
+    milestone: M1
+    note: >-
+      `ActionResolver` (architecture §6.3) is what decides this, and the tests below run it over the
+      five built-ins as they actually ship — the files in `Resources/BuiltinExtensions/`, read by the
+      same loader the app will use — against analyses and contexts of the shape `ContextProbe`
+      produces. The two conditions PRD §7.4 states in prose rather than in a requirement spelling,
+      Paste needing text on the clipboard and Search having a maximum length, are `BuiltinConditions`
+      and are applied after the shared pipeline, so §8.5's vocabulary stays the closed set it defines.
+      The `PappuAppTests` group is the same resolve reached the way the app reaches it — through
+      `SelectionBridge`, over a real `ContextProbe` answering from an Accessibility tree and a real
+      clipboard read — which is what shows the facts the filter is given are the facts the probe
+      produces, rather than a shape only a test knows how to build. Per-app visibility (ALM-8) and the
+      palette sharing the resolver are M4.
+    tests:
+      - PappuRuntimeTests/readOnlyTextOffersCopyAndSearchOnly
+      - PappuRuntimeTests/editableTextOffersCutCopyPasteAndSearch
+      - PappuRuntimeTests/aSelectionThatIsOnlyALinkOffersOpenLinkWithoutSearch
+      - PappuRuntimeTests/aSentenceWithALinkInItOffersBothSearchAndOpenLink
+      - PappuRuntimeTests/anAppSchemeIsALinkToo
+      - PappuRuntimeTests/aCaretWithNoSelectionOffersPasteAlone
+      - PappuRuntimeTests/pasteIsNotOfferedWhenTheClipboardIsEmpty
+      - PappuRuntimeTests/searchIsNotOfferedForAWholeDocument
+      - PappuRuntimeTests/aContextThatAnswersNothingShowsCopyAndSearchAndNoMore
+      - PappuRuntimeTests/aNarrowingActionGetsTheDetectionAndKeepsTheSelection
+      - PappuRuntimeTests/anActionRestrictedToAnAppIsOnlyResolvedThere
+      - PappuRuntimeTests/aDisabledExtensionIsNotOfferedAndSaysSo
+      - PappuRuntimeTests/everyActionThatIsNotShownSaysWhy
+      - PappuCoreTests/eachBuiltinRequiresWhatThePRDSaysItRequires
+      - PappuAppTests/aReadOnlySelectionOffersCopyAndSearchAndNothingElse
+      - PappuAppTests/anEditableFieldWithAFullClipboardOffersAllFour
+      - PappuAppTests/anEmptyClipboardTakesPasteAwayFromAnEditableField
+      - PappuAppTests/theButtonsAreNamedInTheLocaleTheBridgeWasGiven
+  FLT-2:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuAnalysisTests/findsAWebAddressAndSaysWhereItIs
+      - PappuAnalysisTests/aBareDomainGetsTheSchemeTheRequirementNames
+      - PappuAnalysisTests/aNewTopLevelDomainIsADomain
+      - PappuAnalysisTests/aWordWithADotInItIsNotADomain
+      - PappuAnalysisTests/findsAnEmailWithoutTheMailtoTheUserDidNotType
+      - PappuAnalysisTests/findsASchemeFromTheBundledList
+      - PappuAnalysisTests/aSchemeNobodyNamedIsLeftAsText
+      - PappuAnalysisTests/findsAPathThatIsOnThisMac
+      - PappuAnalysisTests/aPathThatIsNotOnThisMacIsJustText
+      - PappuAnalysisTests/expandsTheTildeAndTheDotsBeforeLookingAndInTheValue
+      - PappuAnalysisTests/aFileThatExistsIsAFileAndNotADomain
+      - PappuAnalysisTests/detectionsComeInTheOrderTheyAppearAndNeverOverlap
+      - PappuAnalysisTests/theNewerSuffixesComeFromTheListAndNotFromTheSystem
+      - PappuAnalysisTests/everySchemeThePRDNamesIsOnTheList
+      - PappuAnalysisTests/theSuffixesFLT2CallsNewAreOnTheList
+      - PappuAnalysisTests/anAnalyserOverTheShippedDocumentsDetectsWhatFLT2Names
+  FLT-3:
+    priority: P0
+    milestone: M1
+    note: >-
+      The Accessibility tier of `BrowserMetadata` — `AXWebArea` to `AXURL`, plus the window title —
+      is what M1 has. The AppleScript tier and the per-browser capability table that says which
+      browser needs it are M4 (architecture §11.5).
+    completes: M4
+    tests:
+      - PappuAnalysisTests/namesTheAppAndItsBundle
+      - PappuAnalysisTests/aFieldTheAppLetsUsWriteToIsEditable
+      - PappuAnalysisTests/aControlTheAppRefusesToWriteToIsReadOnly
+      - PappuAnalysisTests/aTextBoxInsideAWebPageIsEditableByItsAncestor
+      - PappuAnalysisTests/anEditableFieldOffersAllThree
+      - PappuAnalysisTests/anEditableFieldWithAnEmptyClipboardOffersNoPaste
+      - PappuAnalysisTests/aControlThatOffersAnAttributedStringHasFormatting
+      - PappuAnalysisTests/aPlainControlHasNoFormatting
+      - PappuAnalysisTests/aBrowsersPageAddressAndTitleAreRead
+      - PappuAnalysisTests/aPageWithNoTitleOfItsOwnBorrowsTheWindows
+      - PappuAnalysisTests/aTextBoxInAPageFindsTheWebAreaInTheWindow
+      - PappuAnalysisTests/findsCutCopyAndPasteByTheirKeyEquivalents
+      - PappuAnalysisTests/theTitlesLanguageDoesNotMatter
+      - PappuAnalysisTests/anItemWithAnExtraModifierIsNotTheOne
+      - PappuAnalysisTests/anItemThatIsDisabledIsReportedAsDisabled
+      - PappuAnalysisTests/theItemsAreFoundOnceAndOnlyTheirEnabledStateIsReadAfterwards
   FLT-4: { priority: P1, milestone: M3, tests: [] }
-  FLT-5: { priority: P0, milestone: M2, tests: [] }
-  FLT-6: { priority: P0, milestone: M1, tests: [] }
+  FLT-5:
+    priority: P0
+    milestone: M2
+    note: >-
+      Four of §8.5's five steps ship in M1 and are tested below against facts written by hand:
+      `requiredApps` and `excludedApps`, `requirements` with negation and the legacy spellings,
+      narrowing, and the full text staying available after it. Option-value conditions are here too,
+      answered from the extension's own values. The milestone stays M2 because `regex` is step 4 and
+      needs the parser; until it exists `ManifestBuilder` refuses a manifest that names one rather
+      than showing a button whose filter never ran.
+    tests:
+      - PappuCoreTests/anActionWithNoAppRulesShowsAnywhere
+      - PappuCoreTests/requiredAppsHidesItEverywhereElse
+      - PappuCoreTests/excludedAppsHidesItThere
+      - PappuCoreTests/anAppInBothListsIsExcluded
+      - PappuCoreTests/bundleIdentifiersMatchWithoutCase
+      - PappuCoreTests/aProcessWithNoBundleIdentifierFailsRequiredAppsAndPassesEverythingElse
+      - PappuCoreTests/everyRequirementMustHold
+      - PappuCoreTests/negationInvertsTheCondition
+      - PappuCoreTests/theRefusalNamesTheFirstRequirementThatFailed
+      - PappuCoreTests/anUnknownRequirementIsNeverSatisfiedEvenNegated
+      - PappuCoreTests/anOptionConditionIsAnsweredByTheExtensionsOwnValues
+      - PappuCoreTests/urlNarrowsToTheFirstAddress
+      - PappuCoreTests/theFirstNarrowingRequirementWins
+      - PappuCoreTests/theFullTextStaysAvailableAfterNarrowing
+      - PappuCoreTests/thePluralFormsDoNotNarrow
+  FLT-6:
+    priority: P0
+    milestone: M1
+    note: >-
+      Held by `ContextProbe` rather than by the Edit menu: Chromium leaves Cut and Paste enabled over
+      read-only web content, so editability narrows what the menu allows and never the other way
+      round. The tests below prove the rule against a fake AX world; that a real Chromium build
+      behaves as the fake does is still unconfirmed, and is the M1 week 3 exit check in the plan.
+    tests:
+      - PappuAnalysisTests/readOnlyTextNeverOffersCutOrPaste
+      - PappuAnalysisTests/readOnlyWebContentInAChromiumBrowserOffersNeitherCutNorPaste
+      - PappuAnalysisTests/anAppWithNoEditMenuFallsBackToEditability
+      - PappuAnalysisTests/anAppThatAnswersNothingAtAllIsTreatedAsReadOnly
+      - PappuRuntimeTests/readOnlyTextOffersCopyAndSearchOnly
 
   # Apps and layout management
-  ALM-1: { priority: P0, milestone: M1, tests: [] }
+  ALM-1:
+    priority: P0
+    milestone: M1
+    note: >-
+      A requirement kept by not introducing the thing that would break it: `ActionCatalog` is a plain
+      ordered array and `BarContent` builds a button for every action it is handed. The tests stand
+      two thousand and five hundred actions up respectively — past any real library, and past any
+      number a `prefix` somebody added to make a screen look right would have used. How many buttons
+      fit on one bar is `BarLayout`'s question and the overflow is BAR-5a's (M4); neither is answered
+      by dropping actions here. Settings → Actions is the other surface the list is visible on, read
+      only in this build (PRD §7.6; renaming, reordering and per-action commands are ALM-2a, ALM-3a and
+      ALM-5): it shows every action in the catalogue in `BuiltinAction.allCases` order, which is the order
+      a fresh install has, and an action switched off keeps its place there and says so rather than
+      disappearing, because that list is the only way back to switching it on.
+    tests:
+      - PappuCoreTests/thereIsNoLimitOnTheNumberOfActions
+      - PappuSurfacesTests/theBarBuildsEveryActionItIsGivenInOrder
+      - PappuSettingsTests/theActionsTabListsTheBuiltinsInTheDefaultActionOrder
+      - PappuSettingsTests/anActionThatIsSwitchedOffStaysInTheListAndSaysSo
   ALM-2a: { priority: P1, milestone: M4, tests: [] }
   ALM-2b: { priority: P1.x, milestone: 1.x, tests: [] }
   ALM-3a: { priority: P1, milestone: M4, tests: [] }
@@ -91,7 +894,23 @@ requirements:
   ALM-5: { priority: P1, milestone: M4, tests: [] }
   ALM-6: { priority: P0, milestone: M2, tests: [] }
   ALM-7: { priority: P2, milestone: post-1.0, tests: [] }
-  ALM-8: { priority: P1, milestone: M4, tests: [] }
+  ALM-8:
+    priority: P1
+    milestone: M4
+    note: >-
+      Per-app *action sets* are M4 and are not built. What exists is the half the privacy rules needed
+      first: an appearance exclusion, which is `AppActivationMode.hotkeyOnly` — the bar stays out of that
+      app and the shortcut still works — written from Rules → Apps in Settings and read by the gate. The
+      sheet keeps that apart from the hard block on purpose: an app the bar stays out of is not an app
+      whose text is never read, and ACT-17a's is the one no route can override. Showing and hiding
+      individual actions per app, and the inheritance that goes with it, arrive with the action editor.
+    tests:
+      - PappuCoreTests/theShortcutPassesAnAppearanceExclusionThatStopsTheBar
+      - PappuCoreTests/unblockingAnAppLeavesItsModeAlone
+      - PappuCoreTests/theDefaultModeIsStoredAsNoEntryAtAll
+      - PappuSettingsTests/excludingAnAppDoesNotBlockReadingIt
+      - PappuSettingsTests/anAppNamedButNotYetDecidedAboutKeepsItsRowAndStoresNothing
+      - PappuSettingsTests/theAppsAreListedByNameAndAnUnknownOneByItsIdentifier
   ALM-9: { priority: P1.x, milestone: 1.x, tests: [] }
 
   # Extension management and consent
@@ -122,25 +941,215 @@ requirements:
   EXM-15d: { priority: P1, milestone: M3, tests: [] }
 
   # Invocation runtime (safety spec)
-  RUN-1a: { priority: P0, milestone: M1, tests: [] }
-  RUN-1b: { priority: P0, milestone: M1, tests: [] }
-  RUN-1c: { priority: P0, milestone: M1, tests: [] }
-  RUN-2a: { priority: P0, milestone: M1, tests: [] }
-  RUN-2b: { priority: P0, milestone: M1, tests: [] }
-  RUN-2c: { priority: P0, milestone: M1, tests: [] }
-  RUN-2d: { priority: P0, milestone: M1, tests: [] }
-  RUN-2e: { priority: P1, milestone: M3, completes: M4, tests: [], note: "Mechanism in M3; polish in M4." }
-  RUN-2f: { priority: P0, milestone: M1, tests: [] }
-  RUN-2g: { priority: P0, milestone: M1, tests: [] }
-  RUN-2h: { priority: P0, milestone: M1, tests: [] }
-  RUN-3a: { priority: P0, milestone: M1, tests: [] }
-  RUN-3b: { priority: P0, milestone: M1, tests: [] }
-  RUN-3c: { priority: P0, milestone: M1, tests: [] }
-  RUN-3d: { priority: P0, milestone: M1, tests: [] }
-  RUN-3e: { priority: P0, milestone: M1, tests: [] }
-  RUN-3f: { priority: P0, milestone: M1, tests: [] }
-  RUN-4: { priority: P0, milestone: M1, tests: [] }
-  RUN-5: { priority: P0, milestone: M1, tests: [] }
+  RUN-1a:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuRuntimeTests/theSnapshotHasEverythingTheVerifierWillLaterAskFor
+      - PappuRuntimeTests/theSelectionIsKeptAsADigestAndALength
+      - PappuRuntimeTests/noFieldOfTheRecordCanHoldTheSelection
+      - PappuRuntimeTests/anAppWithNothingToTakeHoldOfStillRuns
+      - PappuRuntimeTests/noGrantMeansNoEpochAndTheRecordSaysSo
+      - PappuAppTests/theRunIsRecordedAgainstItsAttemptAndItsAction
+  RUN-1b:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuRuntimeTests/theWorldMovingOnDoesNotRetargetTheRun
+      - PappuRuntimeTests/changesAreKeptInTheOrderTheyHappened
+      - PappuRuntimeTests/aSlowActionWhoseUserHasMovedOnWritesNothingAnywhere
+  RUN-1c:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuRuntimeTests/focusMovingIntoOurOwnSurfaceIsNotANewDestination
+  RUN-2a:
+    priority: P0
+    milestone: M1
+    note: >-
+      `MutationPermit.init` is internal to PappuRuntime and `DestinationVerifier` is the only thing
+      that calls it, so a mutation path that skips verification does not compile. What the tests add
+      is that the verifier itself looks every time, and that a run which is no longer live cannot get
+      a permit however the tasks interleave. Which runs are in the mutating class at all is
+      `BuiltinAction.mayMutateTheDestination`, and the line is drawn where the keystroke is: Cut and
+      Paste press a key into another process, Copy reads a selection we are holding already, and Search
+      and Open Link leave the machine. It is what `SelectionBridge` puts on every `InvocationRequest`, so
+      a built-in on the wrong side of that line would take no lease and be verified for nothing.
+    tests:
+      - PappuRuntimeTests/nothingHasMovedSoTheTopTierIsGranted
+      - PappuRuntimeTests/theLookIsMadeOnceAndCarriesTheInvocationsOwnRoute
+      - PappuRuntimeTests/cancellingEndsEverythingTheRunCouldStillAskFor
+      - PappuRuntimeTests/onlyTheTwoThatPressAKeyCanReachTheDestination
+      - PappuRuntimeTests/copyIsNotAKeystroke
+      - PappuRuntimeTests/theTwoThatLeaveTheProcessTouchNothingInside
+  RUN-2b:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuRuntimeTests/nothingHasMovedSoTheTopTierIsGranted
+      - PappuRuntimeTests/aClipboardReadInASilentAppIsQuiescenceVerified
+      - PappuRuntimeTests/anAccessibilityReadWhoseAppGoesQuietFallsThroughToQuiescence
+      - PappuRuntimeTests/aQuiescenceVerifiedPasteTurnsOnWhetherAnythingWasTyped
+      - manual:docs/checklists/m1-manual.md
+  RUN-2c:
+    priority: P0
+    milestone: M1
+    note: >-
+      The refusal is closed, and so is the half of RUN-2d that says nothing is written instead.
+      Presenting the result for explicit copy is the bar's half and lands with the built-ins later in
+      M1 week 5.
+    tests:
+      - PappuRuntimeTests/anyOneOfThemGoneIsEnoughToLoseTheTier
+      - PappuRuntimeTests/silenceIsNotAgreementAtTheTopTier
+      - PappuRuntimeTests/aContradictionIsNotSilenceAndDoesNotFallThrough
+      - PappuRuntimeTests/noPolicyReachesTheUnverifiableTier
+  RUN-2d:
+    priority: P0
+    milestone: M1
+    note: >-
+      There is no auto-copy path to test, and that is the requirement: a blocked verification mints no
+      permit, `TextMutator.replaceSelection` cannot be called without one, and it is the only thing in
+      the program that puts an action's result on the user's clipboard. The tests hold that absence in
+      place — every way a mutation can be refused, and the pasteboard untouched at the end of each.
+    tests:
+      - PappuRuntimeTests/aBlockedVerificationWritesNothingAtAll
+      - PappuRuntimeTests/theUnverifiableTierPermitsNoMutation
+      - PappuRuntimeTests/aCancelledRunPastesNothingEvenHoldingAPermit
+      - PappuRuntimeTests/aRefusedTransactionIsReportedAndNotRetriedAnotherWay
+      - PappuSelectionTests/writesNothingWhenTheClipboardCannotBeReadBack
+      - PappuSelectionTests/writesNothingWhenTheSnapshotCannotBeTakenInTime
+  RUN-2e:
+    priority: P1
+    milestone: M3
+    completes: M4
+    note: "Mechanism in M3; polish in M4. The re-verification it is built on is one call, and a run can make it twice."
+    tests:
+      - PappuRuntimeTests/theRecordSaysWhichTiersItReachedAndHowItEnded
+  RUN-2f:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuRuntimeTests/aRefusalAtExecutionTimeStopsTheLookBeforeItHappens
+      - PappuRuntimeTests/secureInputTurningOnUnderARunningActionRefuses
+      - PappuRuntimeTests/turningOffAutomaticAppearanceDoesNotBlockAnActionAlreadyRunning
+      - PappuRuntimeTests/secureInputStartingUnderARunningActionStopsIt
+      - PappuCoreTests/theRecheckStillRefusesSecureInputAHardBlockAndAPause
+      - PappuCoreTests/theRecheckDoesNotRunTheAppearanceStep
+      - PappuCoreTests/theRecheckSaysItClearedTwoStepsAndNotThree
+  RUN-2g:
+    priority: P0
+    milestone: M1
+    note: >-
+      Both halves now. The tap side is `EventTapService`'s input epoch and the listen-only lease that
+      keeps the key tap installed (ACT-19), first used by the clipboard broker
+      (`refusesWhenTheUserTypedDuringTheWindow`, `refusesWhenKeystrokesCannotBeWatched` under
+      ACT-10f). The downgrade side is `DestinationVerifier`: an epoch that moved, an app that is no
+      longer frontmost, a window that changed, a snapshot past the time window, or a lease that could
+      not be taken at all each take the quiescence tier away, and `InvocationManager` holds the lease
+      for the life of every run that may mutate text.
+    tests:
+      - PappuRuntimeTests/oneKeystrokeSinceTheSnapshotEndsTheTier
+      - PappuRuntimeTests/noKeyTapMeansNoQuiescenceTier
+      - PappuRuntimeTests/theWindowOfTimeCloses
+      - PappuRuntimeTests/switchingToAnotherAppEndsBothTiers
+      - PappuRuntimeTests/aRunThatMayMutateHoldsTheKeyTapForItsWholeLife
+      - PappuRuntimeTests/cancellingGivesTheKeyTapBackToo
+      - PappuRuntimeTests/aRunThatCannotMutateTakesNoLeaseAndCarriesNoEpoch
+      - PappuRuntimeTests/onlyTheTwoThatPressAKeyCanReachTheDestination
+  RUN-2h:
+    priority: P0
+    milestone: M1
+    note: >-
+      A policy, and a user's ceiling over it, can take the quiescence tier away. That no policy can
+      enable mutation at the unverifiable tier is structural twice over: the schema has no field for
+      it, and the verifier mints a permit in exactly two places, neither of them reachable at that
+      tier.
+    tests:
+      - PappuSelectionTests/aUserCeilingTurnsOffQuiescenceThatTheBundledPolicyAllows
+      - PappuSelectionTests/aCeilingCanNeverGrant
+      - PappuRuntimeTests/aPolicyCanTurnTheMiddleTierOffForAnApp
+      - PappuRuntimeTests/noPolicyReachesTheUnverifiableTier
+  RUN-3a:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuRuntimeTests/cancellingEndsEverythingTheRunCouldStillAskFor
+      - PappuRuntimeTests/aVerificationInFlightWhenTheUserCancelsYieldsNoPermit
+      - PappuRuntimeTests/cancellingATwiceEndedRunSaysItWasAlreadyOver
+  RUN-3b:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuRuntimeTests/cancellingEndsEverythingTheRunCouldStillAskFor
+      - PappuRuntimeTests/aVerificationInFlightWhenTheUserCancelsYieldsNoPermit
+  RUN-3c:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuRuntimeTests/cancellingJustBeforeTheEndIsNeverALateSuccess
+      - PappuRuntimeTests/cancellingEndsEverythingTheRunCouldStillAskFor
+  RUN-3d:
+    priority: P0
+    milestone: M1
+    note: >-
+      The seam and the waiting are closed. Terminating an owned script process is `ScriptExecutor`'s
+      conformance to `CancellableWork`, in M2.
+    tests:
+      - PappuRuntimeTests/ownedWorkIsStoppedAndSaidToBeStopped
+      - PappuRuntimeTests/workThatWillNotStopEndsTheGraceRatherThanTheWait
+      - PappuRuntimeTests/delegatedWorkIsOnlyAskedAndIsNeverCalledStopped
+  RUN-3e:
+    priority: P0
+    milestone: M1
+    note: "The report is closed; the sentence the bar shows from it is BAR work in M1 week 5."
+    tests:
+      - PappuRuntimeTests/delegatedWorkIsOnlyAskedAndIsNeverCalledStopped
+      - PappuRuntimeTests/workThatCannotBeStoppedIsReportedAsSuchRatherThanAsStopped
+      - PappuRuntimeTests/workThatWillNotStopEndsTheGraceRatherThanTheWait
+  RUN-3f:
+    priority: P0
+    milestone: M1
+    tests:
+      - PappuRuntimeTests/pauseAndRevocationTakeEverythingInFlightTheSameWay
+  RUN-4:
+    priority: P0
+    milestone: M1
+    note: >-
+      One action's result is one synthetic ⌘V, which every text system on the Mac already treats as one
+      undoable edit; `AXSelectedText` is never written, and the Accessibility seam has no setter to
+      write it with. The tests hold the keystroke count and the clipboard's round trip. That the undo
+      itself is one step is on the M1 manual checklist, because only a real app's undo manager can say
+      so — see `docs/checklists/m1-manual.md`.
+    tests:
+      - PappuRuntimeTests/oneMutationIsOneKeystrokeAndTwoWrites
+      - PappuRuntimeTests/putsTheResultWhereTheSelectionWasAndGivesTheClipboardBack
+      - PappuRuntimeTests/aContestedClipboardIsStillAMutation
+      - PappuRuntimeTests/anUnpostedKeystrokeIsNotAMutation
+      - PappuRuntimeTests/noReportCanHoldTheResultOrTheSelection
+      - PappuSelectionTests/putsTheResultUpPostsTheKeystrokeAndTakesItBackDown
+      - PappuSelectionTests/leavesAStrangersWriteAloneAndSaysSo
+      - PappuSelectionTests/takesTheTextDownAtOnceWhenTheKeystrokeCannotBePosted
+      - PappuSelectionTests/noticesAWriteItDestroyedByPuttingTheResultUp
+      - PappuSelectionTests/refusesASecondWriteWhileATransactionIsOpen
+      - PappuSelectionTests/noRecordCanHoldTheResult
+      - manual:docs/checklists/m1-manual.md
+  RUN-5:
+    priority: P0
+    milestone: M1
+    note: >-
+      All eight scenarios, as unit tests over the lifecycle. Two of them are also on the M1 manual
+      checklist, because a real Notes window and a real Terminal are the only way to know the fakes are
+      telling the truth.
+    tests:
+      - PappuRuntimeTests/aSlowActionWhoseUserHasMovedOnWritesNothingAnywhere
+      - PappuRuntimeTests/editingTheSourceWhileTheResultIsPendingWritesNothing
+      - PappuRuntimeTests/selectingSomethingElseWritesNothingOverIt
+      - PappuRuntimeTests/closingTheSourceWindowWritesNothingIntoWhateverIsBehindIt
+      - PappuRuntimeTests/secureInputStartingUnderARunningActionStopsIt
+      - PappuRuntimeTests/cancellingJustBeforeTheEndIsNeverALateSuccess
+      - PappuRuntimeTests/anOlderRunCannotWriteOverWhatANewerSelectionPutThere
+      - PappuRuntimeTests/aQuiescenceVerifiedPasteTurnsOnWhetherAnythingWasTyped
+      - manual:docs/checklists/m1-manual.md
 
   # Security (safety spec)
   SEC-1a: { priority: P1, milestone: M3, tests: [] }
@@ -165,7 +1174,19 @@ requirements:
   SEC-8f: { priority: P1, milestone: M5, tests: [] }
   SEC-8g: { priority: P1, milestone: M5, tests: [] }
   SEC-8h: { priority: P1, milestone: M4, completes: M5, tests: [], note: "Import in M4; rollback in M5." }
-  SEC-9: { priority: P1, milestone: M5, tests: [] }
+  SEC-9:
+    priority: P1
+    milestone: M5
+    note: >-
+      The signature, pinning and replay checks are M5. What M1 builds is the half that makes a remote
+      policy safe to accept at all: the merge only ever takes something away, and the user's ceilings
+      apply after whichever document is in hand (architecture §4.6).
+    tests:
+      - PappuSelectionTests/aMergeIsNeverLooserThanEitherSide
+      - PappuSelectionTests/aCeilingCanNeverGrant
+      - PappuSelectionTests/aCeilingThatAsksForMoreThanTheBundledPolicyAllowsChangesNothing
+      - PappuSelectionTests/aDocumentFromAFutureSchemaIsRefusedRatherThanReadWithTheFieldsWeKnow
+      - PappuSelectionTests/anIntersectionCanOnlyTakeAway
 
   # Package format (extension spec)
   FMT-1: { priority: P0, milestone: M2, tests: [] }
@@ -207,16 +1228,105 @@ requirements:
   SCR-2: { priority: P1, milestone: M4, completes: M5, tests: [], note: "URL commands in M4; install links in M5." }
 
   # Onboarding
-  ONB-1: { priority: P0, milestone: M1, tests: [] }
+  ONB-1:
+    priority: P0
+    milestone: M1
+    note: >-
+      Three separable things, and only the last of them needs a live session. *Which screen a run shows*
+      is `OnboardingState`: the welcome comes first whatever the grant says, because an app that asks for
+      Accessibility before it has said what it is for is an app whose prompt means nothing, and a grant
+      that is trusted-but-refused gets the repair screen rather than the ask again (ONB-4). *What is
+      remembered* is `OnboardingStore`, and all it remembers is that the welcome happened: the grant is
+      the system's answer and is asked for at every launch, never written down, so a permission revoked
+      between launches cannot be read back out of our own defaults as though it still held. *Detecting
+      the grant live* — `AXIsProcessTrusted`, the `com.apple.accessibility.api` distributed notification,
+      and the tap-creation check that tells a working grant from a stale one — is `AccessibilityMonitor`
+      over AppKit; the menu's two ways of saying the grant is missing are tested, and the watcher behind
+      them is on the M1 checklist because it needs a real trust database to change. *The window* is
+      `OnboardingModel` and the SwiftUI view over it in PappuApp: the model holds the two buttons and
+      the closing, the view holds the words, and the assembly hands the model the monitor's request and
+      its link to the pane. The one behaviour that is neither a stored setting nor a pure rule — the
+      window asking for the permission goes away the moment the permission arrives, rather than leaving
+      a Done button for something already done — is the model's, and is tested here.
+    tests:
+      - PappuCoreTests/anUntrustedProcessIsUntrustedWhateverTheTapDid
+      - PappuCoreTests/trustedWithNothingTriedYetIsUntested
+      - PappuCoreTests/trustedAndRefusedIsStaleRatherThanMissing
+      - PappuCoreTests/onlyAWorkingOrUntestedGrantLetsTheAutomaticPathRun
+      - PappuCoreTests/aFreshInstallIsWelcomedFirstWhateverTheGrantSays
+      - PappuCoreTests/aWelcomedUserWithoutTheGrantIsAskedForIt
+      - PappuCoreTests/aStaleGrantGetsItsOwnScreenRatherThanTheAskAgain
+      - PappuCoreTests/thereIsNothingToShowOnceTheGrantWorks
+      - PappuCoreTests/aFreshInstallHasNotBeenWelcomedAndStoresNothing
+      - PappuCoreTests/theWelcomeIsOnlyShownOnce
+      - PappuCoreTests/theGrantIsNeverWrittenDown
+      - PappuCoreTests/theGrantArrivingIsAnnounced
+      - PappuCoreTests/finishingAWelcomeTwiceAnnouncesOnce
+      - PappuCoreTests/agrantThatHasNotChangedIsNotAnnounced
+      - PappuAppTests/aMissingGrantIsTheFirstThingInTheMenu
+      - PappuAppTests/aStaleGrantSaysSomethingElse
+      - PappuAppTests/anUntestedGrantSaysNothing
+      - PappuSettingsTests/theBannerSaysNothingUntilThereIsSomethingToSay
+      - PappuSettingsTests/aGrantGivenWhileTheWindowIsOpenTakesTheBannerAway
+      - PappuSettingsTests/theBannersButtonOpensTheAccessibilityPaneAndNothingElse
+      - PappuAppTests/aFirstRunShowsTheWelcome
+      - PappuAppTests/pressingContinueRemembersTheExplanationAndAsksTheSystem
+      - PappuAppTests/aSecondLaunchWithoutTheGrantAsksForItRatherThanExplainingAgain
+      - PappuAppTests/theGrantArrivingWhileTheWindowIsOpenFinishesIt
+      - PappuAppTests/aFirstRunOverAWorkingGrantExplainsItselfAndThenCloses
+      - PappuAppTests/theDirectLinkOpensThePaneAndClaimsNothing
+      - manual:docs/checklists/m1-manual.md
   ONB-2: { priority: P1, milestone: M6, tests: [] }
   ONB-3: { priority: P1, milestone: M6, tests: [] }
-  ONB-4: { priority: P1, milestone: M6, tests: [] }
+  ONB-4:
+    priority: P1
+    milestone: M6
+    note: >-
+      The guided repair is M6. What this build has is the recognition and the sentence: a grant that is
+      trusted and still refused is `AccessibilityGrant.stale` rather than missing, `OnboardingState` sends
+      it to a screen of its own rather than to the ask again, and the menu and the Settings banner say
+      something different about it — remove the app from the list and add it back, not grant Accessibility,
+      because the tick the user can see is already there. Walking them through it, and saying so when no
+      window is open, are M6's.
+    tests:
+      - PappuCoreTests/trustedAndRefusedIsStaleRatherThanMissing
+      - PappuCoreTests/aStaleGrantGetsItsOwnScreenRatherThanTheAskAgain
+      - PappuAppTests/aTrustedProcessWhoseTapWasRefusedIsStale
+      - PappuAppTests/aStaleGrantSaysSomethingElse
+      - PappuAppTests/aStaleGrantShowsTheRepairAndDoesNotAskTheSystemAgain
+      - PappuSettingsTests/theBannerSaysNothingUntilThereIsSomethingToSay
   ONB-5: { priority: P1, milestone: M2, tests: [] }
-  ONB-6: { priority: P1, milestone: M3, tests: [] }
+  ONB-6:
+    priority: P1
+    milestone: M3
+    note: >-
+      The explanation and the offer are M3. Detection, and the clause the safety spec leans on — no
+      synthetic copy on the automatic path while PopClip runs — are in from M1.
+    tests:
+      - PappuAppTests/popClipLaunchingAndQuittingLaterIsFollowed
+      - PappuSelectionTests/popClipStopsSyntheticCopyOnTheAutomaticPathAndNowhereElse
+      - PappuSelectionTests/popClipTakesTheFallbackAwayOnTheAutomaticPath
 
   # Diagnostics
   DIA-1: { priority: P1, milestone: M3, tests: [] }
-  DIA-2: { priority: P1, milestone: M4, tests: [], note: "AttemptTrace capture exists from M1; the user-facing part lands in M4." }
+  DIA-2:
+    priority: P1
+    milestone: M4
+    note: >-
+      `AttemptTrace` capture exists from M1: every attempt is recorded, including the ones that were
+      suppressed, refused or retired, and the record holds codes, identifiers and counts. The watchers
+      keep their own tally beside it — how many attempts each kind of notice retired, and the fault an
+      app refused the `AXObserver` registration with — for the same reason and in the same form. Strategy
+      5 keeps a third record of the same kind, one `ClipboardTransactionRecord` per transaction, with
+      the outcome code, the change counts, the stage durations and the safety notes; a test walks it
+      with `Mirror` and fails if any string anywhere inside it is the clipboard's. The user-facing
+      inspector lands in M4.
+    tests:
+      - PappuSelectionTests/theTraceHoldsCodesAndCountsAndNeverTheSelection
+      - PappuSelectionTests/theTraceKeepsOnlyItsLastFewAttempts
+      - PappuSelectionTests/holdingCommandThroughAGestureReadsNothingAtAll
+      - PappuSelectionTests/anAppThatWillNotBeWatchedIsRecordedAndItsAttemptsRunUnwatched
+      - PappuSelectionTests/noRecordCanHoldTheSelection
   DIA-3: { priority: P1, milestone: M3, tests: [] }
   DIA-4: { priority: P1, milestone: M3, tests: [] }
 
@@ -275,7 +1385,44 @@ requirements:
 
 # Work the plan closes that the PRD describes in prose, without a numbered ID.
 sections:
-  "PRD §7.4 built-ins (Cut, Copy, Paste, Search, Open Link)": { milestone: M1, completes: M3, tests: [], note: "Migrated to the public API in M3." }
+  "PRD §7.4 built-ins (Cut, Copy, Paste, Search, Open Link)":
+    milestone: M1
+    completes: M3
+    note: >-
+      The reserved `builtin` executor: `BuiltinRunner`, over the five manifests in
+      `Resources/BuiltinExtensions/`, through the same resolver, lifecycle and clipboard broker as
+      anything a user will install. Two departures from the §7.4 table in M1, both waiting on the
+      rich-text model (FLT-4, M3). **Copy is a kept clipboard write, not a synthetic ⌘C**: a ⌘C is
+      synthetic input, RUN-2 grants a permit only for an editable destination, and Copy is offered
+      wherever there is text — so a permit-shaped Copy could never run on a web page. M1 has no rich
+      flavours to lose, so the result is the same. **⇧ Cut and ⇧ Copy ("plain text only") do nothing
+      different**, for the same reason: there is no rich capture yet to strip. ⇧ Paste, ⇧/⌥ Search
+      and ⇧/⌥ Open Link are all here. Migrated to the public API in M3.
+    tests:
+      - PappuRuntimeTests/cutPostsTheAppsOwnKeystrokeAndNothingElse
+      - PappuRuntimeTests/cutIntoAnUnverifiableDestinationPostsNothing
+      - PappuRuntimeTests/copyWritesTheSelectionWhereNoPermitCouldEverBeMinted
+      - PappuRuntimeTests/copyIsNotHiddenFromClipboardManagers
+      - PappuRuntimeTests/pastePostsTheKeystrokeAndLeavesTheClipboardWhereItWas
+      - PappuRuntimeTests/shiftPasteHoldsThePlainTextAndGivesTheClipboardBack
+      - PappuRuntimeTests/shiftPasteWithAnEmptyClipboardDoesNothing
+      - PappuRuntimeTests/searchOpensThePreferredEngineWithTheTermEncoded
+      - PappuRuntimeTests/searchModifiersQuoteTheTermAndKeepTheBrowserBehind
+      - PappuRuntimeTests/searchFromABrowserOpensInThatBrowser
+      - PappuRuntimeTests/searchUsesTheUsersOwnTemplateWhenItHasThePlaceholder
+      - PappuRuntimeTests/searchThatDoesNotOpenIsNotReportedAsDone
+      - PappuRuntimeTests/openLinkOpensEveryAddressInOrder
+      - PappuRuntimeTests/optionOpenLinkCopiesTheAddressesAndOpensNothing
+      - PappuRuntimeTests/shiftOpenLinkOpensBehind
+      - PappuRuntimeTests/aCancelledRunPostsNothing
+      - PappuSelectionTests/replacesTheClipboardAndLeavesItThere
+      - PappuSelectionTests/doesNotHideTheTextFromClipboardManagers
+      - PappuSelectionTests/writesEvenWhereAReadWouldPrompt
+      - PappuSelectionTests/refusesWhileATransactionIsOpen
+      - PappuSelectionTests/noticesAWriteTheClearDestroyed
+      - PappuSelectionTests/readsThePlainTextOnTheClipboard
+      - PappuSelectionTests/doesNotReadWhereItWouldPrompt
+      - PappuSelectionTests/noRecordCanHoldWhatWasWritten
   "PRD §7.4 built-ins (Dictionary, Reveal, Spelling)": { milestone: M4, tests: [] }
   "PRD §11.1 latency budgets": { milestone: M1, completes: M6, tests: [PappuCoreTests/initialTotalsMatchThePRD, PappuCoreTests/fallbackInheritsTimeSpentOnEarlierStrategies], note: "Table and clock exist from M0; measured against Tier A apps from M1; release gate in M6." }
   "PRD §11.5 app matrix": { milestone: M1, completes: M6, tests: [PappuHarnessTests/matrixMatchesThePRD] }

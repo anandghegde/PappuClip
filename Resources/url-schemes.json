@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "sequence": 1,
+  "note": "PRD §7.5, FLT-2. The non-http schemes the analyser recognises in a selection, and therefore the ones Open Link will offer to open. It is data so that adding one is a review of this file and not a build, and it is a closed list because a detection here ends in `NSWorkspace.open`: anything not named is left as text. The ten below `tel` are the ones the PRD names by hand; the three system ones above them are on every Mac.",
+  "schemes": [
+    "facetime",
+    "sms",
+    "tel",
+    "bluesky",
+    "craftdocs",
+    "evernote",
+    "ftp",
+    "hook",
+    "lt",
+    "message",
+    "omnifocus",
+    "spotify",
+    "x-devonthink-item"
+  ]
+}

@@ -33,6 +33,8 @@ enum SpikeRegistry {
         AXEnableSpike(),
         ClipboardSpike(),
         JSHelperSpike(),
+        // Not a spike: M1's taps on a real session.
+        TapServiceCheck(),
     ]
 
     static func spike(withID id: String) -> (any Spike)? {
