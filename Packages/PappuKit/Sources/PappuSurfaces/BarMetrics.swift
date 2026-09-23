@@ -20,6 +20,10 @@ public struct BarMetrics: Sendable, Equatable {
     /// BAR-5a caps the width on very wide displays. Overflow into pages is M4; until then this is
     /// what stops a long action set from spanning a 6K display.
     public var maximumWidth: CGFloat
+    /// How wide a result may make the bar (BAR-12b). Narrower than `maximumWidth`: 160 characters is
+    /// more than one line holds, and a result is read, not scanned, so it is cut short rather than let
+    /// run across the display.
+    public var resultMaximumWidth: CGFloat
     /// A selection taller than this is treated as several lines, which is the branch BAR-3 places by
     /// drag direction rather than by the position preference.
     ///
@@ -39,6 +43,7 @@ public struct BarMetrics: Sendable, Equatable {
         anchorGap: CGFloat = 4,
         screenMargin: CGFloat = 6,
         maximumWidth: CGFloat = 900,
+        resultMaximumWidth: CGFloat = 420,
         singleLineMaximumHeight: CGFloat = 32
     ) {
         self.height = height
@@ -50,6 +55,7 @@ public struct BarMetrics: Sendable, Equatable {
         self.anchorGap = anchorGap
         self.screenMargin = screenMargin
         self.maximumWidth = maximumWidth
+        self.resultMaximumWidth = resultMaximumWidth
         self.singleLineMaximumHeight = singleLineMaximumHeight
     }
 

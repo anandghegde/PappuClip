@@ -54,12 +54,16 @@ private struct Scene {
     let manager: InvocationManager
     let opener: RecordingURLOpener
     let sleeper: InstantSleep
+    let keys: CountingKeyPresses
+    let attention: RecordingAttention
 
     static func make(
         rules: PrivacyRules = PrivacyRules(),
         editable: Bool = false,
         clipboardHasText: Bool = false,
         clipboard: String? = "the user's own clipboard",
+        shortcuts: AnsweringShortcuts = AnsweringShortcuts(),
+        scripts: AnsweringScripts = AnsweringScripts(),
         catalog: ActionCatalog
     ) async throws -> Scene {
         let focused = Node(role: editable ? "AXTextArea" : "AXStaticText")
@@ -112,6 +116,9 @@ private struct Scene {
         )
         let opener = RecordingURLOpener()
         let sleeper = InstantSleep()
+        let keys = CountingKeyPresses()
+        let editor = SelectionEditor(cut: pasteboard, paste: pasteboard, manager: manager)
+        let mutator = TextMutator(clipboard: broker, manager: manager)
         let bar = await RecordingBar()
         let bridge = SelectionBridge(
             catalog: { catalog },
@@ -121,10 +128,22 @@ private struct Scene {
             manager: manager,
             runner: BuiltinRunner(
                 manager: manager,
-                editor: SelectionEditor(cut: pasteboard, paste: pasteboard, manager: manager),
-                mutator: TextMutator(clipboard: broker, manager: manager),
+                editor: editor,
+                mutator: mutator,
                 clipboard: broker,
                 urls: opener
+            ),
+            extensions: ExtensionRunner(
+                manager: manager,
+                editor: editor,
+                mutator: mutator,
+                presser: KeyPresser(poster: keys, manager: manager, sleep: sleeper),
+                clipboard: broker,
+                urls: opener,
+                shortcuts: shortcuts,
+                shell: scripts,
+                appleScripts: scripts,
+                services: scripts
             ),
             conditions: { BuiltinConditions(clipboardHasText: clipboardHasText) },
             secureInput: { .clear },
@@ -132,14 +151,18 @@ private struct Scene {
             sleeper: sleeper,
             timing: BridgeTiming(confirmation: .milliseconds(700))
         )
+        let attention = await RecordingAttention(bar: bar)
         await bridge.attach(bar)
+        await bridge.attach(attention: attention)
         return Scene(
             bridge: bridge,
             bar: bar,
             pasteboard: pasteboard,
             manager: manager,
             opener: opener,
-            sleeper: sleeper
+            sleeper: sleeper,
+            keys: keys,
+            attention: attention
         )
     }
 }
@@ -334,5 +357,131 @@ private func presentation(
         _ = await scene.bridge.content(for: presentation())
         await scene.bridge.cancelRunningAction()
         #expect(await scene.manager.runningInvocations.isEmpty)
+    }
+}
+
+/// **§8.6 and BAR-12b from the app's side: an extension's action, pressed on a real bar.**
+///
+/// `ExtensionRunnerTests` covers every `after` value against the runner. This covers what the bridge
+/// adds: that a non-built-in reaches that runner at all, and what the bar is told when it ends.
+@Suite struct SelectionBridgeExtensionTests {
+    /// One extension per snippet, each with the one action a test presses.
+    private func catalog(_ bodies: [String: String]) throws -> ActionCatalog {
+        ActionCatalog(entries: try bodies.sorted { $0.key < $1.key }.map { name, body in
+            let snippet = "#popclip\nname: \(name)\nidentifier: com.example.\(name.lowercased())\n\(body)"
+            return .init(manifest: try ExtensionLoader.loadSnippet(snippet).manifest, origin: .installed)
+        })
+    }
+
+    /// Shows the bar, then presses the button with that name.
+    private func press(_ name: String, in scene: Scene) async throws {
+        let content = await scene.bridge.content(for: presentation())
+        let item = try #require(content.items.first { $0.name == name })
+        await scene.bridge.invoke(BarClick(item: item.id), for: presentation())
+    }
+
+    @Test func aURLActionOpensItsAddressAndSaysDone() async throws {
+        let scene = try await Scene.make(catalog: catalog(["Look": "url: https://x.test/?q=***"]))
+        try await press("Look", in: scene)
+
+        #expect(scene.opener.urls == [URL(string: "https://x.test/?q=some%20words")])
+        #expect(await scene.bar.states == [.succeeded])
+        #expect(await scene.bar.dismissals == [.actionRun])
+    }
+
+    /// BAR-12b, BAR-10: a result stays until the user dismisses it the way any bar is dismissed. A
+    /// clock under something being read is a clock the reader loses to.
+    @Test func aResultReplacesTheButtonsAndStays() async throws {
+        let scene = try await Scene.make(catalog: catalog(["Ask": "shortcutName: Ask\nafter: show-result"]))
+        try await press("Ask", in: scene)
+
+        #expect(await scene.bar.states == [.result("the answer")])
+        #expect(await scene.bar.dismissals.isEmpty)
+        #expect(scene.sleeper.durations.isEmpty)
+    }
+
+    /// §8.6 `popclip-appear`: the buttons come back rather than the bar going away.
+    @Test func popclipAppearPutsTheButtonsBack() async throws {
+        let scene = try await Scene.make(catalog: catalog(["Look": "url: https://x.test/?q=***\nafter: popclip-appear"]))
+        try await press("Look", in: scene)
+
+        #expect(await scene.bar.states == [.idle])
+        #expect(await scene.bar.dismissals.isEmpty)
+    }
+
+    /// `stay visible`: the tick for its moment, then the buttons again.
+    @Test func stayVisibleReturnsToTheButtonsAfterTheConfirmation() async throws {
+        let scene = try await Scene.make(catalog: catalog(["Look": "url: https://x.test/?q=***\nstay visible: true"]))
+        try await press("Look", in: scene)
+
+        #expect(await scene.bar.states == [.succeeded, .idle])
+        #expect(await scene.bar.dismissals.isEmpty)
+        #expect(scene.sleeper.durations == [.milliseconds(700)])
+    }
+
+    @Test func copyResultSaysCopied() async throws {
+        let scene = try await Scene.make(catalog: catalog(["Ask": "shortcutName: Ask\nafter: copy-result"]))
+        try await press("Ask", in: scene)
+
+        #expect(scene.pasteboard.currentText == "the answer")
+        #expect(await scene.bar.states == [.copied])
+    }
+
+    @Test func aShortcutThatFailsShowsTheFailure() async throws {
+        let scene = try await Scene.make(
+            shortcuts: AnsweringShortcuts(answer: .failed),
+            catalog: catalog(["Ask": "shortcutName: Ask\nafter: show-result"])
+        )
+        try await press("Ask", in: scene)
+
+        #expect(await scene.bar.states == [.failed])
+        #expect(await scene.bar.dismissals == [.actionRun])
+    }
+
+    /// **Done when: exit code 2 opens settings.** The X first, then the settings, named for the action.
+    @Test func aScriptThatNeedsSettingsFailsAndAsksForThem() async throws {
+        let scene = try await Scene.make(
+            scripts: AnsweringScripts(answer: .needsSettings),
+            catalog: catalog(["Translate": "shellScript: exit 2\nafter: copy-result"])
+        )
+        try await press("Translate", in: scene)
+
+        #expect(await scene.bar.states == [.failed])
+        #expect(await scene.attention.presented.map(\.attention) == [.settings])
+        #expect(await scene.attention.presented.map(\.action) == ["Translate"])
+        #expect(await scene.attention.barStatesBefore == [[.failed]])
+    }
+
+    /// ONB-5.
+    @Test func anAppleScriptRefusedAutomationAsksForThePermission() async throws {
+        let scene = try await Scene.make(
+            scripts: AnsweringScripts(answer: .automationDenied),
+            catalog: catalog(["Note": #"applescript: tell application "Notes" to activate"#])
+        )
+        try await press("Note", in: scene)
+
+        #expect(await scene.bar.states == [.failed])
+        #expect(await scene.attention.presented.map(\.attention) == [.automationPermission])
+    }
+
+    @Test func aScriptThatSucceedsAsksNothing() async throws {
+        let scene = try await Scene.make(catalog: catalog(["Shout": "shellScript: tr a-z A-Z\nafter: copy-result"]))
+        try await press("Shout", in: scene)
+
+        #expect(scene.pasteboard.currentText == "the answer")
+        #expect(await scene.attention.presented.isEmpty)
+    }
+
+    /// RUN-2a: a Key Press is synthetic input, so the invocation is begun as one that may mutate — which
+    /// is what holds the key tap and asks for a permit. Here the destination cannot be verified, so
+    /// nothing is pressed.
+    @Test func aKeyPressIsBegunAsAMutationAndRefusedWithoutADestination() async throws {
+        let scene = try await Scene.make(catalog: catalog(["Bold": "keyCombo: command b"]))
+        try await press("Bold", in: scene)
+
+        let record = try #require(await scene.manager.lastRecord)
+        #expect(record.mayMutate)
+        #expect(scene.keys.count == 0)
+        #expect(await scene.bar.states == [.failed])
     }
 }

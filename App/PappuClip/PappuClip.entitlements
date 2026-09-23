@@ -9,9 +9,10 @@
 	  both refused inside the sandbox, and they are how the app reads a selection at all. The hardened
 	  runtime is on instead (project.yml), which is what keeps library validation and the rest of it.
 
-	  There is no `com.apple.security.automation.apple-events`: nothing in the product sends an Apple
-	  event. M0 spike 3 measured the AppleScript route and it is not one of the strategies the shipping
-	  chain uses, so the entitlement that would allow it is not asked for.
+	  There is no `com.apple.security.automation.apple-events`: the app itself sends no Apple event.
+	  M0 spike 3 measured the AppleScript route for reading a selection and it is not one of the
+	  strategies the shipping chain uses. Extensions' AppleScripts run in PappuClipRunner.xpc, which
+	  has the entitlement on its own (architecture §9.5); a bug here cannot drive another app.
 	-->
 	<key>com.apple.security.cs.disable-library-validation</key>
 	<false/>

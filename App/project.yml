@@ -65,6 +65,26 @@ targets:
     dependencies:
       - package: PappuKit
         product: PappuApp
+      - target: PappuClipRunner
+
+  # AppleScripts and Services (architecture §9.5), embedded in the app as an XPC service. The one
+  # target with the Apple-events entitlement; a script that hangs is killed with the process.
+  PappuClipRunner:
+    type: xpc-service
+    platform: macOS
+    sources:
+      - path: PappuClipRunner
+        excludes: [Info.plist, PappuClipRunner.entitlements]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.pappuclip.PappuClip.Runner
+        INFOPLIST_FILE: PappuClipRunner/Info.plist
+        CODE_SIGN_ENTITLEMENTS: PappuClipRunner/PappuClipRunner.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_DEBUG_DYLIB: NO
+    dependencies:
+      - package: PappuKit
+        product: PappuRunnerHost
 
   # Throwaway host for the M0 spikes (implementation plan §3). Deleted when M0 closes; the harness
   # it drives lives in PappuKit and stays.

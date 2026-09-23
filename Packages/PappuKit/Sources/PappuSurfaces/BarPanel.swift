@@ -63,6 +63,10 @@ public struct BarItemMeasurer: BarMeasuring {
             }
         }
     }
+
+    public func width(ofResult text: String, metrics: BarMetrics) -> CGFloat {
+        max(minimumWidth, BarType.width(of: BarFeedbackView.oneLine(text), in: BarType.label) + textPadding * 2)
+    }
 }
 
 // MARK: - The shape
@@ -202,7 +206,14 @@ final class BarButtonView: NSView {
         super.layout()
         imageView.frame = bounds
         let height = label.intrinsicContentSize.height
-        label.frame = CGRect(x: 0, y: (bounds.height - height) / 2, width: bounds.width, height: height)
+        let inset: CGFloat = 8
+        label.frame = CGRect(x: inset, y: (bounds.height - height) / 2, width: max(0, bounds.width - inset * 2), height: height)
+    }
+
+    /// A result as the bar shows it: its line breaks and tabs become spaces, because the bar has one
+    /// line and a newline in a one-line label shows as nothing at all.
+    static func oneLine(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
     override func updateTrackingAreas() {
@@ -286,6 +297,10 @@ final class BarFeedbackView: NSView {
         spinner.isDisplayedWhenStopped = false
         label.alignment = .center
         label.font = BarType.label
+        // A result is one line, cut at its end, whatever width the bar could be given (BAR-12b).
+        label.lineBreakMode = .byTruncatingTail
+        label.maximumNumberOfLines = 1
+        label.cell?.truncatesLastVisibleLine = true
         symbol.imageScaling = .scaleProportionallyUpOrDown
         [spinner, label, symbol].forEach(addSubview)
         setAccessibilityElement(false)
@@ -302,12 +317,20 @@ final class BarFeedbackView: NSView {
         spinner.frame = CGRect(x: bounds.midX - side / 2, y: bounds.midY - side / 2, width: side, height: side)
         symbol.frame = spinner.frame
         let height = label.intrinsicContentSize.height
-        label.frame = CGRect(x: 0, y: (bounds.height - height) / 2, width: bounds.width, height: height)
+        let inset: CGFloat = 8
+        label.frame = CGRect(x: inset, y: (bounds.height - height) / 2, width: max(0, bounds.width - inset * 2), height: height)
+    }
+
+    /// A result as the bar shows it: its line breaks and tabs become spaces, because the bar has one
+    /// line and a newline in a one-line label shows as nothing at all.
+    static func oneLine(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
     func present(_ state: BarFeedbackState, motion: BarMotion, appearance: BarAppearance) {
         spinner.stopAnimation(nil)
         [spinner, label, symbol].forEach { $0.isHidden = true }
+        label.toolTip = nil
         layer?.removeAllAnimations()
 
         switch state {
@@ -321,6 +344,11 @@ final class BarFeedbackView: NSView {
             label.isHidden = false
             label.stringValue = BarStrings.feedbackCopied
             label.textColor = .labelColor
+        case .result(let text):
+            label.isHidden = false
+            label.stringValue = Self.oneLine(text)
+            label.textColor = .labelColor
+            label.toolTip = text
         case .succeeded:
             symbol.isHidden = false
             symbol.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: BarStrings.feedbackSucceeded)

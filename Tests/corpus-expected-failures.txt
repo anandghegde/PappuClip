@@ -1,0 +1,17 @@
+# Corpus packages that fail to load, and why. `swift run pappu-dev corpus load` fails when a package
+# not listed here fails, and when one listed here starts loading, so this list stays accurate.
+# One line per package: `path  # reason`. Paths are relative to Tests/corpus.
+
+contrib/Accordance.popclipext              # Config.json is empty upstream.
+contrib/BibleVerses.popclipext             # Config.json and Config.plist both present (FMT-4: exactly one config).
+contrib/CoffeeScript.popclipext            # Config.json and Config.plist both present (FMT-4).
+contrib/Instapaper.popclipext              # Config.json and Config.plist both present (FMT-4).
+contrib/Klipz.popclipext                   # Config.json and Config.plist both present (FMT-4).
+contrib/Lingvo.popclipext                  # Config.json and Config.plist both present (FMT-4).
+contrib/CyrillicLatinSwitcher.popclipext   # Config.js is an AMD module with no #popclip header (FMT-2).
+contrib/OneNote.popclipext                 # A stub with no Config file.
+contrib/TestIconStrings.popclipext         # A stub with no Config file.
+contrib/OpenHTMLLinks.popclipext           # No actions and no module key; relies on an unreferenced main.js.
+contrib/TwitterColor.popclipext            # Identifier "-colortest" starts with a separator (FMT-6).
+source/CharCount.popclipext                # PopClip-internal: a title-only action using {popclip charcount}.
+source/WordCount.popclipext                # PopClip-internal: a title-only action using {popclip wordcount}.

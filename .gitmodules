@@ -1,0 +1,3 @@
+[submodule "Tests/corpus"]
+	path = Tests/corpus
+	url = https://github.com/pilotmoon/PopClip-Extensions.git

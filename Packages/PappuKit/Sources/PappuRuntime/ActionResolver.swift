@@ -21,8 +21,8 @@ import PappuCore
 /// |---|---|
 /// | 1. Drop unapproved, disabled, suspended, revoked | Disabled only. `ExecutionApproval` is M2 (EXM-5); until there is a way to install an extension there is nothing to approve. |
 /// | 2. App filters and option conditions | `ActionMatching` step 1, and option conditions against whatever values the caller has. |
-/// | 3. `requirements`, negation, synonyms, narrowing | `ActionMatching` steps 2–3 and 5. |
-/// | 4. `regex` | M2, with the manifest key. |
+/// | 3. `requirements`, negation, synonyms, narrowing | `ActionMatching` steps 2–5. |
+/// | 4. `regex` | `ActionMatching` step 4 (M2). |
 /// | 5. Per-app visibility (ALM-8) | M4. |
 /// | 6. `dynamic` population (JS-16) | M3. |
 ///
@@ -66,9 +66,9 @@ public struct ActionResolver: Sendable {
         /// A built-in's native condition said no (PRD §7.4): the clipboard is empty, or the selection
         /// is longer than Search will take.
         case builtinCondition(BuiltinAction)
-        /// An executor this build cannot run. Unreachable in M1 — `ActionExecutor` has one case — and
-        /// present because M2 adds six, and an action whose executor is missing must be *absent from
-        /// the bar with a reason*, never a button that does nothing.
+        /// An executor this build cannot run yet. `ManifestBuilder` reads every PopClip action type,
+        /// and the runners arrive one at a time after it; until an action's runner exists it must be
+        /// *absent from the bar with a reason*, never a button that does nothing.
         case noRunner(ActionExecutor)
     }
 
@@ -125,6 +125,13 @@ public struct ActionResolver: Sendable {
                     refusals[action.key] = .builtinCondition(builtin)
                     continue
                 }
+            case .url, .keyPress, .shortcut, .service, .appleScript, .shellScript:
+                // `ExtensionRunner` (M2 weeks 3 and 4).
+                break
+            case .javaScript:
+                // The manifest reads it (M2 week 1); its runner is M3's.
+                refusals[action.key] = .noRunner(action.executor)
+                continue
             }
             actions.append(ResolvedAction(action: action, match: match))
         }

@@ -8,7 +8,7 @@ struct PappuDev: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "pappu-dev",
         abstract: "Repository tooling for PappuClip contributors and CI. Not shipped to users.",
-        subcommands: [Trace.self, Results.self]
+        subcommands: [Trace.self, Results.self, Corpus.self]
     )
 }
 
@@ -80,6 +80,61 @@ struct Results: ParsableCommand {
                 print(try ResultsStore.read(URL(filePath: file)).summaryText())
                 print()
             }
+        }
+    }
+}
+
+struct Corpus: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "The frozen extension corpus (Tests/corpus).",
+        subcommands: [Load.self]
+    )
+
+    struct Load: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Load every extension in the corpus, report the load rate, and fail on an unexpected failure or a stale expectation."
+        )
+
+        @OptionGroup var root: RootOption
+
+        @Option(help: "Corpus directory. Default: Tests/corpus under the repository root.")
+        var corpus: String?
+
+        @Flag(help: "Print every failure's errors, expected ones included.")
+        var verbose = false
+
+        @Flag(help: "Print every warning.")
+        var warnings = false
+
+        func run() throws {
+            let repository = try root.resolve()
+            let corpusURL = corpus.map { URL(filePath: $0) } ?? repository.appending(path: "Tests/corpus")
+            let expectedText = (try? String(
+                contentsOf: repository.appending(path: CorpusLoader.expectedFailuresPath), encoding: .utf8
+            )) ?? ""
+            let report = CorpusLoader.run(
+                corpus: corpusURL,
+                expectedFailures: CorpusLoader.parseExpectedFailures(expectedText)
+            )
+            guard !report.entries.isEmpty else {
+                print("error: no extensions under \(corpusURL.path); is the submodule checked out?")
+                throw ExitCode.failure
+            }
+            for entry in verbose ? report.failed : report.unexpectedFailures {
+                let expected = report.expectedFailures[entry.path].map { " (expected: \($0))" } ?? ""
+                print("\(report.expectedFailures[entry.path] == nil ? "error" : "note"): \(entry.path)\(expected)")
+                if case .failed(let errors) = entry.outcome {
+                    errors.forEach { print("    \($0)") }
+                }
+            }
+            if warnings {
+                report.allWarnings.forEach { print("warning: \($0.path): \($0.warning)") }
+            }
+            for path in report.staleExpectations {
+                print("error: \(path) is listed in \(CorpusLoader.expectedFailuresPath) but loads (or is gone); remove it")
+            }
+            print(report.rateText)
+            if !report.passed { throw ExitCode.failure }
         }
     }
 }

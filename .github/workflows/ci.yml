@@ -29,6 +29,21 @@ jobs:
       - name: Layering rules
         run: ../../Scripts/lint-layering.sh
 
+  corpus:
+    name: Extension corpus load rate
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: Packages/PappuKit
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      # Prints the rate on every commit; fails on an unlisted failure or a stale expectation
+      # (Tests/corpus-expected-failures.txt).
+      - name: Load every extension
+        run: swift run pappu-dev corpus load
+
   app:
     name: App targets build
     runs-on: macos-26

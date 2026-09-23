@@ -13,6 +13,9 @@
 /* The Copy confirmation (BAR-12a). */
 "bar.feedback.copied" = "Copied";
 
+/* Announced when an action's result is shown in the bar (BAR-12b). %@ is the result. */
+"bar.feedback.result" = "Result: %@";
+
 /* An action finished (BAR-12a). */
 "bar.feedback.succeeded" = "Done";
 

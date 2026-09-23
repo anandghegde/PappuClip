@@ -46,6 +46,7 @@ public final class AppAssembly {
     private let coordinator: ActivationCoordinator
     private let statusItem: MenuBarItem
     private let settingsWindow: SettingsWindow
+    private let attention: ScriptAttention
     private let onboardingWindow: OnboardingWindow
 
     /// The loops that read the three streams. Held so that `stop` can end them; an `AsyncStream` whose
@@ -105,17 +106,33 @@ public final class AppAssembly {
             frontmost: frontmost.reader
         )
         let manager = InvocationManager(verifier: verifier, probe: ax.destination, epochs: taps)
+        let editor = SelectionEditor(
+            cut: SystemSyntheticCut(tag: tag),
+            paste: SystemSyntheticPaste(tag: tag),
+            manager: manager
+        )
+        let mutator = TextMutator(clipboard: broker, manager: manager)
         let runner = BuiltinRunner(
             manager: manager,
-            editor: SelectionEditor(
-                cut: SystemSyntheticCut(tag: tag),
-                paste: SystemSyntheticPaste(tag: tag),
-                manager: manager
-            ),
-            mutator: TextMutator(clipboard: broker, manager: manager),
+            editor: editor,
+            mutator: mutator,
             clipboard: broker,
             urls: SystemURLOpener(),
             engines: resources.engines
+        )
+        let scripts = RunnerClient()
+        let extensions = ExtensionRunner(
+            manager: manager,
+            editor: editor,
+            mutator: mutator,
+            presser: KeyPresser(poster: SystemSyntheticKeyPress(tag: tag), manager: manager),
+            clipboard: broker,
+            urls: SystemURLOpener(),
+            shortcuts: SystemShortcutRunner(),
+            shell: SystemShellScriptRunner(),
+            // AppleScripts and Services both run in PappuClipRunner.xpc, over one session.
+            appleScripts: scripts,
+            services: scripts
         )
 
         let catalog = resources.catalog
@@ -126,6 +143,7 @@ public final class AppAssembly {
             analyzer: ContentAnalyzer(schemes: resources.schemes, domains: resources.domains),
             manager: manager,
             runner: runner,
+            extensions: extensions,
             // Asked once per attempt. Paste is offered only when there is text to paste, and the
             // clipboard belongs to the whole machine: what was in it when the last bar was drawn says
             // nothing about what is in it now (ACT-10).
@@ -224,6 +242,7 @@ public final class AppAssembly {
         self.coordinator = coordinator
         self.statusItem = statusItem
         self.settingsWindow = settingsWindow
+        self.attention = ScriptAttention(openSettings: { settingsWindow.show() })
         self.onboardingWindow = onboardingWindow
     }
 
@@ -234,6 +253,7 @@ public final class AppAssembly {
     /// task's first suspension — which is why the status item goes up inside it rather than after it.
     public func start() async {
         await bridge.attach(bar)
+        await bridge.attach(attention: attention)
         bar.prepare()
         statusItem.install()
 

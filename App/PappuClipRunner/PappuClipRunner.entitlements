@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  The one process in the product that sends Apple events (ONB-5), so the one that asks for them.
+	  Not sandboxed: an extension's AppleScript talks to whatever app its author wrote it for, and a
+	  sandboxed sender would need a temporary exception naming every one of them. The hardened
+	  runtime is on (project.yml), and this is the only exception to it.
+	-->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+</dict>
+</plist>

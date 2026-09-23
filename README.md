@@ -3,10 +3,18 @@
 A free, open-source selection bar for macOS: select text, and a small bar of actions appears next to it. It aims to
 run existing PopClip extensions unchanged.
 
-**Status: pre-alpha, milestone M0 (technical spikes).** There is an app that builds and nothing anyone should rely on:
-`PappuClip.app` assembles the bar, the five built-in actions, the menu bar item, Settings and the onboarding flow, and
-it has not been run for long enough by anyone to be called working. The M0 spikes still need a Mac with a person at it
-([what is left](docs/spikes/RUNBOOK.md)), and `SpikeLab` is the throwaway app that runs them.
+**Status: pre-alpha, milestone M2 (running PopClip extensions) in progress.** There is an app that builds and
+nothing anyone should rely on:
+- M1 assembled the bar, the five built-in actions, the menu bar item, Settings and the onboarding flow. Nobody has run it
+  for long enough to call it working.
+- M2 has begun with the extension parser, the extension store and the first executors. The parser loads 368 of the
+  381 extensions in PopClip's public repository (`swift run pappu-dev corpus load`), and every one that loads also
+  installs into the store. URL, Key Press and Shortcut actions can run, together with every `before` and `after`
+  step, and a result can be shown in the bar. Scripts and JavaScript cannot run yet, and the app does not show
+  installed extensions yet.
+
+The M0 spikes still need a Mac with a person at it ([what is left](docs/spikes/RUNBOOK.md)), and `SpikeLab` is the
+throwaway app that runs them.
 
 PappuClip is an independent project. It is not affiliated with, endorsed by, or derived from the code of PopClip or
 Pilotmoon Software. "PopClip" is their trademark and is used here only to describe compatibility.

@@ -2,7 +2,9 @@
 import PackageDescription
 
 // Layering (architecture §15).
-// - PappuCore imports no AppKit and depends on nothing, so the CLI and registry CI can use it.
+// - PappuCore imports no AppKit and depends on nothing but Yams, so the CLI and registry CI can use
+//   it. Yams is there because the manifest parser is (architecture §9.1), and the parser is there so
+//   that the app, the CLI and the registry's CI read an extension with exactly the same code.
 // - PappuAX is the Accessibility seam alone: the protocol, the value types and the actor that owns
 //   the queue. It sits below PappuSelection and PappuAnalysis because both read AX and neither may
 //   depend on the other (§3.1: ContextProbe does not depend on PappuSelection).
@@ -11,19 +13,31 @@ import PackageDescription
 //   which is why measurement types that name apps live there and not in PappuDiagnostics (DIA-4).
 
 let core: Target.Dependency = "PappuCore"
+let yams: Target.Dependency = .product(name: "Yams", package: "Yams")
+let grdb: Target.Dependency = .product(name: "GRDB", package: "GRDB.swift")
+let zip: Target.Dependency = .product(name: "ZIPFoundation", package: "ZIPFoundation")
 
 let libraries: [(name: String, dependencies: [Target.Dependency])] = [
-    ("PappuCore", []),
+    ("PappuCore", [yams]),
     ("PappuAX", []),
     ("PappuSelection", [core, "PappuAX"]),
     ("PappuAnalysis", [core, "PappuAX"]),
-    ("PappuExtensions", [core]),
+    // The store is SQLite through GRDB and zipped packages are opened with ZIPFoundation
+    // (architecture §11, §9.4). Both stay here: nothing below the install pipeline needs either.
+    ("PappuExtensions", [core, grdb, zip]),
     ("PappuJSBridge", [core]),
     ("PappuJSHost", [core, "PappuJSBridge"]),
+    // PappuClipRunner.xpc's messages, and the Runner's side of them (architecture §2.1, §9.5). The
+    // bridge depends on nothing, so the Runner links none of the app's rules; it is told values, not
+    // what they mean.
+    ("PappuRunnerBridge", []),
+    ("PappuRunnerHost", ["PappuRunnerBridge"]),
     // ActionResolver (§6.3) is here because it is the only module allowed to hold the analysis, the
     // context and the extension store at once: PappuAnalysis may not know the store (§15) and
     // PappuSelection and PappuAnalysis may not know each other.
-    ("PappuRuntime", [core, "PappuAX", "PappuSelection", "PappuAnalysis", "PappuExtensions", "PappuJSBridge"]),
+    ("PappuRuntime", [
+        core, "PappuAX", "PappuSelection", "PappuAnalysis", "PappuExtensions", "PappuJSBridge", "PappuRunnerBridge",
+    ]),
     ("PappuRegistry", [core, "PappuExtensions"]),
     ("PappuDiagnostics", [core]),
     ("PappuTestSupport", [core, "PappuAX", "PappuAnalysis", "PappuSelection"]),
@@ -45,6 +59,8 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/jpsim/Yams.git", from: "6.0.0"),
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
+        .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.0.0"),
+        .package(url: "https://github.com/weichsel/ZIPFoundation.git", from: "0.9.19"),
     ],
     targets: libraries.map { .target(name: $0.name, dependencies: $0.dependencies) } + [
         // The bar takes what the coordinator hands it (PappuSelection) and owns the strings it shows.
@@ -80,7 +96,7 @@ let package = Package(
         ),
         .target(
             name: "PappuDevTools",
-            dependencies: [core, "PappuHarness", .product(name: "Yams", package: "Yams")]
+            dependencies: [core, "PappuHarness", yams]
         ),
         .executableTarget(
             name: "pappu-dev",
@@ -92,7 +108,9 @@ let package = Package(
         .testTarget(name: "PappuCoreTests", dependencies: [core, "PappuTestSupport", "PappuDevTools"]),
         .testTarget(name: "PappuSelectionTests", dependencies: ["PappuSelection", "PappuTestSupport", "PappuDevTools"]),
         .testTarget(name: "PappuAnalysisTests", dependencies: ["PappuAnalysis", "PappuTestSupport", "PappuDevTools"]),
+        .testTarget(name: "PappuExtensionsTests", dependencies: ["PappuExtensions", core, "PappuDevTools", grdb, zip]),
         .testTarget(name: "PappuRuntimeTests", dependencies: ["PappuRuntime", "PappuAnalysis", "PappuTestSupport"]),
+        .testTarget(name: "PappuRunnerHostTests", dependencies: ["PappuRunnerHost", "PappuRunnerBridge"]),
         .testTarget(name: "PappuAppTests", dependencies: ["PappuApp", "PappuTestSupport", "PappuDevTools"]),
         .testTarget(name: "PappuSurfacesTests", dependencies: ["PappuSurfaces", core, "PappuTestSupport"]),
         .testTarget(name: "PappuSettingsTests", dependencies: ["PappuSettings", "PappuTestSupport", "PappuDevTools"]),

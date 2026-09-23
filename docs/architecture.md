@@ -391,7 +391,7 @@ The bar and the palette call the same resolver, so they always show the same eff
 
 #### The resolver as built (M1 week 5)
 
-Steps 1, 2, 3 and 5 exist; step 4 (`regex`) waits on M2's parser and step 6 on M3's helper. The split is not between "written" and "not written" but between two modules, and that is the interesting part.
+Steps 1, 2, 3 and 5 exist; step 4 (`regex`) waits on M2's parser and step 6 on M3's helper. (Step 4 arrived in M2 week 1; see §9.1.) The split is not between "written" and "not written" but between two modules, and that is the interesting part.
 
 **§8.5 itself is pure and lives in `PappuCore`,** over `MatchingFacts` — a value holding the text, the detected addresses, the bundle identifier and the three Edit-menu answers, and nothing else. `ActionMatching.match` is a function from a manifest and those facts to `shown(Match)` or `hidden(Refusal)`. Writing it this way costs nothing and buys two things: the registry's conformance CI can run an extension's filters against a corpus with no AX tree and no running app, and every rule in §8.5 that is easy to get subtly wrong is a test over a literal — an app in both `requiredApps` and `excludedApps` is excluded, an unrecognised requirement is refused *even when negated*, only the first non-negated narrowing requirement narrows, and the full selection stays reachable after it has.
 
@@ -399,7 +399,7 @@ Steps 1, 2, 3 and 5 exist; step 4 (`regex`) waits on M2's parser and step 6 on M
 
 **The five built-ins are files** (§19 item 2), in `Resources/BuiltinExtensions/`, each a real manifest whose `executor` names the reserved `builtin` form that `validate(origin:)` accepts only from `.appBundle`. They are read in `BuiltinAction.allCases` order rather than by sorting a directory, because that is PRD §7.4's order and a product decision. Two of PRD §7.4's "shown when" clauses are not expressible in §8.5's vocabulary — Paste needs text on the *clipboard*, Search has a maximum length — and rather than invent two requirement spellings, which would add to a vocabulary that is a public API this project does not own, they are `BuiltinConditions` and the resolver applies them after the shared pipeline. The third, "Search unless the selection is only a URL", needed nothing new: it is the requirement list `[text, !isurl]`.
 
-**Still open.** `regex` and option-value conditions are FLT-5's remaining two steps. Per-app visibility is ALM-8 and M4. `wantsPrimaryDisplay` and `stayVisible` ride along from the manifest to the bar and nothing honours them yet. A resolved action does run: `BuiltinRunner` stands behind the reserved executor (§8.7), and `SelectionBridge` is where the resolver, the bar and `InvocationManager` are assembled (§13.1). What has no runner is an extension's own executor, which is M2.
+**Still open.** `regex` and option-value conditions are FLT-5's remaining two steps. Per-app visibility is ALM-8 and M4. `wantsPrimaryDisplay` rides along from the manifest to the bar and nothing honours it yet; `stayVisible` is honoured since M2 week 3 (§9.5). A resolved action does run: `BuiltinRunner` stands behind the reserved executor (§8.7), and `SelectionBridge` is where the resolver, the bar and `InvocationManager` are assembled (§13.1). An extension's URL, Key Press and Shortcut executors run through `ExtensionRunner` since M2 week 3, and Service, AppleScript and Shell Script since week 4 (§9.5); JavaScript waits on M3.
 
 ---
 
@@ -559,6 +559,20 @@ The held write carries ACT-10h's transient and concealed markers, as the restore
 
 `ExtensionManifest` is a plain `Sendable`, `Codable` value. The parser lives in the UI-free core module, so the CLI and registry CI use exactly the same code.
 
+#### The parser as built (M2 week 1)
+
+The pipeline is `ExtensionLoader`, in `PappuCore/Parsing/`, and every stage's refusal becomes the same thing: a `ManifestLoadFailure` carrying `ManifestDiagnostic`s. A diagnostic has a path written the way the author spelled the key (`Config.plist: Actions[0].Script Interpreter`), and warnings travel with errors so that one reload shows everything. The table's `CodeSnippetParser` did not survive as a separate type: finding a code snippet's header is the same scan as finding a config snippet's marker, so `SnippetDetector` returns either `.config(yaml:)` or `.code(yaml:body:)`, and the builder decides what the body is from the comment style, the file's extension and the shebang.
+
+**`ManifestBuilder` reads every PopClip action type,** not only the ones that can run. A URL, key-press, Service, Shortcut, AppleScript, shell or JavaScript action builds into its `ActionExecutor` case, and `ActionResolver` refuses it with `.noRunner` until its runner lands (M2 weeks 2–4, M3). This is the "absent rather than half-present" rule applied to a whole milestone: the parser is tested against every real manifest now, and a runner arriving later changes one `switch`.
+
+**The frozen corpus** is PopClip-Extensions at a pinned commit, a submodule at `Tests/corpus`, and CI's `corpus` job runs `pappu-dev corpus load` on every commit. At the pin, 368 of 381 extensions load: 264 are ready and 104 are JavaScript that parses and waits for M3. The 13 that fail are listed with reasons in `Tests/corpus-expected-failures.txt`. Five have two config files, two are stubs, one has an empty config, one has a malformed identifier, and the others are described in the file. The job fails on an unlisted failure *and* on a listed package that starts loading, so the list cannot go stale. The corpus decided several of the builder's leniencies:
+- `appleScriptCall` may carry its own `file`.
+- Comment lines may come before a shell snippet's marker.
+- Legacy icon-option keys (`flipHorizontal`, `preserveImageColor`, `iconOptions`) fold into the §8.11 specifier.
+- Website metadata (`Credits`, `Version`, `Note`) is read and dropped without a warning, so that the warnings that remain are worth reading.
+
+**Step 4 of §8.5 now exists.** `ActionMatching` compiles the action's `regex` and runs it on the value that step 3 narrowed to. The first match becomes the value and its capture groups are kept for M2's URL and script runners. An action whose regex does not compile is hidden; the builder refuses such a manifest in the first place, so this only guards a hand-built one.
+
 ### 9.2 Identity and provenance (SEC-8)
 
 - Each installed extension gets a `LocalIdentity` (UUID). The manifest `identifier` is an attribute, never the key.
@@ -584,6 +598,31 @@ The analysis exists for **disclosure**. **Enforcement** is separate and happens 
 
 Staging happens in `Staging/<uuid>` on the same volume. Activation is one `rename(2)` into `Extensions/<LocalIdentity>/<versionDigest>/` plus one SQLite transaction that moves the `active_version` pointer and snapshots non-secret options. Version folders are immutable; the previous one is retained for rollback (EXM-13). A failure at any step deletes the staging folder and changes nothing. M2 builds this shape; M5 adds downloads, update policy, rollback UI and safe mode on top of it.
 
+#### The store and installer as built (M2 week 2)
+
+`PappuExtensions` holds three pieces: `ExtensionStore`, an actor over one GRDB `DatabaseQueue` in `Store/pappuclip.sqlite`; `ExtensionLibrary`, the pipeline over `Extensions/` and `Staging/`; and `IdentityResolver`, a pure function that implements EXM-2's collision table.
+
+**Files first, then rows, then cleanup.** Files and rows cannot commit in one transaction, so the install does three things in order. It renames the staged folder into `Extensions/<LocalIdentity>/<digest hex>/`. It then commits the rows in one transaction. Only after that commit does it delete folders that no row points at. A kill before the commit leaves a folder with no row. A kill after the commit leaves at most a superseded folder. `ExtensionLibrary.recover()` runs at launch: it empties `Staging/` and removes every version folder that has no `extension_version` row. The tests simulate a kill at each of the three checkpoints by copying the whole support folder, database included, at that point. They then relaunch on the copy and check that it matches the state before the install.
+
+**Staging reads nothing twice.** A folder is copied, a zip is unpacked with a per-entry containment check and a size cap, and snippet text is written as `Snippet.pappucliptxt`. The copy loads the manifest, and the digest is computed over the copy, so what the user reviews is what activates. A symbolic link or special file anywhere in a package makes staging refuse it. `.DS_Store` and `__MACOSX` are left out so that the same package gets the same digest on every Mac. Unzipping keeps the executable bit and drops the set-ID bits.
+
+**The review is a seam.** The pipeline hands a `Proposal` (manifest, warnings, provenance, digest, decision) to a `Reviewer` closure. The answer is `install`, `installSeparately`, `replaceByTrustTransition(identity)` or `cancel`. An answer that the decision did not offer is refused, so a name collision cannot be turned into a replacement by the caller. Week 5 puts the consent sheet and grants behind this seam.
+
+**The identity rules in practice:**
+- Identical bytes are `alreadyInstalled`.
+- The same declared identifier from local code installs separately. Local code has no publisher who could vouch for it.
+- Only two registry provenances with the same namespace and publisher offer a replacement. That case is modelled now and reachable in M5.
+- A trust transition gets a *new* `LocalIdentity`. The existing list items are re-pointed, so their places and IDs are kept, and non-secret option values are copied. The old identity is then uninstalled. Grants and secrets, keyed on the old identity, are therefore left behind.
+
+**Rows are sync-shaped (SYN-1, SYN-2).**
+- Instances and list items have UUIDs, a `revision`, a `device_id` (minted once into a `meta` table) and a `deleted_at` tombstone.
+- The list is ordered by `(order_key, id)` with fractional-index `OrderKey`s.
+- A new key is always placed after the last key ever issued, tombstones included, so a deleted item's key is never reused.
+
+**Built-ins are rows with no folder.** `seedBuiltins` adds each built-in the store has never seen, once. So if a user deletes a built-in's actions, the next launch does not bring them back; `restoreBuiltins` does (EXM-9). Deleting an installed extension's last live action uninstalls it: the row and version rows go, instances and items become tombstones, and the folders are removed after the commit.
+
+**Not yet wired:** the app still builds its catalog from the bundled built-ins alone. Three things wait on that integration: reading `placedActions()` into `ActionCatalog`, the Open handler for extension files, and the bar's Install Extension offer. `ActionKey.extensionIdentifier` is also not unique once two separate installs share an identifier, so that integration has to key catalog entries by instance rather than by identifier.
+
 ### 9.5 Executors
 
 | Type | Where it runs | Mechanism | Cancel |
@@ -592,12 +631,118 @@ Staging happens in `Staging/<uuid>` on the same volume. Activation is one `renam
 | Key Press | App | Combo parser → tagged `CGEvent`s to session, pid or HID target; needs a `MutationPermit` | Stops the remaining sequence |
 | Service | Runner | `NSPerformService` with a unique private pasteboard | Kill Runner |
 | Shortcut | Child process | `/usr/bin/shortcuts run <name>` with stdin/stdout files; never brings Shortcuts forward | Terminate |
-| AppleScript | Runner | OSAKit; placeholder substitution or handler call with parameters; structured error numbers (502 → settings) | Kill Runner |
+| AppleScript | Runner | OSAKit (built with `NSAppleScript`, §9.5); placeholder substitution or handler call with parameters; structured error numbers (502 → settings) | Kill Runner |
 | Shell Script | Child process | `Process` with `POPCLIP_*` and `PAPPUCLIP_*` variables, package working directory, `shellMode` and interpreter rules from §8.4; exit 2 → settings | Terminate, then kill |
 | JavaScript | JS helper | §10 | Drop invocation; kill helper if it does not yield |
 | `builtin` (reserved) | App | Native implementations for bundled extensions only (§19 item 2) | Per action |
 
 `StepPipeline` runs `before`, the executor, then `after`, checking invocation validity between steps; every step that writes the clipboard or mutates text goes through the broker and the verifier (§8.6 of the extension spec).
+
+#### The executors as built (M2 week 3)
+
+`ExtensionRunner` in `PappuRuntime` is the step pipeline, and it runs URL, Key Press and Shortcut actions. It has no separate `StepPipeline` type. `before`, the executor and `after` run in that order. Before each stage the runner asks `InvocationManager.accepts` again, so Escape, a pause or a revocation between stages stops the run there. It ends the invocation the same way `BuiltinRunner` does. `ActionResolver` now offers the three executors. Service, AppleScript, shell script and JavaScript actions are still refused with `.noRunner`.
+
+**URL.** `URLTemplate` in `PappuCore` is pure:
+- `{popclip text}`, `{pappuclip text}` and `***` get the selection. Before it goes in, the text is trimmed, cleaned if the manifest asks, quoted under ⌥ and percent-encoded against the unreserved set; `spacesAsPlus` then turns `%20` into `+`.
+- Option placeholders go in unencoded, because the corpus uses them for hosts.
+- ⇧ opens the URL in the background.
+- A page read from a browser opens the URL in that browser.
+- Every option expands to nothing until option values exist in M3.
+
+**Key Press.** The builder reads every combo at load time through `KeyCombo`:
+- Named keys, `f1`–`f20`, hex codes up to 0x7F and the keypad are accepted.
+- The legacy key code and modifier mask are read too.
+- A combo that cannot be pressed refuses the extension at load, so it is never refused halfway through a sequence.
+
+`KeyPresser` pays one `MutationPermit` for the whole sequence. Verifying between combos would refuse the second half of "select all, then copy", because the first half changes the selection. Liveness is still checked before each combo and after each `wait`. `SystemSyntheticKeyPress` in `PappuSelection` does the posting:
+- The tag and the numeric-pad flag are set on every event.
+- Characters are mapped through the current layout, with the ANSI table as the fallback.
+- `session` goes to the session tap, `hid` to the HID tap, and `app` to the process the permit was minted for.
+
+**Shortcut.** `SystemShortcutRunner` runs `/usr/bin/shortcuts` as a `ChildProcess`:
+- Input and output go through files in a private temporary folder.
+- It asks for `public.plain-text` output.
+- The run is `.delegated`. Stopping the tool does not stop the Shortcuts daemon it asked, so a cancel reports `askedToStop`, and a result that arrives after the cancel is dropped.
+
+`ChildProcess` is written to serve the shell-script runner in week 4 as well:
+- Both outputs are read while the process runs, so a large output cannot fill the pipe and stall it.
+- Standard input is written off-thread.
+- A cancel sends SIGTERM to the process group, waits out a grace period, then sends SIGKILL, so a script's own children stop with it.
+
+**`after`.** Every value goes through the same two gates as the built-ins:
+- Anything that edits the other app is verified.
+- Anything that writes the clipboard is a kept write through the broker.
+
+`paste-result` is the step with the most branches:
+- Where Paste is available, it replaces through `TextMutator` and leaves the result on the clipboard, unless the manifest sets `restorePasteboard`.
+- Where it is not, it copies instead.
+- If the destination has gone stale, it neither pastes nor copies. A result pasted into the wrong place is worse than a result lost, and copying instead would overwrite the clipboard without saying so.
+
+`show-result` and `preview-result` copy the result and show its first 160 characters. An empty result skips the result step.
+
+**What the bar does with it.** `SelectionBridge` sends every non-built-in action to `ExtensionRunner`. The invocation is marked `mayMutate` from `ActionManifest.mayMutateTheDestination`: a Key Press, or a `before` or `after` that cuts or pastes. The ending decides what the bar does:
+- A result becomes `BarFeedbackState.result`. The bar is re-placed at the text's measured width, capped at `resultMaximumWidth`, and the text is drawn on one line and truncated at its tail. It stays until an ordinary BAR-10 dismissal, because a clock under something being read is one the reader loses to.
+- `popclip-appear` puts the buttons back.
+- `stay visible` shows the tick for its moment, then brings the buttons back.
+- Every other ending shows its answer for its moment, then dismisses the bar.
+
+While a result is on screen, a press runs nothing.
+
+**Known gaps:**
+- If the extension used `before: cut`, a following `after: paste-result` is refused by its own verification, because the cut changed the selection. That is the safe outcome, and no extension in the corpus does it.
+- A child that backgrounds a daemon and exits keeps `ChildProcess.result()` waiting on the pipes. *(Settled in week 4 by the output drain; see below.)*
+- Click-to-paste on a result (BAR-12b) is M3.
+
+#### The executors as built (M2 week 4)
+
+`ExtensionRunner` now also runs Service, AppleScript and Shell Script actions, and `ActionResolver` offers them. Only JavaScript is still refused with `.noRunner`. All three kinds go through the same wait as a Shortcut:
+- The run is attached to the invocation before the wait, so Escape reaches a script that hangs.
+- A result that arrives after a cancel is dropped at the gate.
+- Two endings are new. Shell exit 2 or AppleScript error 502 fails the run with `Report.attention = .settings`. AppleScript error -1743 fails it with `.automationPermission` (ONB-5).
+
+`SelectionBridge` shows the X first, then hands the attention to an `AttentionPresenting`. In the app, `ScriptAttention` opens the Settings window for `.settings`; the options sheet it should open is week 5. For `.automationPermission` it shows an alert whose button opens Privacy & Security → Automation.
+
+**§8.7's variables.** `ScriptVariables` in `PappuCore` is one pure table read two ways:
+- A shell script gets every value as an environment variable under both `POPCLIP_` and `PAPPUCLIP_`.
+- An AppleScript gets `{popclip …}` placeholders written into its source, each value escaped for an AppleScript string literal. A brace this table does not name is left alone.
+- An `appleScriptCall` handler gets its parameters looked up by the same names.
+- A missing value is an empty string, never an unset variable.
+
+`URLS`, `EMAILS` and `PATHS` come from the analysed selection, which the bridge now passes in `Request.selection`. Options are empty until week 5.
+
+**Shell Script.** `ShellInvocation` in `PappuCore` decides what runs; `SystemShellScriptRunner` runs it as a `ChildProcess`:
+- `interpreter` is split on whitespace and given the script's path. An inline script with no interpreter and no `#!` runs under `/bin/sh`.
+- `shellMode: login` (the default) runs the command through `<shell> -l -c 'exec "$@"'`, so PATH is the user's and a bare `python3` from Homebrew is found. `nonlogin` drops `-l`. `none` runs the program itself, resolving a bare name in a fixed system PATH and refusing one it cannot find.
+- The shell is the user's if it is an absolute path to a POSIX shell; otherwise `/bin/zsh`.
+- The environment is deliberately small: `HOME`, `USER`, `LOGNAME`, `SHELL`, a UTF-8 `LANG`, the system `PATH`, a private `TMPDIR`, and the variables. The app's own environment is not passed on.
+- `stdin` names the value written to standard input.
+- The working directory is the package folder. A snippet with no folder of its own runs in its private temporary folder, which is also where an inline script is written.
+- A script file is resolved inside its package with symbolic links followed (`PackageFile`), so a link or a `../` out of the package is refused at run time, not only at staging.
+- Standard output, less one trailing line break, is the result.
+
+A shell script is `owned`, so a cancel is `stopped`. `ChildProcess` no longer waits for its pipes to close: once the process has exited it gives them `outputDrain` (250 ms) to finish, so a script that leaves a daemon behind no longer holds the result open. That was week 3's known gap.
+
+**PappuClipRunner.xpc.** AppleScripts and Services run in an XPC service embedded in the app. It is the one target with `com.apple.security.automation.apple-events`; the app still has no such entitlement.
+- `PappuRunnerBridge` is the wire format and depends on nothing.
+- `PappuRunnerHost` is what the service runs, and the layering lint keeps every app-side module out of it.
+- `RunnerListener` answers `identify` in line. Every other request is handed to the main queue with `handoffReply(to: .main)`, because `NSAppleScript` and `NSPerformService` want the main thread.
+- `RunnerHost` uses `NSAppleScript` rather than OSAKit, which the table above names. Both run a script and call a handler. `NSAppleScript` is in Foundation and gives the error number directly, and no script in the corpus needs anything OSAKit adds.
+- A handler is called with a `kASSubroutineEvent` event; AppleScript knows handlers by their lower-case names.
+- A result with a text form becomes text, and a list becomes its items one per line.
+- A Service gets the text on a pasteboard with a unique name, released afterwards, so the user's clipboard is not touched. The Service's output is discarded, which matches PopClip.
+
+`RunnerClient` in `PappuRuntime` opens one `XPCSession` when first needed. Its first message learns the Runner's process ID. Cancelling kills that process with SIGKILL and drops the session, and the next job opens a new one. It is the only way to interrupt a script blocked on an app that will never answer. Jobs are `delegated`, so a cancel reports `askedToStop`.
+
+`PappuClip --check-runner` runs this against the real service and quits. It is the week's "done when", and an embedded service answers no one but its own app, so it cannot be a `swift test`. On the first run:
+- A script returned in 75 ms.
+- A hung `delay 30` was cancelled and ended `stopped` at once.
+- Error 502 came back as `needsSettings`.
+
+**Known gaps:**
+- launchd does not start a job again sooner than 10 s after its last start. A Runner killed within 10 s of its launch therefore holds up the next AppleScript until that time is up. That was 10 s in the check above; the same check with a Runner that had been up for 11 s relaunched it in 77 ms. The fix, if it matters in use, is for the Runner to run each script in a child process of its own and kill that child, so the Runner itself survives.
+- Killing the Runner stops every job in it. Only one runs at a time in practice, because the bar runs one action at a time.
+- Option values are empty until the options sheet in week 5.
+- No one has yet granted and refused Automation for a real target app by hand, so the alert is untested there.
 
 ### 9.6 Options, secrets, icons
 

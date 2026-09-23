@@ -13,6 +13,15 @@ import PappuCore
 enum Main {
     @MainActor
     static func main() {
+        // A developer's check of the Runner (M2 week 4), which only a built app can reach.
+        if CommandLine.arguments.contains("--check-runner") {
+            Task { @MainActor in
+                let lines = await RunnerCheck.run()
+                for line in lines { print("\(line.passed ? "PASS" : "FAIL")  \(line.name): \(line.detail)") }
+                exit(lines.allSatisfy(\.passed) ? 0 : 1)
+            }
+            RunLoop.main.run()
+        }
         let app = NSApplication.shared
         // PRD §12: an agent app. No Dock icon and no menu bar of its own; the status item is the whole
         // of the app the user can point at, and every window it opens activates the app by hand.

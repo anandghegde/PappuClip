@@ -9,7 +9,7 @@
 # Raising `current_milestone` is part of closing a milestone (plan §2, definition of done).
 
 schema: 1
-current_milestone: M0
+current_milestone: M1
 
 requirements:
 
@@ -716,7 +716,25 @@ requirements:
       - PappuAppTests/aClickFromARetiredAttemptRunsNothing
       - PappuAppTests/aClickOnSomethingThatWasNotOfferedRunsNothing
       - PappuAppTests/cancellingEndsWhateverTheBarStarted
-  BAR-12b: { priority: P1, milestone: M2, completes: M3, tests: [], note: "Display in M2; click-to-paste in M3." }
+  BAR-12b:
+    priority: P1
+    milestone: M2
+    completes: M3
+    note: >-
+      The display is built (M2 week 3). `ExtensionRunner` cuts a `show-result` or `preview-result` to
+      160 characters and reports it as `Display.result`; `SelectionBridge` turns that into
+      `BarFeedbackState.result`, which `BarController` places at the text's measured width, capped at
+      `BarMetrics.resultMaximumWidth`, and `BarFeedbackView` draws on one line, truncated at its tail.
+      The result stays until the bar is dismissed the way any bar is (BAR-10): no clock runs under
+      something being read. Click-to-paste is M3.
+    tests:
+      - PappuRuntimeTests/previewResultCopiesAndShowsTheFirst160Characters
+      - PappuRuntimeTests/showResultCopiesAndShowsIt
+      - PappuSurfacesTests/aResultIsGivenItsOwnWidth
+      - PappuSurfacesTests/aLongResultIsCappedRatherThanLetRunAcrossTheDisplay
+      - PappuSurfacesTests/goingBackToTheButtonsPutsTheirPlacementBack
+      - PappuSurfacesTests/aPressWhileAResultIsShownRunsNothing
+      - PappuAppTests/aResultReplacesTheButtonsAndStays
   BAR-13: { priority: P1, milestone: M3, tests: [] }
   BAR-14:
     priority: P0
@@ -831,10 +849,14 @@ requirements:
       Four of §8.5's five steps ship in M1 and are tested below against facts written by hand:
       `requiredApps` and `excludedApps`, `requirements` with negation and the legacy spellings,
       narrowing, and the full text staying available after it. Option-value conditions are here too,
-      answered from the extension's own values. The milestone stays M2 because `regex` is step 4 and
-      needs the parser; until it exists `ManifestBuilder` refuses a manifest that names one rather
-      than showing a button whose filter never ran.
+      answered from the extension's own values. Step 4, `regex`, arrived with the parser in M2 week 1:
+      it runs on the narrowed value, and an action whose regex does not compile is hidden.
     tests:
+      - PappuCoreTests/aRegexNarrowsToItsFirstMatchAndKeepsTheCaptures
+      - PappuCoreTests/aRegexThatDoesNotMatchHidesTheAction
+      - PappuCoreTests/anUnreadableRegexHidesTheActionRatherThanShowingIt
+      - PappuCoreTests/aRegexRunsOnTheNarrowedValue
+      - PappuCoreTests/anInvalidRegexIsRefused
       - PappuCoreTests/anActionWithNoAppRulesShowsAnywhere
       - PappuCoreTests/requiredAppsHidesItEverywhereElse
       - PappuCoreTests/excludedAppsHidesItThere
@@ -914,8 +936,28 @@ requirements:
   ALM-9: { priority: P1.x, milestone: 1.x, tests: [] }
 
   # Extension management and consent
-  EXM-1: { priority: P0, milestone: M2, tests: [] }
-  EXM-2: { priority: P0, milestone: M2, tests: [] }
+  EXM-1:
+    priority: P0
+    milestone: M2
+    note: >-
+      Package folders, zipped packages (deleted after install), and snippet files, staged and activated by rename. The app's Open handler is not wired yet; it comes with the catalog integration.
+    tests:
+      - PappuExtensionsTests/aPackageFolderInstallsIntoAFolderNamedByIdentityAndDigest
+      - PappuExtensionsTests/aZippedPackageIsDeletedAfterInstall
+      - PappuExtensionsTests/aSnippetFileInstalls
+      - PappuExtensionsTests/sourceFilesAreRecognisedByExtension
+      - PappuExtensionsTests/everyLoadableCorpusPackageInstalls
+  EXM-2:
+    priority: P0
+    milestone: M2
+    note: >-
+      The install pipeline and the collision table. The bar's Install Extension offer, which will call `ExtensionLibrary.install(.selectedText)`, is not wired yet.
+    tests:
+      - PappuExtensionsTests/selectedTextInstallsUpToTheLimit
+      - PappuExtensionsTests/aNameCollisionNeverReplaces
+      - PappuExtensionsTests/anIdentifierCollisionFromAnotherOriginInstallsSeparately
+      - PappuExtensionsTests/theSamePublisherOffersAReplacementOnlyOnAManualRoute
+      - PappuExtensionsTests/aMatchingNameIsOnlyAWarning
   EXM-3: { priority: P1, milestone: M3, tests: [] }
   EXM-4: { priority: P1, milestone: M3, tests: [] }
   EXM-5a: { priority: P0, milestone: M2, tests: [] }
@@ -929,7 +971,15 @@ requirements:
   EXM-6: { priority: P1, milestone: M4, tests: [] }
   EXM-7: { priority: P1, milestone: M4, tests: [] }
   EXM-8: { priority: P1, milestone: M4, tests: [] }
-  EXM-9: { priority: P0, milestone: M2, tests: [] }
+  EXM-9:
+    priority: P0
+    milestone: M2
+    note: >-
+      Deleting an extension's last live action uninstalls it; built-ins are never uninstalled and their actions come back with restoreBuiltins.
+    tests:
+      - PappuExtensionsTests/deletingTheLastActionUninstalls
+      - PappuExtensionsTests/deletedBuiltinsStayDeletedUntilRestored
+      - PappuExtensionsTests/aBuiltinCannotBeUninstalled
   EXM-10: { priority: P1, milestone: M3, tests: [] }
   EXM-11: { priority: P1, milestone: M3, tests: [] }
   EXM-12: { priority: P1, milestone: M5, tests: [], note: "The staged-package shape is built in M2; update activation lands in M5." }
@@ -974,8 +1024,16 @@ requirements:
       `BuiltinAction.mayMutateTheDestination`, and the line is drawn where the keystroke is: Cut and
       Paste press a key into another process, Copy reads a selection we are holding already, and Search
       and Open Link leave the machine. It is what `SelectionBridge` puts on every `InvocationRequest`, so
-      a built-in on the wrong side of that line would take no lease and be verified for nothing.
+      a built-in on the wrong side of that line would take no lease and be verified for nothing. An
+      extension's action is on the mutating side when it presses keys or when its `before` or `after`
+      pastes or cuts (`ActionManifest.mayMutateTheDestination`), and a Key Press sequence is one permit
+      for the whole sequence, with liveness checked between every combo.
     tests:
+      - PappuRuntimeTests/whatMayMutate
+      - PappuRuntimeTests/anUnverifiableDestinationGetsNoKeys
+      - PappuRuntimeTests/theAppTargetIsTheVerifiedProcess
+      - PappuRuntimeTests/pasteResultIntoAStaleDestinationNeitherPastesNorCopies
+      - PappuAppTests/aKeyPressIsBegunAsAMutationAndRefusedWithoutADestination
       - PappuRuntimeTests/nothingHasMovedSoTheTopTierIsGranted
       - PappuRuntimeTests/theLookIsMadeOnceAndCarriesTheInvocationsOwnRoute
       - PappuRuntimeTests/cancellingEndsEverythingTheRunCouldStillAskFor
@@ -1092,17 +1150,34 @@ requirements:
     priority: P0
     milestone: M1
     note: >-
-      The seam and the waiting are closed. Terminating an owned script process is `ScriptExecutor`'s
-      conformance to `CancellableWork`, in M2.
+      The seam and the waiting are closed. `ChildProcess` (M2 week 3) is the process half: SIGTERM to
+      the process group, a grace, then SIGKILL, so a script's own children stop with it. The Shortcut
+      and shell-script runners use it. An AppleScript or a Service is stopped by killing
+      PappuClipRunner.xpc (M2 week 4), checked against the real service by `PappuClip --check-runner`.
     tests:
+      - PappuRuntimeTests/aHungScriptIsStopped
+      - PappuRuntimeTests/aHungScriptIsCancelledAndItsLateResultDropped
+      - PappuRuntimeTests/aBackgroundedChildDoesNotHoldTheResult
+      - PappuRuntimeTests/cancellingStopsItAndSaysSo
+      - PappuRuntimeTests/aProcessThatIgnoresTheSignalIsKilled
+      - PappuRuntimeTests/cancellingDuringAWaitStopsTheRest
       - PappuRuntimeTests/ownedWorkIsStoppedAndSaidToBeStopped
       - PappuRuntimeTests/workThatWillNotStopEndsTheGraceRatherThanTheWait
       - PappuRuntimeTests/delegatedWorkIsOnlyAskedAndIsNeverCalledStopped
   RUN-3e:
     priority: P0
     milestone: M1
-    note: "The report is closed; the sentence the bar shows from it is BAR work in M1 week 5."
+    note: >-
+      The report is closed; the sentence the bar shows from it is BAR work in M1 week 5. A Shortcut is
+      the first delegated work that exists: stopping `shortcuts` stops the tool, not the Shortcuts
+      daemon it asked, so it is reported as `askedToStop`, and a result that arrives after the stop is
+      dropped rather than acted on. AppleScripts and Services (M2 week 4) are delegated for the same
+      reason: killing the Runner stops the script, not what it already asked another app to do. A
+      shell script is owned, and a stopped one is `stopped`.
     tests:
+      - PappuRuntimeTests/aHungScriptIsCancelledAndItsLateResultDropped
+      - PappuRuntimeTests/delegatedWorkIsOnlyAskedToStop
+      - PappuRuntimeTests/aResultThatArrivesAfterCancellationIsDropped
       - PappuRuntimeTests/delegatedWorkIsOnlyAskedAndIsNeverCalledStopped
       - PappuRuntimeTests/workThatCannotBeStoppedIsReportedAsSuchRatherThanAsStopped
       - PappuRuntimeTests/workThatWillNotStopEndsTheGraceRatherThanTheWait
@@ -1166,10 +1241,42 @@ requirements:
   SEC-7b: { priority: P1, milestone: M3, tests: [] }
   SEC-7c: { priority: P0, milestone: M2, tests: [] }
   SEC-7d: { priority: P0, milestone: M2, tests: [] }
-  SEC-8a: { priority: P0, milestone: M2, tests: [] }
-  SEC-8b: { priority: P0, milestone: M2, tests: [] }
-  SEC-8c: { priority: P0, milestone: M2, tests: [] }
-  SEC-8d: { priority: P0, milestone: M2, tests: [] }
+  SEC-8a:
+    priority: P0
+    milestone: M2
+    note: >-
+      The store is keyed on LocalIdentity and instance; the manifest identifier is an attribute. Grants (week 5) and Keychain items key on the same identity.
+    tests:
+      - PappuExtensionsTests/anIdentifierCollisionFromAnotherOriginInstallsSeparately
+      - PappuExtensionsTests/aLocalPackageWithTheSameIdentifierInstallsSeparately
+      - PappuExtensionsTests/everyLoadableCorpusPackageInstalls
+  SEC-8b:
+    priority: P0
+    milestone: M2
+    note: >-
+      Local provenance is origin plus SHA-256 content digest; the registry case exists in the model and is verified in M5.
+    tests:
+      - PappuExtensionsTests/theDigestIgnoresListingOrderButNotPathsOrBytes
+      - PappuExtensionsTests/onlyRegistryProvenanceVouches
+      - PappuExtensionsTests/changedLocalCodeIsReviewedBeforeItInstalls
+  SEC-8c:
+    priority: P0
+    milestone: M2
+    note: >-
+      Any changed local content has a new digest and goes through review before it activates; the review sheet itself is week 5.
+    tests:
+      - PappuExtensionsTests/changedLocalCodeIsReviewedBeforeItInstalls
+      - PappuExtensionsTests/cancellingTheReviewLeavesNoTrace
+  SEC-8d:
+    priority: P0
+    milestone: M2
+    note: >-
+      Names never replace; a local identifier collision installs separately unless the user chooses a trust transition.
+    tests:
+      - PappuExtensionsTests/aNameCollisionNeverReplaces
+      - PappuExtensionsTests/anIdentifierCollisionFromAnotherOriginInstallsSeparately
+      - PappuExtensionsTests/aTrustTransitionMovesPlacesAndOptionsToANewIdentity
+      - PappuExtensionsTests/aBuiltinIsNeverReplacedByTrustTransition
   SEC-8e: { priority: P1, milestone: M5, tests: [] }
   SEC-8f: { priority: P1, milestone: M5, tests: [] }
   SEC-8g: { priority: P1, milestone: M5, tests: [] }
@@ -1189,13 +1296,90 @@ requirements:
       - PappuSelectionTests/anIntersectionCanOnlyTakeAway
 
   # Package format (extension spec)
-  FMT-1: { priority: P0, milestone: M2, tests: [] }
-  FMT-2: { priority: P1, milestone: M3, tests: [] }
-  FMT-3: { priority: P0, milestone: M2, tests: [] }
-  FMT-4: { priority: P0, milestone: M2, tests: [] }
-  FMT-5: { priority: P0, milestone: M2, tests: [] }
-  FMT-6: { priority: P0, milestone: M2, tests: [] }
-  FMT-7: { priority: P0, milestone: M2, tests: [] }
+  FMT-1:
+    priority: P0
+    milestone: M2
+    note: >-
+      Config snippets from text and `.popcliptxt` files. Tab indentation is refused by line;
+      YAML 1.2's core schema keeps `yes` and `no` as strings. The corpus job loads every snippet in
+      the frozen PopClip-Extensions checkout on every commit.
+    tests:
+      - PappuCoreTests/theMarkerIsCaseInsensitiveWithAnOptionalSpace
+      - PappuCoreTests/textWithoutALeadingMarkerIsNotASnippet
+      - PappuCoreTests/aByteOrderMarkAndCRLFLineEndingsAreIgnored
+      - PappuCoreTests/aSelectionOverTheLimitIsNotOffered
+      - PappuCoreTests/yesAndNoAreStringsInYAML12
+      - PappuCoreTests/coreSchemaScalarsAreTyped
+      - PappuCoreTests/aTabIndentIsNamedByLine
+      - PappuCoreTests/jsonIsAlsoYAML
+      - PappuCoreTests/aSnippetLoads
+      - PappuCoreTests/textThatIsNotASnippetIsRefused
+  FMT-2:
+    priority: P1
+    milestone: M3
+    note: >-
+      Header detection and shell and AppleScript code snippets load in M2. JavaScript and TypeScript
+      bodies parse and wait for the M3 runtime.
+    tests:
+      - PappuCoreTests/aCodeSnippetsHeaderIsTheCommentRunAfterTheMarker
+      - PappuCoreTests/aShebangAndCommentsMayComeBeforeTheMarker
+      - PappuCoreTests/aMarkerAfterCodeIsJustText
+      - PappuCoreTests/aDashedHeaderIsAppleScript
+      - PappuCoreTests/aModuleIsRecognisedByItsExports
+      - PappuCoreTests/aShellSnippetLoads
+      - PappuCoreTests/aModuleWaitsForTheJavaScriptRuntime
+  FMT-3:
+    priority: P0
+    milestone: M2
+    tests:
+      - PappuCoreTests/aSnippetCannotReferToFiles
+      - PappuCoreTests/aMinimalExtensionLoadsWithDefaults
+      - PappuCoreTests/aDeclaredIdentifierMustBeWellFormed
+  FMT-4:
+    priority: P0
+    milestone: M2
+    note: >-
+      `PackageInspector` picks the one config; paths a manifest names are checked for containment,
+      symbolic links included, before the file system is asked about them.
+    tests:
+      - PappuCoreTests/theConfigsExtensionPicksTheParser
+      - PappuCoreTests/thereIsExactlyOneConfig
+      - PappuCoreTests/theNameIsCaseSensitive
+      - PappuCoreTests/aPathMustStayInsideThePackage
+      - PappuCoreTests/aSymbolicLinkOutOfThePackageIsOutside
+      - PappuCoreTests/aPackageFileMustBeInsideAndPresent
+      - PappuCoreTests/aPackageLoadsFromItsConfig
+      - PappuCoreTests/aPackageDiagnosticNamesItsFile
+      - PappuDevToolsTests/packagesAndSnippetsAreFoundButNotFilesInsideAPackage
+  FMT-5:
+    priority: P0
+    milestone: M2
+    tests:
+      - PappuCoreTests/everySpellingVariantNormalisesToTheSameKey
+      - PappuCoreTests/aRunOfCapitalsIsOneWord
+      - PappuCoreTests/aLeadingExtensionOrOptionIsStrippedWhenMoreFollows
+      - PappuCoreTests/theLegacyMapAppliesAfterTheWordRules
+      - PappuCoreTests/aDictionaryKeepsTheFirstOfTwoSpellingsOfOneKey
+      - PappuCoreTests/legacySpellingsReadTheSameKeys
+      - PappuCoreTests/aPlistFalseIsNullAndTrueIsTrue
+  FMT-6:
+    priority: P0
+    milestone: M2
+    tests:
+      - PappuCoreTests/wellFormedIdentifiersPass
+      - PappuCoreTests/malformedIdentifiersSayWhy
+      - PappuCoreTests/aDeclaredIdentifierMustBeWellFormed
+      - PappuCoreTests/theReservedIdentifierPrefixIsRefusedFromAnywhereElse
+  FMT-7:
+    priority: P0
+    milestone: M2
+    note: >-
+      Extensions/<LocalIdentity>/<digest>/, Staging/ beside it, and Store/pappuclip.sqlite, all under Application Support/PappuClip. A killed install is cleaned up by recover() at launch.
+    tests:
+      - PappuExtensionsTests/installedExtensionsLiveInApplicationSupport
+      - PappuExtensionsTests/theDatabaseIsOneFileThatKeepsItsDeviceID
+      - PappuExtensionsTests/aKilledInstallLeavesNoTrace
+      - PappuExtensionsTests/recoveryRemovesFoldersNoRowPointsAt
 
   # JavaScript runtime (extension spec)
   JS-1: { priority: P1, milestone: M3, tests: [] }
@@ -1295,7 +1479,18 @@ requirements:
       - PappuAppTests/aStaleGrantSaysSomethingElse
       - PappuAppTests/aStaleGrantShowsTheRepairAndDoesNotAskTheSystemAgain
       - PappuSettingsTests/theBannerSaysNothingUntilThereIsSomethingToSay
-  ONB-5: { priority: P1, milestone: M2, tests: [] }
+  ONB-5:
+    priority: P1
+    milestone: M2
+    note: >-
+      M2 week 4. macOS asks the question itself, the first time PappuClipRunner.xpc sends an event to
+      an app, and names PappuClip as the responsible process; both Info.plists carry the usage string.
+      A refusal comes back as AppleScript error -1743, which the run reports as `automationPermission`
+      and the app turns into an alert whose button opens Privacy & Security → Automation. The alert
+      itself is AppKit and is checked by hand.
+    tests:
+      - PappuRuntimeTests/automationDenialAsksForThePermission
+      - PappuAppTests/anAppleScriptRefusedAutomationAsksForThePermission
   ONB-6:
     priority: P1
     milestone: M3

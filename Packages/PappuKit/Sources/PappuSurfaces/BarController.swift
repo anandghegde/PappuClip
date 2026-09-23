@@ -88,6 +88,8 @@ public final class BarController: BarPresenting {
         var presentation: AttemptPresentation
         var content: BarContent
         var placement: BarPlacement
+        /// Where the bar is now, when a result has moved it off `placement` (BAR-12b).
+        var resized: BarPlacement?
     }
 
     private let window: any BarWindowing
@@ -288,6 +290,9 @@ public final class BarController: BarPresenting {
             change(to: .idle)
             return
         }
+        // A tick, a word or a result is on screen instead of the buttons, and Return on the key that
+        // was highlighted before it appeared is not a choice of anything the user can see.
+        guard feedback.state.showsButtons else { return }
         guard let entry = shown.content.items.first(where: { $0.id == item }), entry.isEnabled else { return }
 
         let click = BarClick(item: item, modifiers: modifiers, source: source)
@@ -306,8 +311,39 @@ public final class BarController: BarPresenting {
     private func change(to state: BarFeedbackState) {
         let announcement = feedback.change(to: state)
         let appearance = BarAppearance.resolve(appearanceSource.currentAppearance(), preference: settings.colorPreference)
+        resize(for: state, appearance: appearance)
         window.present(state, motion: state.motion(under: appearance))
         if let announcement { window.announce(announcement) }
+    }
+
+    /// BAR-12b: a result gets the bar's width, measured and capped, in place of the buttons' — placed
+    /// by the same rules against the same selection, so it points where the buttons pointed. The
+    /// buttons' own placement comes back if the bar returns to them.
+    private func resize(for state: BarFeedbackState, appearance: BarAppearance) {
+        guard var shown else { return }
+        let placement: BarPlacement
+        switch state {
+        case .result(let text):
+            let width = min(measurer.width(ofResult: text, metrics: settings.metrics), settings.metrics.resultMaximumWidth)
+            guard let fitted = BarLayout.place(
+                anchor: BarAnchor(shown.presentation),
+                itemWidths: [width],
+                preference: settings.position,
+                metrics: settings.metrics,
+                screens: screenSource.screens()
+            ) else { return }
+            placement = fitted
+            shown.resized = fitted
+        case .idle where shown.resized != nil:
+            placement = shown.placement
+            shown.resized = nil
+        default:
+            return
+        }
+        self.shown = shown
+        window.show(shown.content, placement: placement, appearance: appearance, metrics: settings.metrics)
+        let frame = placement.windowFrame(metrics: settings.metrics)
+        live.withLock { $0.frame = frame }
     }
 
     // MARK: Going away

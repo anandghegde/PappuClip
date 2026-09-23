@@ -129,6 +129,34 @@ public enum AppStrings {
         )
     }
 
+    // MARK: What a script asks of the user (§8.4, ONB-5)
+
+    public static func automationTitle(_ action: String) -> String {
+        String(
+            localized: "automation.alert.title",
+            defaultValue: "\u{201C}\(action)\u{201D} was not allowed to control another app",
+            bundle: .module,
+            comment: "%@ is the action's name, as its button shows it."
+        )
+    }
+
+    /// ONB-5. macOS asks once per app and remembers the answer, so a script refused once stays refused
+    /// until the switch in Settings is turned on; asking again would not bring the question back.
+    public static var automationBody: String {
+        localized(
+            "automation.alert.body",
+            "macOS asks once whether PappuClip may control each app, and remembers the answer. To let this action run, turn PappuClip on for that app under Privacy & Security \u{2192} Automation."
+        )
+    }
+
+    public static var automationOpen: String {
+        localized("automation.alert.open", "Open Automation Settings")
+    }
+
+    public static var automationDismiss: String {
+        localized("automation.alert.dismiss", "Not Now")
+    }
+
     /// The module's own bundle, so that the test which walks `all` can look every key up from outside.
     public static var bundle: Bundle { .module }
 
@@ -155,6 +183,10 @@ public enum AppStrings {
         "onboarding.permission.waiting",
         "onboarding.repair.title",
         "onboarding.repair.body",
+        "automation.alert.title",
+        "automation.alert.body",
+        "automation.alert.open",
+        "automation.alert.dismiss",
     ]
 
     private static func localized(_ key: StaticString, _ value: String.LocalizationValue) -> String {

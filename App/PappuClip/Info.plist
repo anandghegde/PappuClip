@@ -25,6 +25,10 @@
 	<!-- PRD §12: an agent app. No Dock icon, no menu bar; the status item is the whole of the UI. -->
 	<key>LSUIElement</key>
 	<true/>
+	<!-- ONB-5. PappuClipRunner.xpc sends the events, but the app is the responsible process, so this
+	     is the string macOS shows when an extension's AppleScript first talks to another app. -->
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Extensions you install can run AppleScripts that control other apps. macOS asks once for each app.</string>
 	<!-- Every window is made in code, so there is no main storyboard and no nib to name. -->
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>

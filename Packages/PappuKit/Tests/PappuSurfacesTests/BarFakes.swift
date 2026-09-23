@@ -180,6 +180,11 @@ struct FixedWidths: BarMeasuring {
     func widths(for content: BarContent, metrics: BarMetrics) -> [CGFloat] {
         Array(repeating: each, count: content.count)
     }
+
+    /// Seven points a character, so that a test can say how wide a result will ask to be.
+    func width(ofResult text: String, metrics: BarMetrics) -> CGFloat {
+        CGFloat(text.count) * 7
+    }
 }
 
 /// The key tap, as a handler a test can press keys into (ACT-19).

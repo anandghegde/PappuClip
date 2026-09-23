@@ -29,11 +29,16 @@ forbid PappuAnalysis "PappuSelection" "must not depend on the selection machiner
 forbid PappuJSHost "PappuSelection|PappuRuntime|PappuExtensions|PappuSurfaces|PappuSettings|PappuRegistry|PappuDiagnostics|AppKit|Cocoa" \
   "must not import an app-side module"
 
+# The Runner is told values and runs them. It must not be able to reach the rules that decide them.
+forbid PappuRunnerBridge "Pappu[A-Za-z]+" "must depend on no other module"
+forbid PappuRunnerHost "PappuCore|PappuAX|PappuSelection|PappuAnalysis|PappuRuntime|PappuExtensions|PappuSurfaces|PappuSettings|PappuRegistry|PappuDiagnostics|PappuJS[A-Za-z]+" \
+  "must not import an app-side module"
+
 # PappuApp is the top of the tree: the one module allowed to hold a surface and the runtime at once,
 # and therefore the one nothing else may reach for. A module that imported it would be asking the
 # assembly to depend on it and it to depend on the assembly.
 for module in PappuCore PappuAX PappuSelection PappuAnalysis PappuExtensions PappuJSBridge PappuJSHost PappuRuntime \
-              PappuSurfaces PappuSettings PappuRegistry PappuDiagnostics; do
+              PappuRunnerBridge PappuRunnerHost PappuSurfaces PappuSettings PappuRegistry PappuDiagnostics; do
   forbid "$module" "PappuApp" "must not import the app assembly"
 done
 
@@ -44,7 +49,7 @@ forbid PappuRuntime "PappuSurfaces" "must not depend on the surfaces"
 
 # Shipping modules never link the development tooling (it names apps; DIA-4).
 for module in PappuCore PappuAX PappuSelection PappuAnalysis PappuExtensions PappuJSBridge PappuJSHost PappuRuntime \
-              PappuSurfaces PappuSettings PappuRegistry PappuDiagnostics PappuApp; do
+              PappuRunnerBridge PappuRunnerHost PappuSurfaces PappuSettings PappuRegistry PappuDiagnostics PappuApp; do
   forbid "$module" "PappuHarness|PappuDevTools|PappuTestSupport" "must not import development tooling"
 done
 

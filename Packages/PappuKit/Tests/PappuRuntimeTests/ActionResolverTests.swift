@@ -265,3 +265,45 @@ import Testing
         #expect(Self.resolver.resolve(catalog, selection: Self.selection("x"), context: Self.context(bundleID: "com.apple.Safari")).isEmpty == false)
     }
 }
+
+/// An action the manifest reads but no runner can run yet is absent, with a reason — never a button
+/// that does nothing. The ones that have a runner are on the bar.
+@Suite struct ActionResolverRunnerTests {
+    private func resolve(_ body: String) throws -> (ActionResolver.Resolution, ActionExecutor) {
+        let manifest = try ExtensionLoader.loadSnippet("#popclip\nname: Shout\nidentifier: com.example.shout\n\(body)").manifest
+        let catalog = ActionCatalog(entries: [.init(manifest: manifest, origin: .installed)])
+        let resolution = ActionResolver().resolve(
+            catalog,
+            selection: AnalyzedSelection(text: "hello", detections: []),
+            context: SelectionContext(
+                app: AppIdentity(pid: 42, bundleID: "com.example.Editor", name: "Editor"),
+                editability: Editability(isEditable: false, source: .settableSelectedText),
+                canCut: false,
+                canCopy: true,
+                canPaste: false,
+                hasFormatting: false
+            )
+        )
+        return (resolution, manifest.actions[0].executor)
+    }
+
+    @Test func anActionWithNoRunnerIsRefusedByName() throws {
+        let (resolution, executor) = try resolve("javascript: return popclip.input.text")
+        #expect(resolution.actions.isEmpty)
+        #expect(Array(resolution.refusals.values) == [.noRunner(executor)])
+    }
+
+    @Test(arguments: [
+        "keyCombo: command b",
+        "url: https://example.com/?q=***",
+        "shortcutName: Shout",
+        "serviceName: Make Sticky",
+        "applescript: return \"{popclip text}\"",
+        "shellScript: echo hi",
+    ])
+    func everyOtherExecutorHasARunner(_ body: String) throws {
+        let (resolution, _) = try resolve(body)
+        #expect(resolution.actions.count == 1)
+        #expect(resolution.refusals.isEmpty)
+    }
+}

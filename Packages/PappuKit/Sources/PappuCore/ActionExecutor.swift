@@ -30,14 +30,167 @@ public enum BuiltinAction: String, Sendable, Equatable, Hashable, Codable, CaseI
 
 /// How an action runs (§8.4, architecture §9.5).
 ///
-/// M1 has one case. The six non-JavaScript types — URL, Key Press, Service, Shortcut, AppleScript and
-/// Shell Script — arrive in M2 and JavaScript in M3, each with its own keys and its own capability
-/// analysis. They are not stubbed here: an enumeration case with no executor behind it is a promise
-/// the code does not keep, and a manifest naming one is better refused at load with a message than
-/// shown on a bar as a button that does nothing.
+/// **Every type the parser reads, and a separate answer to which ones run.** In M1 this enumeration had
+/// one case, on the rule that a case with no executor behind it is a promise the code does not keep.
+/// M2's parser has to be able to *read* all seven types before the executors behind them exist —
+/// week 1 loads the corpus, weeks 3 and 4 write the executors — so the rule moves to where it can be
+/// kept: `ActionResolver` offers an action only if this build can run its executor, and says so in its
+/// refusal otherwise. A manifest that names a type is read faithfully; a bar never shows a button that
+/// does nothing.
+///
+/// The payloads hold what the manifest said, checked for shape and not yet for meaning: a key combo is
+/// the author's string until the Key Press executor parses it (M2 week 3), and a file path is relative
+/// to the package until the executor resolves it inside it.
 public enum ActionExecutor: Sendable, Equatable, Hashable {
     /// Reserved. Only a manifest from the app's own bundle may name it (`ManifestOrigin.appBundle`).
     case builtin(BuiltinAction)
+    case url(URLAction)
+    case keyPress(KeyPressAction)
+    case service(ServiceAction)
+    case shortcut(ShortcutAction)
+    case appleScript(AppleScriptAction)
+    case shellScript(ShellScriptAction)
+    /// P1, M3. An inline or file script; module extensions have no per-action executor until the
+    /// runtime has run the module (`ExtensionManifest.module`).
+    case javaScript(JavaScriptAction)
+
+    /// The type alone, for the question "can this build run it".
+    public enum Kind: String, Sendable, Equatable, Hashable, Codable, CaseIterable {
+        case builtin, url, keyPress, service, shortcut, appleScript, shellScript, javaScript
+    }
+
+    public var kind: Kind {
+        switch self {
+        case .builtin: .builtin
+        case .url: .url
+        case .keyPress: .keyPress
+        case .service: .service
+        case .shortcut: .shortcut
+        case .appleScript: .appleScript
+        case .shellScript: .shellScript
+        case .javaScript: .javaScript
+        }
+    }
+}
+
+/// §8.4 URL.
+public struct URLAction: Sendable, Equatable, Hashable, Codable {
+    /// With `{popclip text}`, `***` or `{popclip option <id>}` placeholders, expanded at run time.
+    public var template: String
+    public var cleanQuery: Bool
+    public var spacesAsPlus: Bool
+
+    public init(template: String, cleanQuery: Bool = false, spacesAsPlus: Bool = false) {
+        self.template = template
+        self.cleanQuery = cleanQuery
+        self.spacesAsPlus = spacesAsPlus
+    }
+}
+
+/// §8.4 Key Press.
+public struct KeyPressAction: Sendable, Equatable, Hashable, Codable {
+    public enum Step: Sendable, Equatable, Hashable, Codable {
+        /// `<modifiers> <key>`, as written. Parsed by the executor (M2 week 3).
+        case combo(String)
+        /// The older dictionary form PopClip still reads: a key code or a character, and a modifier
+        /// mask. Two corpus packages use it.
+        case legacyCombo(keyCode: Int?, keyCharacter: String?, modifiers: Int)
+        /// `wait <ms>` between combos in `keyCombos`.
+        case wait(milliseconds: Int)
+    }
+
+    /// `keyComboTarget`.
+    public enum Target: String, Sendable, Equatable, Hashable, Codable, CaseIterable {
+        case session, app, hid
+    }
+
+    public var steps: [Step]
+    /// Nil when the manifest names none; the executor chooses PopClip's default.
+    public var target: Target?
+
+    public init(steps: [Step], target: Target? = nil) {
+        self.steps = steps
+        self.target = target
+    }
+}
+
+/// §8.4 Service: the macOS Service's menu name.
+public struct ServiceAction: Sendable, Equatable, Hashable, Codable {
+    public var name: String
+
+    public init(name: String) { self.name = name }
+}
+
+/// §8.4 Shortcut: the shortcut's name in the Shortcuts app.
+public struct ShortcutAction: Sendable, Equatable, Hashable, Codable {
+    public var name: String
+
+    public init(name: String) { self.name = name }
+}
+
+/// Where a script's source is: in the manifest, or in a file in the package.
+public enum ScriptSource: Sendable, Equatable, Hashable, Codable {
+    case inline(String)
+    /// Relative to the package root. Checked to exist at load; resolved inside the package at run time.
+    case file(String)
+}
+
+/// §8.4 AppleScript.
+public struct AppleScriptAction: Sendable, Equatable, Hashable, Codable {
+    /// `appleScriptCall`: a handler in a compiled or file script, and the names of the values passed
+    /// to it (`popclip text`, `popclip option <id>` and so on).
+    public struct Call: Sendable, Equatable, Hashable, Codable {
+        public var handler: String
+        public var parameters: [String]
+
+        public init(handler: String, parameters: [String] = []) {
+            self.handler = handler
+            self.parameters = parameters
+        }
+    }
+
+    public var source: ScriptSource
+    public var call: Call?
+
+    public init(source: ScriptSource, call: Call? = nil) {
+        self.source = source
+        self.call = call
+    }
+}
+
+/// §8.4 Shell Script.
+public struct ShellScriptAction: Sendable, Equatable, Hashable, Codable {
+    /// `shellMode`.
+    public enum Mode: String, Sendable, Equatable, Hashable, Codable, CaseIterable {
+        case login, nonlogin, none
+    }
+
+    public var source: ScriptSource
+    /// Nil when the manifest names none; §8.4's file-execution rules decide at run time.
+    public var interpreter: String?
+    /// Which value goes to standard input (`text` in every corpus use).
+    public var stdin: String?
+    /// Nil means the default, `login`.
+    public var mode: Mode?
+
+    public init(source: ScriptSource, interpreter: String? = nil, stdin: String? = nil, mode: Mode? = nil) {
+        self.source = source
+        self.interpreter = interpreter
+        self.stdin = stdin
+        self.mode = mode
+    }
+}
+
+/// §8.4 JavaScript / TypeScript, as an action's own script (§8.8, M3).
+public struct JavaScriptAction: Sendable, Equatable, Hashable, Codable {
+    public var source: ScriptSource
+    /// TypeScript is transpiled without type checking (JS-14).
+    public var isTypeScript: Bool
+
+    public init(source: ScriptSource, isTypeScript: Bool = false) {
+        self.source = source
+        self.isTypeScript = isTypeScript
+    }
 }
 
 /// Where a manifest came from, which is the whole of what makes the reserved executor safe.
@@ -54,30 +207,41 @@ public enum ManifestOrigin: String, Sendable, Equatable, Hashable, Codable, Case
 }
 
 extension ActionExecutor: Codable {
-    /// `{"builtin": "copy"}`. A dictionary rather than a bare string, because M2's executors carry
-    /// their own keys — `url`, `keyCombo`, `shellScript` — and a bare string would have to change
-    /// shape when the first of them lands.
+    /// `{"builtin": "copy"}`, `{"url": {...}}`: one key naming the type, holding its payload.
     private enum CodingKeys: String, CodingKey {
-        case builtin
+        case builtin, url, keyPress, service, shortcut, appleScript, shellScript, javaScript
     }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        guard let builtin = try container.decodeIfPresent(BuiltinAction.self, forKey: .builtin) else {
+        guard container.allKeys.count == 1, let key = container.allKeys.first else {
             throw DecodingError.dataCorrupted(
-                .init(
-                    codingPath: decoder.codingPath,
-                    debugDescription: "No executor this build can run. M1 runs `builtin` only; the other types are M2 and M3."
-                )
+                .init(codingPath: decoder.codingPath, debugDescription: "An executor names exactly one type.")
             )
         }
-        self = .builtin(builtin)
+        switch key {
+        case .builtin: self = .builtin(try container.decode(BuiltinAction.self, forKey: key))
+        case .url: self = .url(try container.decode(URLAction.self, forKey: key))
+        case .keyPress: self = .keyPress(try container.decode(KeyPressAction.self, forKey: key))
+        case .service: self = .service(try container.decode(ServiceAction.self, forKey: key))
+        case .shortcut: self = .shortcut(try container.decode(ShortcutAction.self, forKey: key))
+        case .appleScript: self = .appleScript(try container.decode(AppleScriptAction.self, forKey: key))
+        case .shellScript: self = .shellScript(try container.decode(ShellScriptAction.self, forKey: key))
+        case .javaScript: self = .javaScript(try container.decode(JavaScriptAction.self, forKey: key))
+        }
     }
 
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
         case .builtin(let action): try container.encode(action, forKey: .builtin)
+        case .url(let action): try container.encode(action, forKey: .url)
+        case .keyPress(let action): try container.encode(action, forKey: .keyPress)
+        case .service(let action): try container.encode(action, forKey: .service)
+        case .shortcut(let action): try container.encode(action, forKey: .shortcut)
+        case .appleScript(let action): try container.encode(action, forKey: .appleScript)
+        case .shellScript(let action): try container.encode(action, forKey: .shellScript)
+        case .javaScript(let action): try container.encode(action, forKey: .javaScript)
         }
     }
 }

@@ -6,6 +6,9 @@ public enum BarFeedbackState: Sendable, Equatable {
     case running(cancellable: Bool)
     /// The "Copied" confirmation, which is its own state because it says a word rather than a mark.
     case copied
+    /// BAR-12b: an action's answer, in place of the buttons. The runner has already cut it to 160
+    /// characters; the view truncates it again to the width it was given.
+    case result(String)
     case succeeded
     case failed
 }
@@ -24,13 +27,16 @@ extension BarFeedbackState {
     /// stop, which is the shake.
     public func motion(under appearance: BarAppearance) -> BarMotion {
         switch self {
-        case .idle, .copied, .succeeded: .none
+        case .idle, .copied, .result, .succeeded: .none
         case .running: .spinner
         case .failed: appearance.motion == .still ? .none : .shake
         }
     }
 
     /// Whether a click or a key in this state means "stop" rather than "run something" (RUN-3).
+    /// Whether the bar's buttons are what is on screen, so a press means "run this".
+    public var showsButtons: Bool { self == .idle }
+
     public var isCancellable: Bool {
         if case .running(let cancellable) = self { return cancellable }
         return false
@@ -43,6 +49,8 @@ extension BarFeedbackState {
         case .idle: nil
         case .running: BarStrings.feedbackRunning
         case .copied: BarStrings.feedbackCopied
+        // The answer itself, which is the only part of it that is not already on the screen as text.
+        case .result(let text): BarStrings.feedbackResult(text)
         case .succeeded: BarStrings.feedbackSucceeded
         case .failed: BarStrings.feedbackFailed
         }

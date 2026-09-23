@@ -60,3 +60,15 @@
 
 /* How to clear a stale grant (ONB-4). */
 "onboarding.repair.body" = "PappuClip is already listed under Privacy & Security \U2192 Accessibility, but macOS is refusing it \U2014 which happens when an update replaces the app. Remove PappuClip from that list with the \U2212 button, then add it again.";
+
+/* The Automation alert's headline (ONB-5). %@ is the action's name. */
+"automation.alert.title" = "\U201C%@\U201D was not allowed to control another app";
+
+/* Why the action did not run, and where the switch is (ONB-5). */
+"automation.alert.body" = "macOS asks once whether PappuClip may control each app, and remembers the answer. To let this action run, turn PappuClip on for that app under Privacy & Security \U2192 Automation.";
+
+/* The Automation alert's button that opens System Settings (ONB-5). */
+"automation.alert.open" = "Open Automation Settings";
+
+/* The Automation alert's other button. */
+"automation.alert.dismiss" = "Not Now";

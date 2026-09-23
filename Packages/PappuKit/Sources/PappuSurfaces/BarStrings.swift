@@ -26,6 +26,16 @@ public enum BarStrings {
         localized("bar.feedback.copied", "Copied")
     }
 
+    /// What is said when an action's answer replaces the buttons (BAR-12b, BAR-14).
+    public static func feedbackResult(_ text: String) -> String {
+        String(
+            localized: "bar.feedback.result",
+            defaultValue: "Result: \(text)",
+            bundle: .module,
+            comment: "Announced when an action's result is shown in the bar. %@ is the result."
+        )
+    }
+
     public static var feedbackSucceeded: String {
         localized("bar.feedback.succeeded", "Done")
     }
@@ -55,6 +65,7 @@ public enum BarStrings {
         "bar.cancel",
         "bar.feedback.running",
         "bar.feedback.copied",
+        "bar.feedback.result",
         "bar.feedback.succeeded",
         "bar.feedback.failed",
         "bar.tooltip.disabled",

@@ -43,6 +43,9 @@ public struct CatalogAction: Sendable, Equatable {
     public var showAs: ExtensionManifest.ShowAs
     /// ALM-4. Disabled actions stay in the list and keep their place; they are simply not offered.
     public var isEnabled: Bool
+    /// Where the extension's files are: a script file is resolved inside it, and a shell script runs
+    /// in it (§8.4). Nil for a built-in.
+    public var directory: URL? = nil
 
     public var executor: ActionExecutor { manifest.executor }
 
@@ -70,11 +73,14 @@ public struct ActionCatalog: Sendable, Equatable {
         public var origin: ManifestOrigin
         /// ALM-4, per extension in M1; per action in M4.
         public var isEnabled: Bool
+        /// The installed package's folder. Nil for a built-in, which has none.
+        public var directory: URL?
 
-        public init(manifest: ExtensionManifest, origin: ManifestOrigin, isEnabled: Bool = true) {
+        public init(manifest: ExtensionManifest, origin: ManifestOrigin, isEnabled: Bool = true, directory: URL? = nil) {
             self.manifest = manifest
             self.origin = origin
             self.isEnabled = isEnabled
+            self.directory = directory
         }
     }
 
@@ -97,7 +103,8 @@ public struct ActionCatalog: Sendable, Equatable {
                         title: action.title ?? manifest.name,
                         icon: action.icon.resolved(orInheriting: extensionIcon),
                         showAs: manifest.showAs,
-                        isEnabled: entry.isEnabled
+                        isEnabled: entry.isEnabled,
+                        directory: entry.directory
                     )
                 )
             }

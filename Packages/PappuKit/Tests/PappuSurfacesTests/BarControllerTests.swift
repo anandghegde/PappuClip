@@ -239,6 +239,57 @@ private func selection() -> AttemptPresentation { presentation(bounds: line, poi
         #expect(bar.window.announcements.last == BarStrings.feedbackCopied)
     }
 
+    // MARK: Results (BAR-12b)
+
+    /// The bar takes the result's width, placed by the same rules against the same selection.
+    @Test func aResultIsGivenItsOwnWidth() async throws {
+        let bar = Bar()
+        await bar.show(selection())
+        let buttons = try #require(bar.window.lastPlacement)
+        let answer = String(repeating: "x", count: 40)
+        bar.controller.report(.result(answer))
+
+        let placement = try #require(bar.window.lastPlacement)
+        #expect(placement.frame.width == BarMetrics.standard.width(forItemWidths: [280]))
+        #expect(placement.frame.midX == buttons.frame.midX)
+        #expect(bar.window.calls.contains(.presented(.result(answer), .none)))
+        #expect(bar.window.announcements.last == BarStrings.feedbackResult(answer))
+    }
+
+    @Test func aLongResultIsCappedRatherThanLetRunAcrossTheDisplay() async throws {
+        let bar = Bar()
+        await bar.show(selection())
+        bar.controller.report(.result(String(repeating: "x", count: 160)))
+
+        let placement = try #require(bar.window.lastPlacement)
+        let cap = BarMetrics.standard.resultMaximumWidth
+        #expect(placement.frame.width == BarMetrics.standard.width(forItemWidths: [cap]))
+    }
+
+    /// `popclip-appear` after a result, or anything else that returns to idle: the buttons come back
+    /// at the buttons' own width.
+    @Test func goingBackToTheButtonsPutsTheirPlacementBack() async throws {
+        let bar = Bar()
+        await bar.show(selection())
+        let buttons = try #require(bar.window.lastPlacement)
+        bar.controller.report(.result("an answer"))
+        bar.controller.report(.idle)
+
+        #expect(bar.window.lastPlacement == buttons)
+    }
+
+    /// With a result on screen there are no buttons to choose, so Return chooses nothing.
+    @Test func aPressWhileAResultIsShownRunsNothing() async {
+        let bar = Bar()
+        await bar.show(selection())
+        bar.controller.report(.result("an answer"))
+        bar.window.press("copy")
+        await settle()
+
+        #expect(bar.invoker.clicks.isEmpty)
+        #expect(bar.controller.feedbackState == .result("an answer"))
+    }
+
     @Test func aFailureShakesUnlessReduceMotionIsOn() async {
         let moving = Bar()
         await moving.show(selection())

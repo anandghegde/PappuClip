@@ -69,6 +69,8 @@ public struct BarPanelConfiguration: Sendable, Equatable {
 /// How wide each button is. AppKit measures text in the app; a test says a number.
 public protocol BarMeasuring: Sendable {
     func widths(for content: BarContent, metrics: BarMetrics) -> [CGFloat]
+    /// How wide a result's text wants to be, padding included, before any cap (BAR-12b).
+    func width(ofResult text: String, metrics: BarMetrics) -> CGFloat
 }
 
 /// The window the bar lives in. `BarPanel` in the app, a recorder in the tests.
