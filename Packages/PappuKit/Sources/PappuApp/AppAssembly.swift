@@ -118,11 +118,18 @@ public final class AppAssembly: SelectionInstalling {
         // extension is running (SEC-4b); before the bridge, which reads the catalog, the approvals and
         // the options from it. A library that cannot be opened — a disk that refuses the database — is
         // an app with its built-ins and no extensions, not an app that does not start.
+        // What extensions print and how their actions end (DIA-1). The JavaScript helper is the first
+        // thing that writes to it. PappuClipJSHost.xpc is started on the first JavaScript action, or at
+        // launch when an approved module extension needs describing (JS-12).
+        let console = DebugConsole()
+        let javaScript = JSHostClient(console: console)
         let host = (try? ExtensionLibrary(paths: .standard)).map { library in
             ExtensionHost(
                 library: library,
                 secrets: KeychainSecretStore(),
                 builtins: resources.builtins,
+                modules: javaScript,
+                console: console,
                 invalidate: { owner in await manager.invalidate(ownedBy: owner) }
             )
         }
@@ -141,10 +148,6 @@ public final class AppAssembly: SelectionInstalling {
             engines: resources.engines
         )
         let scripts = RunnerClient()
-        // What extensions print and how their actions end (DIA-1). The JavaScript helper is the first
-        // thing that writes to it; PappuClipJSHost.xpc is started on the first JavaScript action.
-        let console = DebugConsole()
-        let javaScript = JSHostClient(console: console)
         let extensions = ExtensionRunner(
             manager: manager,
             editor: editor,

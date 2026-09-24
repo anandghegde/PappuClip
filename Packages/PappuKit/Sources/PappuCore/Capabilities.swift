@@ -127,8 +127,10 @@ public enum CapabilityAnalyzer {
             }
         }
 
-        // A module's actions exist only once the module has run (M3), so its code is judged before
-        // there is anything to judge it by: unbounded, like any script this build cannot scan.
+        // A module's actions exist only once the helper has described it (JS-12), which is after the
+        // approval this analysis is shown for, so its code is judged before there is anything to judge
+        // it by: unbounded, like any script this build cannot scan. Each described action is JavaScript
+        // and needs the same gates, so describing it discloses nothing the approval did not cover.
         if manifest.module != nil, manifest.module != .detection(false) {
             gated.insert(.unboundedCode)
         }

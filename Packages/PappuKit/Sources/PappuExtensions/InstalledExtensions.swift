@@ -18,6 +18,16 @@ public struct InstalledExtension: Sendable, Equatable {
     /// Nil when the extension may not run: pending approval, disabled, or a grant for other bytes.
     public var approval: ExecutionApproval?
     public var grants: [GrantRecord]
+    /// JS-12: what its module exported, when it is a module extension the helper has described. Its
+    /// manifest's actions and options are then the module's.
+    public var moduleExports: ModuleExports? = nil
+    /// JS-12: why what the module exported did not make a manifest, which leaves the config's.
+    public var moduleProblem: String? = nil
+
+    /// JS-12: a module extension whose module has not been described for these bytes.
+    public var awaitsModuleDescription: Bool {
+        manifest.moduleSource != nil && moduleExports == nil && moduleProblem == nil
+    }
 
     public var identity: LocalIdentity { record.localIdentity }
 
@@ -66,14 +76,18 @@ extension ExtensionLibrary {
             throw ExtensionStore.GrantError.noActiveVersion(record.localIdentity)
         }
         let form = try await store.versions(of: record.localIdentity).first { $0.contentDigest == digest }?.form ?? .package
-        let settings = ExtensionLoader.Settings(origin: .installed)
-        let manifest: ExtensionManifest
-        switch form {
-        case .package:
-            manifest = try ExtensionLoader.loadPackage(at: directory, settings: settings).manifest
-        case .snippet:
-            let text = try String(contentsOf: directory.appending(path: StagedForm.snippetFileName), encoding: .utf8)
-            manifest = try ExtensionLoader.loadSnippet(text, settings: settings).manifest
+        var manifest = try Self.manifest(form, in: directory, settings: ExtensionLoader.Settings(origin: .installed))
+        // JS-12: a described module's actions and options, over its config's. Exports that do not
+        // build leave the config's manifest, and the reason, rather than an extension that will not load.
+        var exports: ModuleExports?
+        var moduleProblem: String?
+        if manifest.moduleSource != nil, let described = moduleExports[ModuleKey(identity: record.localIdentity, digest: digest)] {
+            do {
+                manifest = try Self.manifest(form, in: directory, settings: ExtensionLoader.Settings(origin: .installed, moduleExports: described))
+                exports = described
+            } catch {
+                moduleProblem = String(describing: error)
+            }
         }
         let instance = try await store.instances(of: record.localIdentity).first?.id
         var stored: [String: String] = [:]
@@ -86,7 +100,19 @@ extension ExtensionLibrary {
             instance: instance,
             storedOptions: stored,
             approval: approval,
-            grants: try await store.grants(of: record.localIdentity)
+            grants: try await store.grants(of: record.localIdentity),
+            moduleExports: exports,
+            moduleProblem: moduleProblem
         )
+    }
+
+    private static func manifest(_ form: StagedForm, in directory: URL, settings: ExtensionLoader.Settings) throws -> ExtensionManifest {
+        switch form {
+        case .package:
+            return try ExtensionLoader.loadPackage(at: directory, settings: settings).manifest
+        case .snippet:
+            let text = try String(contentsOf: directory.appending(path: StagedForm.snippetFileName), encoding: .utf8)
+            return try ExtensionLoader.loadSnippet(text, settings: settings).manifest
+        }
     }
 }

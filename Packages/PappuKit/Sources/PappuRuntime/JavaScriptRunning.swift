@@ -1,3 +1,4 @@
+import Compression
 import Foundation
 import PappuCore
 
@@ -46,6 +47,41 @@ public protocol JavaScriptRunning: Sendable {
     func start(_ job: JavaScriptRunRequest) async -> (any ScriptRun)?
 }
 
+/// JS-12: one module extension's module, for the helper to run and describe.
+public struct ModuleDescribeRequest: Sendable, Equatable {
+    /// The installed extension, as its local identity's text.
+    public var owner: String
+    /// The approved bytes' digest.
+    public var generation: String
+    /// For the Debug Console.
+    public var extensionName: String
+    /// The package folder, whose scripts the helper is sent.
+    public var directory: URL
+    public var module: ModuleSource
+
+    public init(owner: String, generation: String, extensionName: String, directory: URL, module: ModuleSource) {
+        self.owner = owner
+        self.generation = generation
+        self.extensionName = extensionName
+        self.directory = directory
+        self.module = module
+    }
+}
+
+public struct ModuleDescribeFailure: Error, Equatable, Sendable {
+    public var message: String
+
+    public init(_ message: String) {
+        self.message = message
+    }
+}
+
+/// JS-12: asks the JavaScript helper what a module extension exported. Describing a module runs it, so
+/// this is asked only for an extension with an `ExecutionApproval` for these bytes, as `load` is.
+public protocol ModuleDescribing: Sendable {
+    func describe(_ module: ModuleDescribeRequest) async -> Result<ModuleExports, ModuleDescribeFailure>
+}
+
 /// For a runner assembled without a JavaScript helper: every action fails to start.
 public struct NoJavaScript: JavaScriptRunning {
     public init() {}
@@ -70,10 +106,18 @@ enum JavaScriptFailure {
 /// spellings, TypeScript, which the helper transpiles (JS-14), and JSON. A file reached through a link
 /// out of the package is not sent, and nor is anything past the limits: a package this large is not
 /// one the helper should be asked to hold.
+///
+/// **LZFSE.** PopClip reads a module compressed with LZFSE (`main.bundle.js.lzfse`), and eight packages in
+/// the corpus ship one (JS-12). Such a file is decompressed here and sent under its own name, and the
+/// limits apply to what it decompresses to.
+///
+/// **The limits** are PappuClip's, not PopClip's, and sized from the corpus: its largest script is
+/// Calculate's mathjs, 1.7 MB once decompressed, so a file may be 8 MB and a package 16 MB.
 enum PackageSources {
     static let extensions: Set<String> = ["js", "cjs", "mjs", "ts", "json"]
-    static let fileLimit = 1 << 20
-    static let totalLimit = 8 << 20
+    static let compressed = "lzfse"
+    static let fileLimit = 8 << 20
+    static let totalLimit = 16 << 20
     static let countLimit = 2_000
 
     enum Failure: Error, Equatable {
@@ -90,18 +134,55 @@ enum PackageSources {
         var files: [String: String] = [:]
         var total = 0
         for case let url as URL in walker {
-            guard extensions.contains(url.pathExtension.lowercased()),
+            let isCompressed = url.pathExtension.lowercased() == compressed
+            let kind = (isCompressed ? url.deletingPathExtension() : url).pathExtension.lowercased()
+            guard extensions.contains(kind),
                   let values = try? url.resourceValues(forKeys: Set(keys)),
                   values.isRegularFile == true, values.isSymbolicLink != true
             else { continue }
             let file = url.resolvingSymlinksInPath().standardizedFileURL
             guard file.path.hasPrefix(prefix) else { continue }
-            let size = values.fileSize ?? 0
-            total += size
-            guard size <= fileLimit, total <= totalLimit, files.count < countLimit else { return .failure(.tooLarge) }
-            guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
+            guard (values.fileSize ?? 0) <= fileLimit, files.count < countLimit else { return .failure(.tooLarge) }
+            guard var data = try? Data(contentsOf: file) else { continue }
+            if isCompressed {
+                switch expand(data, limit: fileLimit) {
+                case .expanded(let expanded): data = expanded
+                case .tooLarge: return .failure(.tooLarge)
+                case .corrupt: continue
+                }
+            }
+            total += data.count
+            guard data.count <= fileLimit, total <= totalLimit else { return .failure(.tooLarge) }
+            guard let text = String(data: data, encoding: .utf8) else { continue }
             files[String(file.path.dropFirst(prefix.count))] = text
         }
         return .success(files)
+    }
+
+    enum Expansion: Equatable {
+        case expanded(Data)
+        case tooLarge
+        case corrupt
+    }
+
+    /// LZFSE, decompressed a chunk at a time and abandoned the moment it passes `limit`: a small file
+    /// can expand to a great deal, and none of it should be held first and measured after.
+    static func expand(_ data: Data, limit: Int) -> Expansion {
+        struct TooLarge: Error {}
+        var output = Data()
+        do {
+            let filter = try OutputFilter(.decompress, using: .lzfse) { chunk in
+                guard let chunk else { return }
+                output.append(chunk)
+                if output.count > limit { throw TooLarge() }
+            }
+            try filter.write(data)
+            try filter.finalize()
+        } catch is TooLarge {
+            return .tooLarge
+        } catch {
+            return .corrupt
+        }
+        return .expanded(output)
     }
 }

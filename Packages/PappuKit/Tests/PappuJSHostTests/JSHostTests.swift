@@ -20,7 +20,8 @@ import Testing
 
         init() {
             let lines = lines
-            host = JSHost { name, line in lines.append((name, line)) }
+            // Below the test's own priority: a world spinning here must not starve its timers.
+            host = JSHost(qos: .utility) { name, line in lines.append((name, line)) }
         }
 
         func ask(_ request: JSHostRequest) async -> JSHostReply {
@@ -45,6 +46,7 @@ import Testing
             generation: String = "1",
             options: [String: String] = [:],
             typeScript: Bool = false,
+            export: String? = nil,
             id: UInt64? = nil
         ) async -> JSHostReply {
             await ask(.invoke(JSInvoke(
@@ -54,8 +56,13 @@ import Testing
                 entry: entry,
                 input: JSInput(text: text, matchedText: text),
                 options: options,
-                typeScript: typeScript
+                typeScript: typeScript,
+                export: export
             )))
+        }
+
+        func describe(_ name: String, _ entry: JSInvoke.Entry, typeScript: Bool = false, generation: String = "1") async -> JSHostReply {
+            await ask(.describe(JSDescribe(extensionName: name, generation: generation, entry: entry, typeScript: typeScript)))
         }
 
         func printed() -> [String] {
@@ -212,17 +219,39 @@ import Testing
         return files
     }
 
-    @Test func aTimerOutlivesItsInvocationButNotItsWorld() async throws {
+    @Test func aTimerOutlivesItsInvocation() async throws {
         let harness = Harness()
         await harness.load("a")
         #expect(await harness.run("a", "setTimeout(() => print('later'), 20); return 'now'") == .returned("now"))
-        try await Task.sleep(for: .milliseconds(200))
+        // The world runs below the test's priority, so give it a while rather than a deadline.
+        for _ in 0..<200 where harness.printed().isEmpty {
+            try await Task.sleep(for: .milliseconds(10))
+        }
         #expect(harness.printed() == ["later"])
+    }
 
-        _ = await harness.run("a", "setTimeout(() => print('never'), 50)")
-        #expect(await harness.ask(.unload(extension: "a")) == .unloaded)
-        try await Task.sleep(for: .milliseconds(250))
-        #expect(harness.printed() == ["later"])
+    /// A world that is abandoned — unloaded or replaced — runs nothing it scheduled. The script sets its
+    /// timer as it starts and the world is abandoned in the same turn of its queue, so the timer's
+    /// turn can only come afterwards: no race with the test's own timing.
+    @Test func aTimerDoesNotOutliveItsWorld() async throws {
+        let lines = Harness.Lines()
+        let machine = ExtensionVM(load: JSLoad(extensionName: "a", generation: "1", files: [:]), qos: .utility) { line in
+            lines.append(("a", line))
+        }
+        #expect(machine.queue.sync { machine.prepare() } == nil)
+        machine.queue.sync {
+            let invocation = JSInvoke(
+                invocation: 1,
+                extensionName: "a",
+                generation: "1",
+                entry: .inline("setTimeout(() => print('never'), 0)"),
+                input: JSInput(text: "", matchedText: "")
+            )
+            machine.invoke(invocation) { _ in }
+            machine.abandon()
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(lines.withLock { $0.isEmpty })
     }
 
     @Test func aTimerCallbackThatThrowsIsWrittenDownAndNothingElse() async {
@@ -293,6 +322,58 @@ import Testing
         _ = await harness.run("a", "require('js-yaml').added = 1; Buffer.added = 1; URL.prototype.added = 1")
         let script = "return [typeof require('js-yaml').added, typeof Buffer.added, typeof URL.prototype.added].join()"
         #expect(await harness.run("b", script) == .returned("undefined,undefined,undefined"))
+    }
+
+    // MARK: Modules (JS-12)
+
+    static let moduleFiles = [
+        "Config.js": """
+        defineExtension({
+          options: [{ identifier: 'suffix', type: 'string' }],
+          regex: /^h/i,
+          action: { title: 'Solo', code(input, options) { return this.title + ':' + input.text + options.suffix } },
+          actions: [(input) => input.matchedText.toUpperCase(), { title: 'Label' }],
+          test() {},
+        })
+        """,
+    ]
+
+    @Test func aModuleIsDescribedAsDataWithItsCodeMarked() async {
+        let harness = Harness()
+        await harness.load("a", files: Self.moduleFiles)
+        let exports = #"{"options":[{"identifier":"suffix","type":"string"}],"regex":"(?i)^h","action":{"title":"Solo","code":true},"actions":[{"code":true},{"title":"Label"}]}"#
+        #expect(await harness.describe("a", .file("Config.js")) == .described(JSModuleDescription(exports: exports, functions: ["test"])))
+    }
+
+    @Test func aModulesActionRunsTheCodeAtItsExport() async {
+        let harness = Harness()
+        await harness.load("a", files: Self.moduleFiles)
+        #expect(await harness.invoke("a", .file("Config.js"), options: ["suffix": "!"], export: "action") == .returned("Solo:hello!"))
+        #expect(await harness.invoke("a", .file("Config.js"), export: "actions.0") == .returned("HELLO"))
+        #expect(await harness.invoke("a", .file("Config.js"), export: "actions.1") == .threw("The module has no action at actions.1."))
+    }
+
+    @Test func aSnippetThatIsAModuleIsItsOwnText() async {
+        let harness = Harness()
+        await harness.load("a")
+        let text = "// #popclip\n// name: S\nexport default { action: (input: { text: string }) => `${input.text}?` }"
+        #expect(await harness.describe("a", .inline(text), typeScript: true) == .described(JSModuleDescription(exports: #"{"action":{"code":true}}"#, functions: [])))
+        #expect(await harness.invoke("a", .inline(text), typeScript: true, export: "action") == .returned("hello?"))
+    }
+
+    @Test func aModuleThatCannotBeDescribedSaysWhy() async {
+        let harness = Harness()
+        await harness.load("a", files: ["throws.js": "throw new Error('at load')", "number.js": "module.exports = 42"])
+        #expect(await harness.describe("a", .file("throws.js")) == .threw("at load"))
+        #expect(await harness.describe("a", .file("number.js")) == .threw("The module exports number, not an extension object."))
+        #expect(await harness.describe("a", .file("../outside.js")) == .threw("Cannot find the module ../outside.js."))
+    }
+
+    @Test func describingNeedsTheWorldAtThatGeneration() async {
+        let harness = Harness()
+        #expect(await harness.describe("a", .file("Config.js")) == .notLoaded)
+        await harness.load("a", generation: "1", files: Self.moduleFiles)
+        #expect(await harness.describe("a", .file("Config.js"), generation: "2") == .notLoaded)
     }
 
     // MARK: SEC-1b

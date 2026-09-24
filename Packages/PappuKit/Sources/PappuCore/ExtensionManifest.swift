@@ -128,9 +128,10 @@ public struct ActionManifest: Sendable, Equatable, Codable {
 /// spellings and inheritance rules, and the stored form has none, so that what the store holds means
 /// one thing.
 ///
-/// Not here: `submenu` (M4, refused at load until then), `shellScriptRationale` (for the directory,
-/// ignored by the app), and a JavaScript module's own actions, which exist only once the runtime has
-/// run the module (M3). A module extension's manifest has `module` set and may have no static actions.
+/// Not here: `submenu` (M4, refused at load until then) and `shellScriptRationale` (for the directory,
+/// ignored by the app). A module extension's own actions exist only once the helper has described its
+/// module (JS-12): loaded from its files alone, its manifest has `moduleSource` set and may have no
+/// actions; loaded again with its `ModuleExports`, it has them.
 public struct ExtensionManifest: Sendable, Equatable, Codable {
     public var name: LocalizedText
     /// FMT-6. `app.pappuclip.` is reserved for extensions our directory signs, and the bundled
@@ -157,6 +158,9 @@ public struct ExtensionManifest: Sendable, Equatable, Codable {
     /// Nil means §8.3's default: true if the extension has options.
     public var offersMultipleInstances: Bool?
     public var module: ModuleReference?
+    /// JS-12: the module the helper runs, when this is a module extension. Worked out by
+    /// `ManifestBuilder` from `module` and a code config's own text.
+    public var moduleSource: ModuleSource?
     public var language: ScriptLanguage?
     public var apps: [AppReference]
     /// Native-only. Never sufficient by itself to transfer ownership, grants or secrets (SEC-8).
@@ -186,6 +190,7 @@ public struct ExtensionManifest: Sendable, Equatable, Codable {
         authKeychain: KeychainScope? = nil,
         offersMultipleInstances: Bool? = nil,
         module: ModuleReference? = nil,
+        moduleSource: ModuleSource? = nil,
         language: ScriptLanguage? = nil,
         apps: [AppReference] = [],
         replaces: String? = nil,
@@ -208,6 +213,7 @@ public struct ExtensionManifest: Sendable, Equatable, Codable {
         self.authKeychain = authKeychain
         self.offersMultipleInstances = offersMultipleInstances
         self.module = module
+        self.moduleSource = moduleSource
         self.language = language
         self.apps = apps
         self.replaces = replaces
@@ -223,7 +229,7 @@ public struct ExtensionManifest: Sendable, Equatable, Codable {
     private enum CodingKeys: String, CodingKey {
         case name, identifier, identifierOrigin, description, icon, showAs, keywords, macosVersion
         case popclipVersion, pappuclipVersion, options, entitlements, authServiceLabel, authKeychain
-        case offersMultipleInstances, module, language, apps, replaces, networkHosts, action, actions
+        case offersMultipleInstances, module, moduleSource, language, apps, replaces, networkHosts, action, actions
     }
 
     public init(from decoder: any Decoder) throws {
@@ -252,6 +258,7 @@ public struct ExtensionManifest: Sendable, Equatable, Codable {
         authKeychain = try container.decodeIfPresent(KeychainScope.self, forKey: .authKeychain)
         offersMultipleInstances = try container.decodeIfPresent(Bool.self, forKey: .offersMultipleInstances)
         module = try container.decodeIfPresent(ModuleReference.self, forKey: .module)
+        moduleSource = try container.decodeIfPresent(ModuleSource.self, forKey: .moduleSource)
         language = try container.decodeIfPresent(ScriptLanguage.self, forKey: .language)
         apps = try container.decodeIfPresent([AppReference].self, forKey: .apps) ?? []
         replaces = try container.decodeIfPresent(String.self, forKey: .replaces)
@@ -276,6 +283,7 @@ public struct ExtensionManifest: Sendable, Equatable, Codable {
         try container.encodeIfPresent(authKeychain, forKey: .authKeychain)
         try container.encodeIfPresent(offersMultipleInstances, forKey: .offersMultipleInstances)
         try container.encodeIfPresent(module, forKey: .module)
+        try container.encodeIfPresent(moduleSource, forKey: .moduleSource)
         try container.encodeIfPresent(language, forKey: .language)
         if !apps.isEmpty { try container.encode(apps, forKey: .apps) }
         try container.encodeIfPresent(replaces, forKey: .replaces)
@@ -333,7 +341,7 @@ public struct ExtensionManifest: Sendable, Equatable, Codable {
         guard !name.english.trimmingCharacters(in: .whitespaces).isEmpty else {
             throw Invalid(identifier: identifier, reason: .emptyName)
         }
-        // A module's actions come from running it (M3), so a module may declare none of its own.
+        // A module's actions come from running it (JS-12), so a module may declare none of its own.
         guard !actions.isEmpty || module != nil else {
             throw Invalid(identifier: identifier, reason: .noActions)
         }

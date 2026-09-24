@@ -11,7 +11,8 @@ import Synchronization
 ///
 /// **The lifecycle.** `load` makes a fresh world and replaces any the extension had — an update, or a
 /// reload after the app changed its mind about the files — and answers everything the old one still
-/// owed `dropped`. `invoke` runs in the world at the generation it names, or is answered `notLoaded`.
+/// owed `dropped`. `invoke` runs in the world at the generation it names, or is answered `notLoaded`,
+/// and so does `describe`, which runs a module extension's module and answers what it exported (JS-12).
 /// `drop` answers an invocation now and discards whatever it settles to later. `unload` forgets the
 /// world. Each of these runs on the world's own queue, so they happen in the order they were sent and
 /// never while its script is running — which is also why a script stuck in a loop cannot be dropped
@@ -23,10 +24,19 @@ public final class JSHost: Sendable {
     /// Which world each unsettled invocation is running in, so a `drop` can find it.
     private let running = Mutex<[UInt64: ExtensionVM]>([:])
     private let log: @Sendable (String, String) -> Void
+    private let qos: DispatchQoS
 
-    /// - Parameter log: A line printed by an extension, with the extension's name. Called on that
-    ///   extension's queue.
-    public init(log: @escaping @Sendable (_ extensionName: String, _ line: String) -> Void) {
+    /// - Parameters:
+    ///   - qos: What each world's queue runs at. The helper's own is `userInitiated`: an action is
+    ///     something a person just asked for. A helper run inside a test process runs lower, so that a
+    ///     script spinning in it cannot outrank the test's own timers.
+    ///   - log: A line printed by an extension, with the extension's name. Called on that extension's
+    ///     queue.
+    public init(
+        qos: DispatchQoS = .userInitiated,
+        log: @escaping @Sendable (_ extensionName: String, _ line: String) -> Void
+    ) {
+        self.qos = qos
         self.log = log
     }
 
@@ -38,7 +48,7 @@ public final class JSHost: Sendable {
 
         case .load(let load):
             let name = load.extensionName
-            let machine = ExtensionVM(load: load) { [log] line in log(name, line) }
+            let machine = ExtensionVM(load: load, qos: qos) { [log] line in log(name, line) }
             let replaced = machines.withLock { machines in
                 defer { machines[name] = machine }
                 return machines[name]
@@ -64,6 +74,11 @@ public final class JSHost: Sendable {
                     reply(answer)
                 }
             }
+
+        case .describe(let request):
+            let machine = machines.withLock { $0[request.extensionName] }
+            guard let machine, machine.generation == request.generation else { return reply(.notLoaded) }
+            machine.queue.async { reply(machine.describeModule(request)) }
 
         case .drop(let id):
             guard let machine = running.withLock({ $0.removeValue(forKey: id) }) else { return reply(.dropped) }

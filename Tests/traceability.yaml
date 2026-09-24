@@ -1478,8 +1478,8 @@ requirements:
     milestone: M3
     note: >-
       Header detection and shell and AppleScript code snippets load in M2. JavaScript and TypeScript
-      snippets that are one action run from M3 week 2, TypeScript through the helper's transpiler. A
-      snippet that is a module still waits for module loading (JS-12).
+      snippets that are one action run from M3 week 2, TypeScript through the helper's transpiler, and a
+      snippet that is a module has its module's actions once the helper has described it (JS-12).
     tests:
       - PappuCoreTests/aCodeSnippetsHeaderIsTheCommentRunAfterTheMarker
       - PappuCoreTests/aShebangAndCommentsMayComeBeforeTheMarker
@@ -1563,7 +1563,8 @@ requirements:
     tests:
       - PappuJSHostTests/theEnvironmentSectionOfTheConformanceSuitePasses
       - PappuJSHostTests/thereIsNoFetchProcessDOMOrFileSystem
-      - PappuJSHostTests/aTimerOutlivesItsInvocationButNotItsWorld
+      - PappuJSHostTests/aTimerOutlivesItsInvocation
+      - PappuJSHostTests/aTimerDoesNotOutliveItsWorld
       - PappuJSHostTests/aTimerCallbackThatThrowsIsWrittenDownAndNothingElse
       - PappuJSHostTests/twoExtensionsDoNotShareALibrary
   JS-3: { priority: P1, milestone: M3, tests: [] }
@@ -1620,10 +1621,30 @@ requirements:
     priority: P1
     milestone: M3
     note: >-
-      Week 2 built the exporting half: `define` and `defineExtension` as one partial AMD, default and
-      named exports through the transpiler, and CommonJS. Loading a module extension's actions from what
-      it exports is not built yet, so no test is mapped.
-    tests: []
+      The helper describes an approved module (defineExtension, default or named exports, CommonJS; LZFSE
+      files decompressed) as data with its code marked, ManifestBuilder reads that with a config's rules,
+      and each action calls its export as code(input, options, context). Population functions (JS-13) and
+      auth (§8.10) are week 5; modules that call util while loading wait for week 3, and one with a
+      submenu waits for M4.
+    tests:
+      - PappuCoreTests/eachDescribedActionRunsTheCodeAtItsExport
+      - PappuCoreTests/theModulesKeysAreDefaultsOverTheConfigs
+      - PappuCoreTests/whatOnlyAConfigMaySetIsIgnoredAndSaid
+      - PappuCoreTests/aPopulationFunctionOffersNothingYetAndSaysWhy
+      - PappuCoreTests/anActionWithNoCodeIsLeftOut
+      - PappuCoreTests/aPackagesCodeConfigIsItsOwnModule
+      - PappuCoreTests/exportsThatBreakTheRulesFailTheLoad
+      - PappuJSHostTests/aModuleIsDescribedAsDataWithItsCodeMarked
+      - PappuJSHostTests/aModulesActionRunsTheCodeAtItsExport
+      - PappuJSHostTests/aSnippetThatIsAModuleIsItsOwnText
+      - PappuJSHostTests/aModuleThatCannotBeDescribedSaysWhy
+      - PappuRuntimeTests/aModuleIsDescribedThroughTheClient
+      - PappuRuntimeTests/aModulesActionRunsThroughTheClient
+      - PappuRuntimeTests/aModuleThatNeverFinishesLoadingIsStopped
+      - PappuRuntimeTests/anLZFSEModuleIsSentDecompressed
+      - PappuRuntimeTests/everyCorpusModuleIsDescribedOrWaitsForAKnownReason
+      - PappuAppTests/anApprovedModuleIsDescribedAndItsActionsReachTheCatalog
+      - PappuAppTests/aModuleWithoutAnApprovalIsNeverRun
   JS-13: { priority: P1, milestone: M3, tests: [] }
   JS-14:
     priority: P1

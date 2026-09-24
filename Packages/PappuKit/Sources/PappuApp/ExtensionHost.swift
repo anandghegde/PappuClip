@@ -1,6 +1,8 @@
 import Foundation
 import PappuCore
+import PappuDiagnostics
 import PappuExtensions
+import PappuRuntime
 import PappuSettings
 import Synchronization
 
@@ -25,6 +27,13 @@ import Synchronization
 /// Two installs of one manifest identifier share an `ActionKey` and an options key. The catalog keeps
 /// the first, as it does for any duplicate key; the second is listed in Settings and does not reach
 /// the bar until the first is uninstalled. Per-install keys are ALM-2a's, in M4.
+///
+/// **Module extensions (JS-12)** have no actions until the JavaScript helper has run their module and
+/// said what it exported. After each reload the host asks, in the background, for every module
+/// extension that has an approval for its current bytes — never one without, because describing a
+/// module runs it — once per set of bytes, and reloads when the answer comes. The bar does not wait:
+/// a module's buttons appear once it has been described. A module that would not describe says why in
+/// the Debug Console and is not asked again until the app restarts or the extension is updated.
 public final class ExtensionHost: Sendable {
     public struct Snapshot: Sendable {
         public var catalog: ActionCatalog
@@ -39,19 +48,33 @@ public final class ExtensionHost: Sendable {
     public let library: ExtensionLibrary
     public let secrets: any SecretStore
     private let builtins: [ActionCatalog.Entry]
+    private let modules: (any ModuleDescribing)?
+    private let console: DebugConsole?
     private let invalidate: @Sendable (String) async -> Void
     private let state: Mutex<Snapshot>
+    /// JS-12: modules asked about, by owner and digest, so that each set of bytes is asked about once.
+    private let asked = Mutex<Set<String>>([])
+    /// JS-12: modules whose exports would not build, reported once each.
+    private let reported = Mutex<Set<String>>([])
 
-    /// - Parameter invalidate: cancels whatever the named owner is running (`InvocationManager`).
+    /// - Parameters:
+    ///   - modules: What describes a module extension's module (JS-12); nil leaves every module without
+    ///     actions.
+    ///   - console: Where a module whose exports would not build says why.
+    ///   - invalidate: cancels whatever the named owner is running (`InvocationManager`).
     public init(
         library: ExtensionLibrary,
         secrets: any SecretStore,
         builtins: [ActionCatalog.Entry],
+        modules: (any ModuleDescribing)? = nil,
+        console: DebugConsole? = nil,
         invalidate: @escaping @Sendable (String) async -> Void
     ) {
         self.library = library
         self.secrets = secrets
         self.builtins = builtins
+        self.modules = modules
+        self.console = console
         self.invalidate = invalidate
         state = Mutex(Snapshot(catalog: ActionCatalog(entries: builtins), approvals: [:], options: [:], installed: [:]))
     }
@@ -97,6 +120,39 @@ public final class ExtensionHost: Sendable {
         }
         let next = Self.snapshot(builtins: builtins, installed: installed.extensions)
         state.withLock { $0 = next }
+        describeModules(installed.extensions)
+    }
+
+    /// JS-12: asks what each approved module extension's module exported, where nobody has for these
+    /// bytes, and reloads with each answer. Only with an approval: describing a module runs its code.
+    private func describeModules(_ extensions: [InstalledExtension]) {
+        guard let modules else { return }
+        for installed in extensions {
+            guard let module = installed.manifest.moduleSource,
+                  let approval = installed.approval,
+                  let digest = approval.digest
+            else { continue }
+            let key = "\(installed.identity)@\(digest.hex)"
+            let name = installed.manifest.name.english
+            if let problem = installed.moduleProblem, reported.withLock({ $0.insert(key).inserted }) {
+                console?.add(.loadFailed, from: name, problem)
+            }
+            guard installed.awaitsModuleDescription, asked.withLock({ $0.insert(key).inserted }) else { continue }
+            let request = ModuleDescribeRequest(
+                owner: installed.identity.description,
+                generation: digest.hex,
+                extensionName: name,
+                directory: installed.directory,
+                module: module
+            )
+            let identity = installed.identity
+            Task {
+                // A failure has already said why in the Debug Console.
+                guard case .success(let exports) = await modules.describe(request) else { return }
+                await self.library.remember(exports, for: identity, digest: digest)
+                await self.reload()
+            }
+        }
     }
 
     /// Settings changed something: rebuild, and for anything taken away, stop what it is running.

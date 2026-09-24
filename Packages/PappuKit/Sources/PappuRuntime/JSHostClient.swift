@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import PappuCore
 import PappuDiagnostics
 import PappuJSBridge
 import Synchronization
@@ -22,10 +23,16 @@ import XPC
 /// which it does at once unless the script is busy on its world's queue — a loop that never yields.
 /// If the drop is not answered within `grace`, the helper is killed: that stops the loop, and
 /// everything else in flight with it. The work is ours and it has stopped, so it is `owned` (RUN-3d).
-public final class JSHostClient: JavaScriptRunning, Sendable {
+///
+/// **Describing a module (JS-12)** loads the extension as an action would and asks what its module
+/// exported. A module that is still loading after `describeLimit` — one in a loop — is stopped the way
+/// a script that will not yield is, by killing the helper.
+public final class JSHostClient: JavaScriptRunning, ModuleDescribing, Sendable {
     /// SEC-1d: this many crashes inside `suspensionWindow` suspends the extension.
     public static let suspensionThreshold = 3
     public static let suspensionWindow: Duration = .seconds(600)
+    /// JS-12: the longest a module may take to load and describe.
+    public static let describeLimit: Duration = .seconds(5)
 
     private struct State {
         var connection: (any JSHostConnection)?
@@ -44,6 +51,7 @@ public final class JSHostClient: JavaScriptRunning, Sendable {
     private let transport: any JSHostTransport
     private let console: DebugConsole?
     private let grace: Duration
+    private let moduleLimit: Duration
     private let sleeper: any InvocationSleeping
     private let now: @Sendable () -> ContinuousClock.Instant
     private let state = Mutex(State())
@@ -54,12 +62,14 @@ public final class JSHostClient: JavaScriptRunning, Sendable {
         transport: any JSHostTransport = XPCJSHostTransport(),
         console: DebugConsole? = nil,
         grace: Duration = .milliseconds(500),
+        describeLimit: Duration = JSHostClient.describeLimit,
         sleeper: any InvocationSleeping = SystemInvocationSleep(),
         now: @escaping @Sendable () -> ContinuousClock.Instant = { ContinuousClock.now }
     ) {
         self.transport = transport
         self.console = console
         self.grace = grace
+        moduleLimit = describeLimit
         self.sleeper = sleeper
         self.now = now
     }
@@ -74,7 +84,9 @@ public final class JSHostClient: JavaScriptRunning, Sendable {
             console?.add(.suspended, from: job.extensionName)
             return nil
         }
-        guard let connection = await connect(), await load(job, on: connection) else { return nil }
+        guard let connection = await connect(),
+              await load(owner: job.owner, generation: job.generation, extensionName: job.extensionName, directory: job.directory, on: connection)
+        else { return nil }
 
         let entry: JSInvoke.Entry = switch job.action.source {
         case .inline(let text): .inline(text)
@@ -95,9 +107,94 @@ public final class JSHostClient: JavaScriptRunning, Sendable {
             entry: entry,
             input: JSInput(text: job.text, matchedText: job.matchedText),
             options: job.options,
-            typeScript: job.action.isTypeScript
+            typeScript: job.action.isTypeScript,
+            export: job.action.export
         ))) { reply in started.settle(reply) }
         return started
+    }
+
+    public func describe(_ module: ModuleDescribeRequest) async -> Result<ModuleExports, ModuleDescribeFailure> {
+        names.withLock { $0[module.owner] = module.extensionName }
+        guard !isSuspended(module.owner) else {
+            return .failure(ModuleDescribeFailure("The extension is suspended until the app restarts."))
+        }
+        guard let connection = await connect() else {
+            return .failure(ModuleDescribeFailure("The JavaScript helper did not start."))
+        }
+        guard await load(
+            owner: module.owner,
+            generation: module.generation,
+            extensionName: module.extensionName,
+            directory: module.directory,
+            on: connection
+        ) else {
+            return .failure(ModuleDescribeFailure("The extension's code did not load."))
+        }
+        let entry: JSInvoke.Entry = switch module.module.source {
+        case .inline(let text): .inline(text)
+        case .file(let path): .file(path)
+        }
+        let request = JSHostRequest.describe(JSDescribe(
+            extensionName: module.owner,
+            generation: module.generation,
+            entry: entry,
+            typeScript: module.module.isTypeScript
+        ))
+        switch await ask(connection, request, within: moduleLimit) {
+        case .answered(.success(.described(let description))):
+            do {
+                return .success(try ModuleExports(json: description.exports, functions: description.functions))
+            } catch {
+                return failed("What the module exported could not be read: \(error)", module)
+            }
+        case .answered(.success(.threw(let message))):
+            return failed(message, module)
+        case .answered(.success):
+            return failed("The helper did not describe the module.", module)
+        case .answered(.failure):
+            lost(connection)
+            return failed("The JavaScript helper stopped while it was loading the module.", module)
+        case .timedOut:
+            kill(connection, name: module.extensionName)
+            return failed("The module was still loading after \(moduleLimit), and was stopped.", module)
+        }
+    }
+
+    private func failed(_ message: String, _ module: ModuleDescribeRequest) -> Result<ModuleExports, ModuleDescribeFailure> {
+        console?.add(.loadFailed, from: module.extensionName, message)
+        return .failure(ModuleDescribeFailure(message))
+    }
+
+    private enum Answer: Sendable {
+        case answered(Result<JSHostReply, JSHostGone>)
+        case timedOut
+    }
+
+    /// One request, and its reply or the end of `limit`, whichever comes first.
+    private func ask(_ connection: any JSHostConnection, _ request: JSHostRequest, within limit: Duration) async -> Answer {
+        let once = Once()
+        let sleeper = self.sleeper
+        return await withCheckedContinuation { continuation in
+            connection.send(request) { reply in
+                if once.claim() { continuation.resume(returning: .answered(reply)) }
+            }
+            Task {
+                await sleeper.sleep(for: limit)
+                if once.claim() { continuation.resume(returning: .timedOut) }
+            }
+        }
+    }
+
+    private final class Once: Sendable {
+        private let claimed = Mutex(false)
+
+        /// True the first time only.
+        func claim() -> Bool {
+            claimed.withLock { claimed in
+                defer { claimed = true }
+                return !claimed
+            }
+        }
     }
 
     /// Whether the helper is running, for the checks.
@@ -128,28 +225,34 @@ public final class JSHostClient: JavaScriptRunning, Sendable {
         }
     }
 
-    private func load(_ job: JavaScriptRunRequest, on connection: any JSHostConnection) async -> Bool {
-        let current = state.withLock { $0.connection === connection ? $0.loaded[job.owner] : nil }
-        if current == job.generation { return true }
+    private func load(
+        owner: String,
+        generation: String,
+        extensionName: String,
+        directory: URL,
+        on connection: any JSHostConnection
+    ) async -> Bool {
+        let current = state.withLock { $0.connection === connection ? $0.loaded[owner] : nil }
+        if current == generation { return true }
         let files: [String: String]
-        switch PackageSources.read(job.directory) {
+        switch PackageSources.read(directory) {
         case .success(let read): files = read
         case .failure:
             // No text: the window says the package could not be read, in its own words.
-            console?.add(.loadFailed, from: job.extensionName)
+            console?.add(.loadFailed, from: extensionName)
             return false
         }
         let reply = await withCheckedContinuation { continuation in
-            connection.send(.load(JSLoad(extensionName: job.owner, generation: job.generation, files: files))) {
+            connection.send(.load(JSLoad(extensionName: owner, generation: generation, files: files))) {
                 continuation.resume(returning: $0)
             }
         }
         switch reply {
         case .success(.loaded):
-            state.withLock { if $0.connection === connection { $0.loaded[job.owner] = job.generation } }
+            state.withLock { if $0.connection === connection { $0.loaded[owner] = generation } }
             return true
         case .success(.loadFailed(let message)):
-            console?.add(.loadFailed, from: job.extensionName, message)
+            console?.add(.loadFailed, from: extensionName, message)
             return false
         case .success:
             return false
@@ -200,14 +303,14 @@ public final class JSHostClient: JavaScriptRunning, Sendable {
         if suspended { console?.add(.suspended, from: name) }
     }
 
-    fileprivate func kill(_ connection: any JSHostConnection, for job: Job) {
+    fileprivate func kill(_ connection: any JSHostConnection, name: String) {
         let current = state.withLock { state -> Bool in
             guard state.connection === connection else { return false }
             state.killed = true
             return true
         }
         guard current else { return }
-        console?.add(.hung, from: job.request.extensionName)
+        console?.add(.hung, from: name)
         connection.kill()
         lost(connection)
     }
@@ -273,7 +376,7 @@ public final class JSHostClient: JavaScriptRunning, Sendable {
             Task { [weak self] in
                 await sleeper.sleep(for: grace)
                 guard let self, self.state.withLock({ $0.ended == nil }) else { return }
-                self.client.kill(self.connection, for: self)
+                self.client.kill(self.connection, name: self.request.extensionName)
                 self.end(.stopped, message: nil)
             }
             _ = await result()

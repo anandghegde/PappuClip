@@ -6,9 +6,9 @@ import Foundation
 /// (`ManifestBuilder`). Each stage's failure becomes a `ManifestLoadFailure` with one error that says
 /// which stage refused, so that every way a load can fail reaches the user as the same kind of thing.
 ///
-/// A manifest that loads is not a manifest that runs: the JavaScript runtime is M3, and a module's
-/// actions do not exist until it has run. `Loaded.needsJavaScriptRuntime` says so, and the resolver
-/// keeps its actions off the bar until then.
+/// A module extension's actions do not exist until the JavaScript helper has described its module
+/// (JS-12), which it may do only once the extension is approved. Loaded from its files alone it has
+/// its config's actions, usually none; loaded again with `Settings.moduleExports`, it has its module's.
 public enum ExtensionLoader {
     public struct Loaded: Sendable, Equatable {
         public var manifest: ExtensionManifest
@@ -22,10 +22,13 @@ public enum ExtensionLoader {
     public struct Settings: Sendable {
         public var origin: ManifestOrigin
         public var ignoresAPILevel: Bool
+        /// JS-12: what the extension's module exported, when the helper has described it.
+        public var moduleExports: ModuleExports?
 
-        public init(origin: ManifestOrigin = .installed, ignoresAPILevel: Bool = false) {
+        public init(origin: ManifestOrigin = .installed, ignoresAPILevel: Bool = false, moduleExports: ModuleExports? = nil) {
             self.origin = origin
             self.ignoresAPILevel = ignoresAPILevel
+            self.moduleExports = moduleExports
         }
     }
 
@@ -54,7 +57,13 @@ public enum ExtensionLoader {
             } catch {
                 throw ManifestLoadFailure(String(describing: error), at: config.fileName)
             }
-            input = ManifestBuilder.Input(config: value, package: files, ignoresAPILevel: settings.ignoresAPILevel, origin: settings.origin)
+            input = ManifestBuilder.Input(
+                config: value,
+                package: files,
+                moduleExports: settings.moduleExports,
+                ignoresAPILevel: settings.ignoresAPILevel,
+                origin: settings.origin
+            )
         case .code(let language):
             guard let text = String(data: data, encoding: .utf8) else {
                 throw ManifestLoadFailure("\(config.fileName) is not UTF-8 text.", at: config.fileName)
@@ -107,6 +116,8 @@ public enum ExtensionLoader {
             config: try decodeYAML(yaml, file: file),
             package: package,
             code: body,
+            codeFile: package == nil ? nil : file,
+            moduleExports: settings.moduleExports,
             ignoresAPILevel: settings.ignoresAPILevel,
             origin: settings.origin
         )

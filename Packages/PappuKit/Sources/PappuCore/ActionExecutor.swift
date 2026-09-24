@@ -181,15 +181,21 @@ public struct ShellScriptAction: Sendable, Equatable, Hashable, Codable {
     }
 }
 
-/// §8.4 JavaScript / TypeScript, as an action's own script (§8.8, M3).
+/// §8.4 JavaScript / TypeScript: an action's own script (§8.8), or one of a module's actions (JS-12).
 public struct JavaScriptAction: Sendable, Equatable, Hashable, Codable {
+    /// The script, or for a module's action the module (`ModuleSource.source`).
     public var source: ScriptSource
     /// TypeScript is transpiled without type checking (JS-14).
     public var isTypeScript: Bool
+    /// JS-12: where the action's code is in what the module exported: `action`, or `actions.3`. Nil
+    /// for a script. Set only by `ManifestBuilder` from what the helper described, never read from a
+    /// config.
+    public var export: String?
 
-    public init(source: ScriptSource, isTypeScript: Bool = false) {
+    public init(source: ScriptSource, isTypeScript: Bool = false, export: String? = nil) {
         self.source = source
         self.isTypeScript = isTypeScript
+        self.export = export
     }
 }
 

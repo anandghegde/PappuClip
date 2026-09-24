@@ -920,10 +920,51 @@ The helper reads these as SwiftPM resources of `PappuJSHost` through `Bundle.mod
 **The conformance suite** starts here. `Tests/conformance/environment` is a package whose `suite.js` checks the environment from inside a world and returns `ok` or its failures, and `theEnvironmentSectionOfTheConformanceSuitePasses` runs it in `ExtensionVM`. It passes in `jsc` without the JIT in 0.4 s, most of it loading every library. `--check-js-host` gained two lines that run the environment, a library and a TypeScript action in the real sandboxed helper, which is what shows that the resources reached its bundle.
 
 **Known gaps:**
-- A module extension's actions are not read from what it exports (JS-12), so a module snippet or `Config.js` still loads with no actions. Code snippets that are one action, JavaScript or TypeScript, run.
+- A module extension's actions were not read from what it exports (JS-12). The next section builds that.
 - EXM-3 (Open With and dropping on the menu bar icon) is not built.
 - JS-1's polyfills for built-ins newer than the engine are not added. On macOS 15 before 15.4 that leaves out the iterator helpers, which PopClip says are always there.
 - Six library majors are not yet confirmed against PopClip's documentation (`Resources/JavaScript/README.md`).
+
+#### Module extensions as built (M3 week 2, JS-12)
+
+A module extension's actions are what its module exported, and nothing can know them without running the module. So they are learned from the helper after approval, never at install. §10.2 already says `load` needs an `ExecutionApproval`, and describing a module is a load and a run.
+
+**Describing.** `JSHostRequest.describe` names the module: a package file, which is `Config.js`, `Config.ts` or what `module` names, or a snippet's own text. The helper loads it as `require` would and takes the extension object from `defineExtension`, `module.exports`, `export default` or the named exports. It answers with that object as JSON with every function taken out:
+- An action whose code is a function becomes `code: true`. The helper drops a `code` that is not a function, so nothing else in the data can claim to be code.
+- Top-level functions (a population function, `auth`, `test`) are listed by name.
+- Regular expressions become ICU patterns with their `i`, `m` and `s` flags inline.
+- The output is bounded in depth, count and size.
+
+A module still loading after 5 s is stopped as a script that will not yield is: the helper is killed.
+
+**Reading.** `ModuleExports` goes into `ManifestBuilder` beside the config, as a second input, and is read with the config's own rules. The module's top level sits over the config's:
+- Its `options` replace the config's.
+- Its `action` and `actions`, when it has them, replace the config's actions.
+- Its other action keys are defaults for its actions.
+- Keys only a config may set (`name`, `identifier`, `entitlements` and the rest, as PopClip's types list them) are ignored with a warning.
+
+Every action it builds is a `JavaScriptAction` whose `export` is `action` or `actions.3`. Its source is the module, and it needs the same gates as any JavaScript action. So describing discloses nothing the approval did not already cover: a module extension was judged `unboundedCode` at install. An action with no code is left out with a warning (PopClip shows it disabled). A separator or submenu waits for M4, and a population function for week 5.
+
+**Running.** `JSInvoke.export` makes `invoke` call the function at that path in what the module exported, as PopClip does: `code(input, options, context)`, with the action object as `this`. `popclip.context` is an empty object until week 3.
+
+**Where it is kept.** `ExtensionHost.reload()` asks `JSHostClient.describe`, in the background, about every module extension that has an approval for its current bytes, once per set of bytes. It then gives the answer to `ExtensionLibrary.remember`, which `installed()` reads back into that extension's manifest. The bar never waits: a module's buttons appear once it has been described. Exports that do not build (one bad regex) leave the config's manifest, and the Debug Console gets the reason, so the extension does not become unreadable. The exports are kept in memory, so the next launch describes each approved module again. That starts the helper at launch when there is one, which JS-19 would otherwise leave lazy. Keeping them in the store, by digest, is the obvious next step if that start is measured to matter.
+
+**LZFSE.** PopClip reads a module or library compressed with LZFSE, and eight corpus packages ship one. `PackageSources` decompresses `*.js.lzfse` and its siblings with Compression's streaming filter, stops as soon as the output passes the per-file limit, and sends the text under the file's own name.
+
+The week 1 limits of 1 MB a file and 8 MB a package were too tight for real extensions: Calculate's mathjs is 1.7 MB once decompressed and Evernote's bundle 1.3 MB. They are now 8 MB and 16 MB, measured after decompression.
+
+**Against the corpus.** Of the 84 module extensions in PopClip-Extensions, the helper describes 75 (measured in `jsc` without the JIT, with LZFSE files decompressed by the reference `lzfse` tool as `PackageSources` would).
+- 12 of them build their actions in a population function, so they offer none until week 5.
+- One more, OpenAIPrompt, describes but has an action with a `submenu`, which the builder refuses until M4, as it does in a config.
+- The other 9 call `util.localize` or `util.clarify` while loading, and `util` is week 3.
+
+`CorpusModuleTests` runs all 84 through the real client and builder. It names the 10 that cannot load yet, with their reasons, and fails when that list is wrong in either direction. Six `Config.js` files in the corpus look like modules by name but are single action scripts, and the parser's detection already runs them as scripts. Four of those need `popclip.openUrl`, which is week 3.
+
+**Known gaps:**
+- Population functions (JS-13) and `auth` (§8.10) are week 5.
+- `popclip.context` is empty and there are no `popclip` methods until week 3, so most module actions can only return text for `after`.
+- Described exports are not persisted.
+- The action list (ALM, M4) does not yet get items for module actions: nothing reads the list yet.
 
 ---
 

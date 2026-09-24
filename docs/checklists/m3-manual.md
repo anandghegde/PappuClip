@@ -9,6 +9,7 @@ The helper's isolation and lifecycle are tested in-process (`PappuJSHostTests`),
 Fixtures:
 - **J**: a JavaScript snippet, `#popclip` / `name: Shout JS` / `javascript: print(popclip.input.text); return popclip.input.text.toUpperCase()`, with `after: paste-result`.
 - **L**: a JavaScript snippet, `#popclip` / `name: Spin` / `javascript: while (true) {}`.
+- **M**: a module snippet, `// #popclip` / `// name: Mod` / `// after: paste-result` followed by `export default { actions: [{ title: 'Reverse', code: (input) => [...input.text].reverse().join('') }] }`.
 - **T**: a TypeScript code snippet, `// #popclip` / `// name: Title TS` / `// after: paste-result` followed by `import { titleCase } from 'case-anything'` and `return titleCase(popclip.input.text) as string`.
 
 ## The helper (SEC-1a, SEC-1b, SEC-1d)
@@ -40,3 +41,11 @@ Fixtures:
 | 13 | `ls …/PappuClip.app/Contents/XPCServices/PappuClipJSHost.xpc/Contents/Resources/` | A `PappuKit_PappuJSHost.bundle` holding `JavaScript/environment.js`, `JavaScript/libraries/` and `JavaScript/THIRD-PARTY-NOTICES.txt` | |
 | 14 | Install T, select `hello big world` in TextEdit and press Title TS | The words are replaced by `Hello Big World` | |
 | 15 | Press Title TS a second time, then open the Debug Console | It worked again, and the console shows no error from loading `case-anything` | |
+
+## Module extensions (JS-12)
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| 16 | Install M and approve it, then select `hello` in TextEdit | Within a second or so of approving, a Reverse button; pressing it replaces the word with `olleh` | |
+| 17 | Quit PappuClip, start it again, select `hello` | Reverse is there again once the helper has described the module (it starts at launch for this) | |
+| 18 | Install M again with `code:` taken out of its action | No Reverse button; the Debug Console has nothing about it, and Extension Info still lists the extension | |

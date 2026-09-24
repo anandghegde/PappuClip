@@ -41,7 +41,12 @@ final class ExtensionVM: @unchecked Sendable {
     /// The longest a timer waits, as in a browser: about 24.8 days.
     static let longestDelay: Double = 2_147_483_647
 
-    init(load: JSLoad, transpiler: Transpiler = .shared, log: @escaping @Sendable (String) -> Void) {
+    init(
+        load: JSLoad,
+        transpiler: Transpiler = .shared,
+        qos: DispatchQoS = .userInitiated,
+        log: @escaping @Sendable (String) -> Void
+    ) {
         name = load.extensionName
         generation = load.generation
         var files: [String: String] = [:]
@@ -51,7 +56,7 @@ final class ExtensionVM: @unchecked Sendable {
         self.files = files
         self.transpiler = transpiler
         self.log = log
-        queue = DispatchQueue(label: "app.pappuclip.jshost.vm", qos: .userInitiated)
+        queue = DispatchQueue(label: "app.pappuclip.jshost.vm", qos: qos)
     }
 
     // MARK: Lifecycle
@@ -153,8 +158,25 @@ final class ExtensionVM: @unchecked Sendable {
     // MARK: Invoking
 
     /// Starts one action. `reply` is called once, now or when its promise settles, or by `drop`.
+    ///
+    /// A script's action runs its script. A module's action (JS-12) runs the function at its `export`
+    /// in what the module exported, loading the module first if this world has not yet.
     func invoke(_ invocation: JSInvoke, reply: @escaping Reply) {
         guard let context, let runner else { return reply(.notLoaded) }
+        let state: [String: Any] = [
+            "input": ["text": invocation.input.text, "matchedText": invocation.input.matchedText],
+            "options": invocation.options,
+        ]
+        if let export = invocation.export {
+            guard let module = moduleEntry(invocation.entry) else {
+                return reply(.threw("Cannot find the module \(invocation.entry.path ?? "")."))
+            }
+            let settle = settler(for: invocation.invocation, reply: reply)
+            runner.invokeMethod("runExport", withArguments: [
+                module.source, module.isFile, invocation.typeScript, export, state, JSValue(object: settle, in: context) as Any,
+            ])
+            return
+        }
         let source: String
         let url: String
         let base: String
@@ -171,22 +193,53 @@ final class ExtensionVM: @unchecked Sendable {
             url = path
             base = path
         }
-        pending[invocation.invocation] = reply
-        let id = invocation.invocation
-        let settle: @convention(block) (String, JSValue) -> Void = { [weak self] kind, value in
+        let settle = settler(for: invocation.invocation, reply: reply)
+        runner.invokeMethod("run", withArguments: [
+            source, url, base, state, JSValue(object: settle, in: context) as Any, invocation.typeScript,
+        ])
+    }
+
+    /// The block the prelude settles an invocation through, with its reply owed until then.
+    private func settler(for id: UInt64, reply: @escaping Reply) -> @convention(block) (String, JSValue) -> Void {
+        pending[id] = reply
+        return { [weak self] kind, value in
             guard let self, let reply = self.pending.removeValue(forKey: id) else { return }
             switch kind {
             case "returned": reply(.returned(value.isString ? value.toString() : nil))
             default: reply(.threw(value.isString ? value.toString() : "An error was thrown."))
             }
         }
-        let state: [String: Any] = [
-            "input": ["text": invocation.input.text, "matchedText": invocation.input.matchedText],
-            "options": invocation.options,
-        ]
-        runner.invokeMethod("run", withArguments: [
-            source, url, base, state, JSValue(object: settle, in: context) as Any, invocation.typeScript,
-        ])
+    }
+
+    /// JS-12: runs a module extension's module, if this world has not, and answers what it exported.
+    /// The module's code runs here, as it would for an action; what comes back is data.
+    func describeModule(_ request: JSDescribe) -> JSHostReply {
+        guard let runner else { return .notLoaded }
+        guard let module = moduleEntry(request.entry) else {
+            return .threw("Cannot find the module \(request.entry.path ?? "").")
+        }
+        guard let result = runner.invokeMethod("describe", withArguments: [module.source, module.isFile, request.typeScript]),
+              result.isObject
+        else { return .threw("The module could not be described.") }
+        if let error = result.objectForKeyedSubscript("error"), error.isString {
+            return .threw(error.toString())
+        }
+        guard let exports = result.objectForKeyedSubscript("exports"), exports.isString, let json = exports.toString() else {
+            return .threw("The module could not be described.")
+        }
+        let functions = result.objectForKeyedSubscript("functions")?.toArray() as? [String] ?? []
+        return .described(JSModuleDescription(exports: json, functions: functions))
+    }
+
+    /// A module as the prelude takes it: a package path it loads as `require` would, or a snippet's
+    /// text. Nil for a path that is absolute or leaves the package.
+    private func moduleEntry(_ entry: JSInvoke.Entry) -> (source: String, isFile: Bool)? {
+        switch entry {
+        case .inline(let text): return (text, false)
+        case .file(let path):
+            guard let path = ModulePath.normalize(path) else { return nil }
+            return (path, true)
+        }
     }
 
     /// Stops waiting for an invocation, and answers it `dropped`. Whatever its script does afterwards
@@ -207,8 +260,8 @@ final class ExtensionVM: @unchecked Sendable {
     }
 
     /// The part of the world written in JavaScript (§8.8): `print`, the timers and `sleep`, the
-    /// environment's globals, the module system over the package and the libraries, `define`, and the
-    /// wrapper an action's script runs in (JS-1, JS-2, JS-9 to JS-12, JS-14).
+    /// environment's globals, the module system over the package and the libraries, `define`, the
+    /// wrapper an action's script runs in, and module extensions (JS-1, JS-2, JS-9 to JS-12, JS-14).
     ///
     /// It captures what it relies on — `eval`, `Object.freeze`, `Object.defineProperty`, `Map`,
     /// `Promise` — before any extension code runs, so an extension that replaces them changes its own
@@ -229,6 +282,14 @@ final class ExtensionVM: @unchecked Sendable {
     /// one that declares any of those names itself shadows them, as it could shadow PopClip's globals.
     /// `define` and `defineExtension` are the same function, PopClip's partial AMD: the last call in a
     /// file sets its export.
+    ///
+    /// **Modules** (JS-12). `describe` loads a module extension's module — a package file, loaded as
+    /// `require` loads it, or a snippet's own text — and answers what it exported as JSON: the extension
+    /// object `defineExtension`, `module.exports` or `export default` gave, or its named exports, with
+    /// every function taken out and an action that has code marked `code: true`. Regular expressions
+    /// become ICU patterns, with their `i`, `m` and `s` flags inline. `runExport` calls the action at an
+    /// export path as PopClip does, `code(input, options, context)` with the action as `this`. Either
+    /// loads the module once per world.
     ///
     /// **Timers** are kept here and timed by the host, on the world's queue. A callback that throws is
     /// written to the Debug Console and nothing else happens. A repeating timer waits at least 4 ms, and
@@ -462,6 +523,166 @@ final class ExtensionVM: @unchecked Sendable {
         };
       }
 
+      // Module extensions (JS-12)
+
+      // A module is a file in the package, loaded as `require` loads it, or a snippet's own text, which
+      // is evaluated once per world. Either way it runs once, and its actions are what it exported.
+      let snippetModule = null;
+
+      function loadModule(source, isFile, typeScript) {
+        if (isFile) {
+          const path = native.resolve('', './' + source);
+          if (typeof path !== 'string') throw notFound(source);
+          return loadPackageFile(path);
+        }
+        if (snippetModule === null) {
+          const module = { id: 'pappuclip:module', exports: {}, loaded: false };
+          const require = requireFrom('');
+          const define = definer(module, require);
+          const text = typeScript ? transpile(source, 'typescript', 'pappuclip:module')
+            : moduleSyntax.test(source) ? transpile(source, 'module', 'pappuclip:module') : source;
+          compile(text, 'pappuclip:module', scriptParameters)(require, module, module.exports, define, define)
+            .call(module.exports);
+          module.loaded = true;
+          snippetModule = module;
+        }
+        return snippetModule.exports;
+      }
+
+      // What the module exported: `defineExtension(obj)` and `module.exports = obj` are the object itself;
+      // `export default obj` is its `default`, unless the module also has named exports that say what it is.
+      function extensionOf(exports) {
+        if (exports !== null && typeof exports === 'object') {
+          const fallback = exports.default;
+          const named = hasOwn(exports, 'actions') || hasOwn(exports, 'action') || hasOwn(exports, 'options') || hasOwn(exports, 'submenu');
+          if (!named && fallback !== null && typeof fallback === 'object') return fallback;
+        }
+        return exports;
+      }
+
+      // A JavaScript regular expression as the ICU pattern the app matches with. Its flags that change what
+      // matches become inline flags; `g`, `y` and `u` change nothing a single match needs.
+      function icuPattern(pattern) {
+        const flags = (pattern.ignoreCase ? 'i' : '') + (pattern.multiline ? 'm' : '') + (pattern.dotAll ? 's' : '');
+        return (flags ? '(?' + flags + ')' : '') + pattern.source;
+      }
+
+      const describedLimit = 1048576;
+
+      // The data in a value, as JSON would keep it: no functions, no symbols, no cycles, a bounded amount.
+      function plain(value, depth, budget) {
+        if (value === null) return null;
+        switch (typeof value) {
+          case 'string':
+          case 'boolean':
+            return value;
+          case 'number':
+            return isFinite(value) ? value : undefined;
+          case 'object':
+            break;
+          default:
+            return undefined;
+        }
+        budget.left -= 1;
+        if (depth > 32 || budget.left < 0) throw new RangeError('The extension object is too large or too deep to describe.');
+        if (value instanceof RegExp) return icuPattern(value);
+        if (isArray(value)) {
+          return Array.prototype.map.call(value, function (item) {
+            const kept = plain(item, depth + 1, budget);
+            return kept === undefined ? null : kept;
+          });
+        }
+        const kept = {};
+        for (const key of Object.keys(value)) {
+          const item = plain(value[key], depth + 1, budget);
+          if (item !== undefined) kept[key] = item;
+        }
+        return kept;
+      }
+
+      // An action as data. A function, or an object whose `code` is one, becomes `code: true`, which is the
+      // one thing the app is told about code: that there is some, at this path.
+      function describeAction(entry, depth, budget) {
+        if (typeof entry === 'function') return { code: true };
+        if (entry === null || typeof entry !== 'object' || isArray(entry)) return plain(entry, depth, budget);
+        const kept = {};
+        for (const key of Object.keys(entry)) {
+          const value = entry[key];
+          if (key === 'code') {
+            if (typeof value === 'function') kept.code = true;
+          } else if (key === 'submenu') {
+            kept.submenu = typeof value === 'function' ? 'population'
+              : isArray(value) ? Array.prototype.map.call(value, function (item) { return describeAction(item, depth + 1, budget); })
+              : plain(value, depth + 1, budget);
+          } else {
+            const item = plain(value, depth + 1, budget);
+            if (item !== undefined) kept[key] = item;
+          }
+        }
+        return kept;
+      }
+
+      // The extension object as JSON text, and the names of its top-level keys that are functions: a
+      // population function for `actions` or `submenu`, `auth`, `test`.
+      function describeExtension(extension) {
+        if (extension === null || typeof extension !== 'object') {
+          throw new TypeError('The module exports ' + (extension === null ? 'null' : typeof extension) + ', not an extension object.');
+        }
+        const budget = { left: 100000 };
+        const kept = {};
+        const functions = [];
+        for (const key of Object.keys(extension)) {
+          const value = extension[key];
+          if (typeof value === 'function' && key !== 'action') {
+            functions.push(key);
+          } else if ((key === 'actions' || key === 'submenu') && isArray(value)) {
+            kept[key] = Array.prototype.map.call(value, function (entry) { return describeAction(entry, 1, budget); });
+          } else if (key === 'action') {
+            kept.action = describeAction(value, 1, budget);
+          } else {
+            const item = plain(value, 1, budget);
+            if (item !== undefined) kept[key] = item;
+          }
+        }
+        const json = JSON.stringify(kept);
+        if (json.length > describedLimit) throw new RangeError('The extension object is too large to describe.');
+        return { exports: json, functions: functions };
+      }
+
+      // The action at `path` (`action`, `actions.3`), as `describeExtension` numbered it.
+      function exportedAction(extension, path) {
+        let target = extension;
+        for (const step of String(path).split('.')) {
+          if (target === null || typeof target !== 'object') {
+            target = undefined;
+            break;
+          }
+          target = /^[0-9]+$/.test(step) ? (isArray(target) ? target[Number(step)] : undefined) : hasOwn(target, step) ? target[step] : undefined;
+        }
+        if (typeof target === 'function') return target;
+        if (target !== null && typeof target === 'object' && typeof target.code === 'function') return target;
+        throw new Error('The module has no action at ' + path + '.');
+      }
+
+      // `popclip` and `pappuclip` for the invocation about to run (JS-3, as much as this build has).
+      function enter(state) {
+        const popclip = freeze({
+          input: freeze(state.input),
+          options: freeze(state.options),
+          context: freeze(state.context || {}),
+        });
+        defineProperty(global, 'popclip', { value: popclip, writable: false, configurable: true });
+        defineProperty(global, 'pappuclip', { value: popclip, writable: false, configurable: true });
+        return popclip;
+      }
+
+      function settleWith(promise, settle) {
+        promise.then(
+          function (value) { settle('returned', typeof value === 'string' ? value : null); },
+          function (error) { settle('threw', describe(error)); }
+        );
+      }
+
       return freeze({
         fire: fire,
 
@@ -476,9 +697,7 @@ final class ExtensionVM: @unchecked Sendable {
             settle('threw', describe(error));
             return;
           }
-          const popclip = freeze({ input: freeze(state.input), options: freeze(state.options) });
-          defineProperty(global, 'popclip', { value: popclip, writable: false, configurable: true });
-          defineProperty(global, 'pappuclip', { value: popclip, writable: false, configurable: true });
+          enter(state);
           const module = { id: url, exports: {}, loaded: false };
           const require = requireFrom(base);
           const define = definer(module, require);
@@ -489,10 +708,34 @@ final class ExtensionVM: @unchecked Sendable {
             settle('threw', describe(error));
             return;
           }
-          promise.then(
-            function (value) { settle('returned', typeof value === 'string' ? value : null); },
-            function (error) { settle('threw', describe(error)); }
-          );
+          settleWith(promise, settle);
+        },
+
+        // JS-12: what a module extension is. `{ exports, functions }`, or `{ error }`.
+        describe: function (source, isFile, typeScript) {
+          try {
+            return describeExtension(extensionOf(loadModule(source, isFile, typeScript)));
+          } catch (error) {
+            return { error: describe(error) };
+          }
+        },
+
+        // JS-12: run a module's action, the function at `path`, as PopClip calls it:
+        // `code(input, options, context)`, with the action object as `this` when it has one.
+        runExport: function (source, isFile, typeScript, path, state, settle) {
+          let promise;
+          try {
+            const action = exportedAction(extensionOf(loadModule(source, isFile, typeScript)), path);
+            const popclip = enter(state);
+            const result = typeof action === 'function'
+              ? action.call(undefined, popclip.input, popclip.options, popclip.context)
+              : action.code.call(action, popclip.input, popclip.options, popclip.context);
+            promise = PromiseConstructor.resolve(result);
+          } catch (error) {
+            settle('threw', describe(error));
+            return;
+          }
+          settleWith(promise, settle);
         }
       });
     })

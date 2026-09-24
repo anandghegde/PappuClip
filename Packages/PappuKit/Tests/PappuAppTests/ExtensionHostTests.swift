@@ -29,6 +29,31 @@ import Testing
     url: https://example.com/?q=***&l={popclip option lang}
     """
 
+    static let module = "// #popclip\n// name: Moduled\n// identifier: com.example.moduled\ndefineExtension({ action: { title: 'Go', code: (input) => input.text } })"
+
+    /// A describer that answers every module the same way and remembers who asked.
+    final class FakeModules: ModuleDescribing {
+        private let answer: ModuleExports
+        private let asked = Mutex<[ModuleDescribeRequest]>([])
+        var requests: [ModuleDescribeRequest] { asked.withLock { $0 } }
+
+        init(_ json: String) throws {
+            answer = try ModuleExports(json: json, functions: [])
+        }
+
+        func describe(_ module: ModuleDescribeRequest) async -> Result<ModuleExports, ModuleDescribeFailure> {
+            asked.withLock { $0.append(module) }
+            return .success(answer)
+        }
+    }
+
+    /// The host answers in the background; this waits, a little, for what it should have done.
+    private func eventually(_ condition: () -> Bool) async throws {
+        for _ in 0..<200 where !condition() {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+    }
+
     private let root: URL
     private let library: ExtensionLibrary
     private let secrets = InMemorySecretStore()
@@ -126,6 +151,42 @@ import Testing
         await host.reload()
         let action = try #require(host.catalog.actions.first)
         #expect(resolve(host).refusals[action.key] == .notGranted([.script]))
+        try? FileManager.default.removeItem(at: root)
+    }
+
+    // MARK: Modules (JS-12)
+
+    @Test func anApprovedModuleIsDescribedAndItsActionsReachTheCatalog() async throws {
+        let identity = try await install(Self.module)
+        let modules = try FakeModules(#"{"action":{"title":"Go","code":true}}"#)
+        let host = ExtensionHost(library: library, secrets: secrets, builtins: [], modules: modules) { _ in }
+        await host.reload()
+        try await eventually { host.catalog.actions.contains { $0.owner == identity.description } }
+        let action = try #require(host.catalog.actions.first { $0.owner == identity.description })
+        #expect(action.title.english == "Go")
+        guard case .javaScript(let script) = action.executor else {
+            Issue.record("A module's action runs JavaScript")
+            return
+        }
+        #expect(script.export == "action")
+        #expect(modules.requests.map(\.owner) == [identity.description])
+        // Asked once for these bytes, however often the host reloads.
+        await host.reload()
+        #expect(modules.requests.count == 1)
+        try? FileManager.default.removeItem(at: root)
+    }
+
+    /// Describing a module runs its code, so a module without an approval for its bytes is never
+    /// described (architecture §10.2).
+    @Test func aModuleWithoutAnApprovalIsNeverRun() async throws {
+        let identity = try await install(Self.module)
+        try await library.store.revoke(identity)
+        let modules = try FakeModules(#"{"action":{"title":"Go","code":true}}"#)
+        let host = ExtensionHost(library: library, secrets: secrets, builtins: [], modules: modules) { _ in }
+        await host.reload()
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(modules.requests.isEmpty)
+        #expect(!host.catalog.actions.contains { $0.owner == identity.description })
         try? FileManager.default.removeItem(at: root)
     }
 

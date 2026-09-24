@@ -7,6 +7,59 @@ import PappuJSHost
 import Synchronization
 import Testing
 
+/// A helper that never answers `describe` and answers everything else as `InProcessJSHost` does.
+final class SilentDescribes: JSHostTransport {
+    private let inner = InProcessJSHost()
+    private let connections = Mutex<[Connection]>([])
+    var current: Connection? { connections.withLock { $0.last } }
+
+    func connect(events: @escaping @Sendable (JSHostEvent) -> Void) async -> (any JSHostConnection)? {
+        guard let connection = await inner.connect(events: events) else { return nil }
+        let silent = Connection(inner: connection)
+        connections.withLock { $0.append(silent) }
+        return silent
+    }
+
+    final class Connection: JSHostConnection {
+        typealias Reply = @Sendable (Result<JSHostReply, JSHostGone>) -> Void
+        private let inner: any JSHostConnection
+        private let held = Mutex<[Reply]>([])
+        private let killed = Mutex(false)
+        var wasKilled: Bool { killed.withLock { $0 } }
+
+        init(inner: any JSHostConnection) {
+            self.inner = inner
+        }
+
+        func send(_ request: JSHostRequest, reply: @escaping Reply) {
+            if case .describe = request {
+                held.withLock { $0.append(reply) }
+                return
+            }
+            inner.send(request, reply: reply)
+        }
+
+        func kill() {
+            killed.withLock { $0 = true }
+            release()
+            inner.kill()
+        }
+
+        func close() {
+            release()
+            inner.close()
+        }
+
+        private func release() {
+            let owed = held.withLock { held in
+                defer { held = [] }
+                return held
+            }
+            for reply in owed { reply(.failure(JSHostGone())) }
+        }
+    }
+}
+
 /// A helper in this process: the real `JSHost` behind a connection that can be made to crash. What
 /// the XPC transport adds — a process to kill and launchd to restart it — is `--check-js-host`'s.
 final class InProcessJSHost: JSHostTransport {
@@ -36,7 +89,9 @@ final class InProcessJSHost: JSHostTransport {
         private let state = Mutex(State())
 
         init(events: @escaping @Sendable (JSHostEvent) -> Void) {
-            host = JSHost { name, line in events(.log(extensionName: name, line: line)) }
+            // Below the test's own priority: a script spinning here must not starve the client's
+            // grace and limit timers, which in the app run in another process from the helper.
+            host = JSHost(qos: .utility) { name, line in events(.log(extensionName: name, line: line)) }
         }
 
         var wasKilled: Bool { state.withLock { $0.killed } }
@@ -84,8 +139,8 @@ final class InProcessJSHost: JSHostTransport {
         let client: JSHostClient
         let package: URL
 
-        init(files: [String: String] = [:], grace: Duration = .milliseconds(100)) throws {
-            client = JSHostClient(transport: transport, console: console, grace: grace)
+        init(files: [String: String] = [:], grace: Duration = .milliseconds(100), describeLimit: Duration = .seconds(5)) throws {
+            client = JSHostClient(transport: transport, console: console, grace: grace, describeLimit: describeLimit)
             package = FileManager.default.temporaryDirectory.appendingPathComponent("js-\(UUID().uuidString)")
             try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
             for (path, text) in files {
@@ -258,6 +313,71 @@ final class InProcessJSHost: JSHostTransport {
         var job = setup.job("")
         job.action = JavaScriptAction(source: .file("main.ts"), isTypeScript: true)
         #expect(await setup.run(job) == .returned("5"))
+    }
+
+    // MARK: Modules (JS-12)
+
+    static func module(_ setup: Setup, _ file: String = "Config.js") -> ModuleDescribeRequest {
+        ModuleDescribeRequest(
+            owner: "ext-a",
+            generation: "1",
+            extensionName: "Extension A",
+            directory: setup.package,
+            module: ModuleSource(source: .file(file), isTypeScript: file.hasSuffix(".ts"))
+        )
+    }
+
+    @Test func aModuleIsDescribedThroughTheClient() async throws {
+        let setup = try Setup(files: ["Config.ts": "export default { action: { title: 'Go', code: (input: { text: string }) => input.text } }"])
+        let exports = try await setup.client.describe(Self.module(setup, "Config.ts")).get()
+        #expect(exports.object == ["action": ["title": "Go", "code": true]])
+        #expect(exports.functions == [])
+    }
+
+    @Test func aModulesActionRunsThroughTheClient() async throws {
+        let setup = try Setup(files: ["Config.js": "defineExtension({ actions: [(input) => input.text + '!'] })"])
+        var job = setup.job("")
+        job.action = JavaScriptAction(source: .file("Config.js"), export: "actions.0")
+        #expect(await setup.run(job) == .returned("hello!"))
+    }
+
+    @Test func aModuleThatWillNotDescribeSaysWhyInTheConsole() async throws {
+        let setup = try Setup(files: ["Config.js": "throw new Error('no util yet')"])
+        #expect(await setup.client.describe(Self.module(setup)) == .failure(ModuleDescribeFailure("no util yet")))
+        #expect(setup.kinds() == [.loadFailed])
+    }
+
+    /// A module in a loop is stopped as a script that will not yield is: the helper is killed. The
+    /// helper here never answers `describe`, which is what one stuck loading a module looks like to the
+    /// client, without a thread spinning to make it so.
+    @Test func aModuleThatNeverFinishesLoadingIsStopped() async throws {
+        let setup = try Setup(files: ["Config.js": "module.exports = {}"])
+        let transport = SilentDescribes()
+        let console = DebugConsole()
+        let client = JSHostClient(transport: transport, console: console, describeLimit: .milliseconds(100))
+        guard case .failure = await client.describe(Self.module(setup)) else {
+            Issue.record("A module still loading at the limit is a failure")
+            return
+        }
+        #expect(transport.current?.wasKilled == true)
+        #expect(console.entries.map(\.kind) == [.hung, .loadFailed])
+    }
+
+    /// PopClip reads a module compressed with LZFSE, and so does the helper, from the text this sends.
+    @Test func anLZFSEModuleIsSentDecompressed() throws {
+        let setup = try Setup()
+        let text = "module.exports = { action: () => 'compressed' }"
+        let compressed = try (Data(text.utf8) as NSData).compressed(using: .lzfse) as Data
+        try compressed.write(to: setup.package.appendingPathComponent("main.bundle.js.lzfse"))
+        let files = try PackageSources.read(setup.package).get()
+        #expect(files == ["main.bundle.js.lzfse": text])
+    }
+
+    @Test func anLZFSEFileIsMeasuredAsItExpands() throws {
+        let large = try (Data(count: PackageSources.fileLimit + 1) as NSData).compressed(using: .lzfse) as Data
+        #expect(large.count < PackageSources.fileLimit)
+        #expect(PackageSources.expand(large, limit: PackageSources.fileLimit) == .tooLarge)
+        #expect(PackageSources.expand(Data("not lzfse".utf8), limit: PackageSources.fileLimit) == .corrupt)
     }
 
     @Test func settingsPrefixesAreCaseInsensitive() {

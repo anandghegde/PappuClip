@@ -22,6 +22,10 @@ import Foundation
 ///   compile, a script file that is not in the package. Each fails the load with a message; the
 ///   API-level gate has a debug override (DEV-1).
 /// - **Snippets** (FMT-3) have no package, so anything that names a file is an error.
+/// - **Modules** (JS-12): a module's actions are what it exported, which the JavaScript helper describes
+///   as `ModuleExports` once the extension is approved. Given those, the builder reads them as it reads a
+///   config — the module's top level over the config's — and every action it builds runs the module's
+///   code. Without them, a module extension loads with its config's actions, usually none.
 ///
 /// Booleans read `null` as false, because a property list's `<false/>` *is* null (FMT-5).
 public struct ManifestBuilder {
@@ -31,6 +35,10 @@ public struct ManifestBuilder {
         public var package: PackageFiles?
         /// A code snippet's script (FMT-2): the whole text, which is the action unless it is a module.
         public var code: CodeBody?
+        /// The package file `code` came from (`Config.ts`); nil for a snippet.
+        public var codeFile: String?
+        /// JS-12: what the module exported, when the helper has described it.
+        public var moduleExports: ModuleExports?
         /// DEV-1's override for §8.1's API-level gate.
         public var ignoresAPILevel: Bool
         /// Where the manifest comes from, for `ExtensionManifest.validate(origin:)`.
@@ -40,12 +48,16 @@ public struct ManifestBuilder {
             config: ConfigValue,
             package: PackageFiles? = nil,
             code: CodeBody? = nil,
+            codeFile: String? = nil,
+            moduleExports: ModuleExports? = nil,
             ignoresAPILevel: Bool = false,
             origin: ManifestOrigin = .installed
         ) {
             self.config = config
             self.package = package
             self.code = code
+            self.codeFile = codeFile
+            self.moduleExports = moduleExports
             self.ignoresAPILevel = ignoresAPILevel
             self.origin = origin
         }
@@ -97,6 +109,14 @@ public struct ManifestBuilder {
     static let primaryExecutorKeys: Set<String> = [
         "url", "key combo", "key combos", "service name", "shortcut name", "applescript",
         "applescript file", "applescript call", "shell script", "shell script file", "javascript", "javascript file",
+    ]
+
+    /// JS-12: keys only an extension's config may set. A module that sets one is told so and ignored, as
+    /// PopClip ignores it. `icon` is not here: at a module's top level it is its actions' default.
+    static let configOnlyKeys: Set<String> = [
+        "name", "identifier", "description", "keywords", "macos version", "popclip version", "pappuclip version",
+        "entitlements", "show as", "color", "auth service label", "auth keychain", "offers multiple instances",
+        "shell script rationale", "module", "language", "app", "apps", "replaces", "network hosts",
     ]
 
     /// Appendix A's "removed in PopClip and ignored here".
@@ -184,7 +204,7 @@ public struct ManifestBuilder {
         let icon = readIcon(from: &top)
         let keywords = top.take("keywords").flatMap { string($0, top.path($0)) }
         let macosVersion = top.take("macos version").flatMap { string($0, top.path($0)) }
-        let options = top.take("options").map { readOptions($0, top.path($0)) } ?? []
+        var options = top.take("options").map { readOptions($0, top.path($0)) } ?? []
         let entitlements = top.take("entitlements").map { readEntitlements($0, top.path($0)) } ?? []
         let authServiceLabel = top.take("auth service label").flatMap { localized($0, top.path($0)) }
         let authKeychain = top.take("auth keychain").flatMap { keychain($0, top.path($0)) }
@@ -257,6 +277,12 @@ public struct ManifestBuilder {
             }
         }
 
+        // JS-12: a module's exports, read over the config.
+        let moduleSource = sourceOfModule(module, language: language)
+        if let moduleSource, let exports = input.moduleExports {
+            readExports(exports, source: moduleSource, configDefaults: defaults, actions: &actions, options: &options)
+        }
+
         let manifest = ExtensionManifest(
             name: name,
             identifier: identifier,
@@ -274,6 +300,7 @@ public struct ManifestBuilder {
             authKeychain: authKeychain,
             offersMultipleInstances: offersMultipleInstances,
             module: module,
+            moduleSource: moduleSource,
             language: language,
             apps: apps,
             replaces: replaces,
@@ -672,6 +699,145 @@ public struct ManifestBuilder {
             }
             return .shellScript(ShellScriptAction(source: .inline(code.text)))
         }
+    }
+
+    // MARK: Modules (JS-12)
+
+    /// What the helper runs for a module extension: the file `module` names, or a code config that is a
+    /// module — its file in a package, its own text in a snippet. The language rule is FMT-2's.
+    private func sourceOfModule(_ module: ModuleReference?, language: ScriptLanguage?) -> ModuleSource? {
+        switch module {
+        case .file(let path):
+            return ModuleSource(source: .file(path), isTypeScript: path.lowercased().hasSuffix(".ts"))
+        case .detection(true):
+            guard let code = input.code, code.style == .slashes else { return nil }
+            let isTypeScript = switch language {
+            case .javascript: false
+            case .typescript: true
+            case .applescript, nil: code.impliedLanguage != .javascript
+            }
+            if let file = input.codeFile { return ModuleSource(source: .file(file), isTypeScript: isTypeScript) }
+            return ModuleSource(source: .inline(code.text), isTypeScript: isTypeScript)
+        case .detection(false), nil:
+            return nil
+        }
+    }
+
+    /// The module's exports over the config (JS-12). Its `options` replace the config's; its `action`
+    /// and `actions`, when it has them, replace the config's actions; its other action keys are
+    /// defaults over the config's. What only a config may set is ignored with a warning.
+    private mutating func readExports(
+        _ exports: ModuleExports,
+        source: ModuleSource,
+        configDefaults: [ConfigValue.Entry],
+        actions: inout [ActionManifest],
+        options: inout [OptionManifest]
+    ) {
+        let path = "module"
+        guard case .dictionary(let entries) = exports.object else {
+            error(path, "The module exports \(exports.object.kindName), not an extension object.")
+            return
+        }
+        var top = Reader(entries, path: path)
+        reportDuplicates(top)
+        for key in top.remaining where Self.configOnlyKeys.contains(key) {
+            if let found = top.take(key) {
+                warn(top.path(found), "\(found.rawKey) can only be set in the extension's config, not by its module; ignored.")
+            }
+        }
+        if let found = top.take("options") {
+            options = readOptions(found, top.path(found))
+        }
+        for name in exports.functions {
+            switch KeyNormalizer.normalize(name) {
+            case "actions", "submenu":
+                warn(top.join(name), "A population function needs the dynamic runtime (M3 week 5); until then the module offers no actions from it.")
+            case "auth":
+                warn(top.join(name), "Sign-in arrives in M3 week 5; until then the auth function is not called.")
+            default:
+                // `test`, and functions a module exports for itself.
+                break
+            }
+        }
+        if let found = top.take("submenu") {
+            error(top.path(found), "Submenus arrive with the bar's submenu support (M4); until then this extension cannot load as its author wrote it.")
+        }
+        let explicitAction = top.take("action")
+        let explicitActions = top.take("actions")
+        let moduleDefaults = top.takeAll {
+            Self.actionKeys.contains($0) || $0 == "icon" || $0 == "icon options" || Self.iconModifierKeys[$0] != nil
+        }
+        for canonical in top.remaining {
+            if Self.executorFamilies[canonical] != nil, let found = top.take(canonical) {
+                warn(top.path(found), "\(found.rawKey) is for an extension's config; a module's actions run its code. Ignored.")
+            } else {
+                reportUnread(canonical, in: top)
+            }
+        }
+        guard explicitAction != nil || explicitActions != nil else { return }
+
+        // The module's defaults win over the config's, and nothing about another action type is
+        // inherited: a module's actions run code.
+        let overridden = Set(moduleDefaults.map { KeyNormalizer.normalize($0.key) })
+        let defaults = configDefaults.filter {
+            let canonical = KeyNormalizer.normalize($0.key)
+            return !overridden.contains(canonical) && Self.executorFamilies[canonical] == nil
+        } + moduleDefaults
+
+        var built: [ActionManifest] = []
+        if let found = explicitAction,
+           let action = moduleAction(found.value, export: "action", defaults: defaults, source: source, path: top.path(found)) {
+            built.append(action)
+        }
+        if let found = explicitActions {
+            if case .array(let values) = found.value {
+                for (index, value) in values.enumerated() {
+                    let entryPath = "\(top.path(found))[\(index)]"
+                    if let action = moduleAction(value, export: "actions.\(index)", defaults: defaults, source: source, path: entryPath) {
+                        built.append(action)
+                    }
+                }
+            } else {
+                error(top.path(found), "actions is a list, not \(found.value.kindName).")
+            }
+        }
+        actions = built
+    }
+
+    /// One of a module's actions, which runs the code at `export`. An action with no code has nothing
+    /// to do: PopClip shows it disabled, and this build leaves it out until the bar can show one (M4).
+    private mutating func moduleAction(
+        _ value: ConfigValue,
+        export: String,
+        defaults: [ConfigValue.Entry],
+        source: ModuleSource,
+        path: String
+    ) -> ActionManifest? {
+        guard case .dictionary(let entries) = value else {
+            error(path, "An action is a dictionary or a function, not \(value.kindName).")
+            return nil
+        }
+        let own = NormalizedDictionary(entries)
+        guard own["code"]?.value == .bool(true) else {
+            if own.contains("separator") {
+                warn(path, "Separators are for submenus, which this build does not have yet; ignored.")
+            } else {
+                warn(path, "The action has no code function, so there is nothing for it to do; left out.")
+            }
+            return nil
+        }
+        var kept: [ConfigValue.Entry] = []
+        for entry in entries {
+            let canonical = KeyNormalizer.normalize(entry.key)
+            if canonical == "code" { continue }
+            if Self.executorFamilies[canonical] != nil {
+                warn("\(path).\(entry.key)", "\(entry.key) is for an extension's config; a module's action runs its code. Ignored.")
+                continue
+            }
+            kept.append(entry)
+        }
+        let executor = ActionExecutor.javaScript(JavaScriptAction(source: source.source, isTypeScript: source.isTypeScript, export: export))
+        return action(kept, defaults: defaults, codeExecutor: executor, path: path)
     }
 
     // MARK: Extension parts

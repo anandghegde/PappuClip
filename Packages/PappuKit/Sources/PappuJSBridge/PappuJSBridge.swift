@@ -18,6 +18,9 @@ public enum JSHostRequest: Codable, Sendable, Equatable {
     /// Makes a fresh world for an extension, replacing any it had, with these files to `require` from.
     case load(JSLoad)
     case invoke(JSInvoke)
+    /// JS-12: run a module extension's module and say what it exported. Sent, like `invoke`, only for an
+    /// extension that is loaded, which is only ever one with an `ExecutionApproval`.
+    case describe(JSDescribe)
     /// Stop waiting for this invocation. Its reply is `dropped`, and anything it settles to afterwards
     /// is thrown away.
     case drop(invocation: UInt64)
@@ -50,6 +53,12 @@ public struct JSInvoke: Codable, Sendable, Equatable {
         case inline(String)
         /// `javascript file:`, relative to the package root, among the files sent in `load`.
         case file(String)
+
+        /// The file's path, for a message. Nil for inline text.
+        public var path: String? {
+            if case .file(let path) = self { return path }
+            return nil
+        }
     }
 
     public var invocation: UInt64
@@ -61,6 +70,9 @@ public struct JSInvoke: Codable, Sendable, Equatable {
     public var options: [String: String]
     /// The script is TypeScript, which the helper transpiles before running it (JS-14).
     public var typeScript: Bool
+    /// JS-12: the entry is a module, and this is where in what it exported the action's code is
+    /// (`action`, `actions.3`). Nil for a script.
+    public var export: String?
 
     public init(
         invocation: UInt64,
@@ -69,7 +81,8 @@ public struct JSInvoke: Codable, Sendable, Equatable {
         entry: Entry,
         input: JSInput,
         options: [String: String] = [:],
-        typeScript: Bool = false
+        typeScript: Bool = false,
+        export: String? = nil
     ) {
         self.invocation = invocation
         self.extensionName = extensionName
@@ -78,6 +91,38 @@ public struct JSInvoke: Codable, Sendable, Equatable {
         self.input = input
         self.options = options
         self.typeScript = typeScript
+        self.export = export
+    }
+}
+
+/// JS-12: a module extension's module, to be run and described.
+public struct JSDescribe: Codable, Sendable, Equatable {
+    public var extensionName: String
+    public var generation: String
+    /// The module: a file among those sent with `load`, or a snippet's own text.
+    public var entry: JSInvoke.Entry
+    public var typeScript: Bool
+
+    public init(extensionName: String, generation: String, entry: JSInvoke.Entry, typeScript: Bool) {
+        self.extensionName = extensionName
+        self.generation = generation
+        self.entry = entry
+        self.typeScript = typeScript
+    }
+}
+
+/// JS-12: what a module exported, as data.
+public struct JSModuleDescription: Codable, Sendable, Equatable {
+    /// The exported extension object as JSON, with every function taken out. An action whose code is a
+    /// function has `"code": true`, which nothing else can produce.
+    public var exports: String
+    /// The top-level keys whose value is a function: `actions` or `submenu` as a population function,
+    /// `auth`, `test`, and any a module exports for itself.
+    public var functions: [String]
+
+    public init(exports: String, functions: [String]) {
+        self.exports = exports
+        self.functions = functions
     }
 }
 
@@ -105,6 +150,8 @@ public enum JSHostReply: Codable, Sendable, Equatable {
     case notLoaded
     /// The script ran to the end. A string it returned, or nil for anything else.
     case returned(String?)
+    /// JS-12: what the module exported. A module that would not load or describe is `threw`.
+    case described(JSModuleDescription)
     /// The script threw, or its promise rejected. The message, for the Debug Console and for §8.8's
     /// "settings error" and "not signed in" prefixes.
     case threw(String)

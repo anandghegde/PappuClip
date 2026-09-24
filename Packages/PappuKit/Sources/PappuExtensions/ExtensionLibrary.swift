@@ -168,6 +168,20 @@ public actor ExtensionLibrary {
     public nonisolated let store: ExtensionStore
     private let checkpoint: @Sendable (Checkpoint) -> Void
     private var installing = false
+    /// JS-12: what approved module extensions' modules exported, by the bytes they were described from.
+    /// Kept for the life of the app; a module is described again at the next launch.
+    var moduleExports: [ModuleKey: ModuleExports] = [:]
+
+    struct ModuleKey: Hashable {
+        var identity: LocalIdentity
+        var digest: ContentDigest
+    }
+
+    /// JS-12: remembers what the helper said a module exported. `installed()` reads it into the
+    /// extension's manifest from then on, for these bytes only: an update is described again.
+    public func remember(_ exports: ModuleExports, for identity: LocalIdentity, digest: ContentDigest) {
+        moduleExports[ModuleKey(identity: identity, digest: digest)] = exports
+    }
 
     public init(paths: Paths, checkpoint: @escaping @Sendable (Checkpoint) -> Void = { _ in }) throws {
         self.paths = paths
