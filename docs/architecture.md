@@ -563,7 +563,7 @@ The held write carries ACT-10h's transient and concealed markers, as the restore
 
 The pipeline is `ExtensionLoader`, in `PappuCore/Parsing/`, and every stage's refusal becomes the same thing: a `ManifestLoadFailure` carrying `ManifestDiagnostic`s. A diagnostic has a path written the way the author spelled the key (`Config.plist: Actions[0].Script Interpreter`), and warnings travel with errors so that one reload shows everything. The table's `CodeSnippetParser` did not survive as a separate type: finding a code snippet's header is the same scan as finding a config snippet's marker, so `SnippetDetector` returns either `.config(yaml:)` or `.code(yaml:body:)`, and the builder decides what the body is from the comment style, the file's extension and the shebang.
 
-**`ManifestBuilder` reads every PopClip action type,** not only the ones that can run. A URL, key-press, Service, Shortcut, AppleScript, shell or JavaScript action builds into its `ActionExecutor` case, and `ActionResolver` refuses it with `.noRunner` until its runner lands (M2 weeks 2–4, M3). This is the "absent rather than half-present" rule applied to a whole milestone: the parser is tested against every real manifest now, and a runner arriving later changes one `switch`.
+**`ManifestBuilder` reads every PopClip action type,** not only the ones that can run. A URL, key-press, Service, Shortcut, AppleScript, shell or JavaScript action builds into its `ActionExecutor` case, and `ActionResolver` refused it with `.noRunner` until its runner landed (M2 weeks 2–4, M3). This is the "absent rather than half-present" rule applied to a whole milestone: the parser is tested against every real manifest now, and a runner arriving later changes one `switch`. The last runner, TypeScript's, arrived in M3 week 2, and `.noRunner` went with it.
 
 **The frozen corpus** is PopClip-Extensions at a pinned commit, a submodule at `Tests/corpus`, and CI's `corpus` job runs `pappu-dev corpus load` on every commit. At the pin, 368 of 381 extensions load: 264 are ready and 104 are JavaScript that parses and waits for M3. The 13 that fail are listed with reasons in `Tests/corpus-expected-failures.txt`. Five have two config files, two are stubs, one has an empty config, one has a malformed identifier, and the others are described in the file. The job fails on an unlisted failure *and* on a listed package that starts loading, so the list cannot go stale. The corpus decided several of the builder's leniencies:
 - `appleScriptCall` may carry its own `file`.
@@ -890,6 +890,41 @@ A returned string is the result and any other value is none. A throw is reported
 - There is no host API yet: no `popclip.*` methods, `pasteboard`, XHR, timers or population (weeks 2 onward). No CPU or memory watchdog yet (SEC-2).
 - Suspension is not persisted and is not shown in Extension Info.
 
+#### The language environment as built (M3 week 2)
+
+A world is now the language plus what JS-2 lists, apart from the host API and the network: `util`, `pasteboard`, `RichString`, `$` and the `popclip` methods (week 3), and `XMLHttpRequest` (week 4).
+
+**Where it comes from.** `Resources/JavaScript` is a small npm project with pinned versions. `Scripts/update-js-environment.sh` builds it with esbuild into `PappuJSHost/JavaScript`, and that output is checked in, so neither the app build nor CI needs Node. The output is:
+- `environment.js`: `URL`, `URLSearchParams`, `structuredClone`, `atob`, `btoa` and `DOMException` from core-js; `Buffer`; `TextEncoder` and `Blob`.
+- One self-contained CommonJS bundle per JS-9 library.
+- `libraries.json` and the third-party notices.
+
+The helper reads these as SwiftPM resources of `PappuJSHost` through `Bundle.module`, which works in the sandbox because the files are in its own bundle. This differs from §15, which puts JavaScript libraries in `Resources/`: the sources are there, and the files the helper reads live with the module that reads them. `Resources/JavaScript/README.md` has the choices that make it PopClip's environment, and the licence audit:
+- `Buffer` is buffer 6.0.3 with `base64url` added at build time.
+- `Blob` has node-blob's shape.
+- `TextEncoder` is UTF-8 into a `Buffer`, and there is no `TextDecoder`.
+- turndown is built from its Node entry, so it has a DOM.
+
+**The prelude** gained the rest. Timers are kept in the world and timed by the host with `asyncAfter` on the world's own queue, so a timer callback never runs beside the world's other code, and a world that is replaced or unloaded fires nothing more. A repeating timer waits at least 4 ms, and at most 10,000 may wait at once. `sleep` is a promise over a timeout, `window` is the global object, and `pappuclip` is `popclip`. Every file and every action's script gets its own `require`, `module`, `exports`, `define` and `defineExtension`, as CommonJS files do in Node. They come from a scope just outside the script's own, so a script that declares one of those names itself shadows it, as it could shadow PopClip's globals, rather than failing to parse. `define` and `defineExtension` are one function, PopClip's partial AMD.
+
+**`require`** follows PopClip's documented order. `./` and `../` are relative to the requiring file. Anything else is tried at the package root and then among the bundled libraries. An absolute path or one that leaves the package throws "Cannot find module", as in week 1. Anything else not found is `undefined`, as PopClip documents, where week 1 threw; the Debug Console gets a line saying so. A library's own `require` reaches only other libraries. `buffer` is the environment's, so `require("buffer").Buffer` is the global.
+
+**Transpiling (JS-14).** `.ts` files, `.mjs` files, `.js` files with an `import` or `export` statement at the start of a line, and TypeScript actions are transpiled to CommonJS by sucrase, whether a file is required or is an action's own. Types are removed and not checked, newer syntax is left for the engine, and line numbers are kept. Against the corpus, all 78 TypeScript files transpile, and none of its 68 JavaScript files is taken for an ES module, which would add a `"use strict"` it was not written for. Sucrase runs in one tooling world for the whole helper (§10.1), which evaluates no extension code. Its output is kept in memory by a SHA-256 of kind and source, up to 8 M UTF-16 units. **This differs from §10.1,** where the app keeps that cache: the helper keeps it and it is lost when the helper is. Moving it to the app would mean sending output back with each `load`, and it will be measured before that is done. `JSInvoke` carries whether an action is TypeScript. `ActionResolver` now offers TypeScript actions, and `PackageSources` also sends `.ts` and `.mjs` files.
+
+**Measured without the JIT** (the WebKitGTK `jsc` 2.52 shell with `--useJIT=false`, standing in for the helper's interpreter on a Linux x86-64 container; to be measured again on a Mac):
+- `environment.js` (187 KB) takes 17 to 22 ms to evaluate. Every new world pays this, once.
+- Libraries load in 0.2 ms (rot13-cipher) to 36 ms (entities, linkedom), on first `require` in a world.
+- Sucrase loads in about 40 ms, once per helper.
+- Transpiling takes 10 to 27 ms for each of the three largest `Config.ts` files in the corpus (5 to 6 KB). The cache keeps that to once per file.
+
+**The conformance suite** starts here. `Tests/conformance/environment` is a package whose `suite.js` checks the environment from inside a world and returns `ok` or its failures, and `theEnvironmentSectionOfTheConformanceSuitePasses` runs it in `ExtensionVM`. It passes in `jsc` without the JIT in 0.4 s, most of it loading every library. `--check-js-host` gained two lines that run the environment, a library and a TypeScript action in the real sandboxed helper, which is what shows that the resources reached its bundle.
+
+**Known gaps:**
+- A module extension's actions are not read from what it exports (JS-12), so a module snippet or `Config.js` still loads with no actions. Code snippets that are one action, JavaScript or TypeScript, run.
+- EXM-3 (Open With and dropping on the menu bar icon) is not built.
+- JS-1's polyfills for built-ins newer than the engine are not added. On macOS 15 before 15.4 that leaves out the iterator helpers, which PopClip says are always there.
+- Six library majors are not yet confirmed against PopClip's documentation (`Resources/JavaScript/README.md`).
+
 ---
 
 ## 11. Storage and data model
@@ -1039,7 +1074,9 @@ PappuClip/
 │   ├── PappuHarness              dev only: results format, latency recorder, Tier A app matrix
 │   └── PappuDevTools, pappu-dev  dev only: traceability checker, results digest (CI runs it)
 ├── Resources/                    BuiltinExtensions/, DetectionPolicies/, url-schemes.json,
-│                                 search-engines.json, top-level-domains.txt, JS libraries
+│                                 search-engines.json, top-level-domains.txt, JavaScript/ (the
+│                                 sources of the helper's environment and libraries; built into
+│                                 PappuJSHost/JavaScript)
 ├── Tests/                        corpus/ (pinned submodule), gestures/, conformance/, FixtureApp/, results/, traceability.yaml
 ├── Scripts/                      dev-signing setup, build, run-spike, layering lint, release, notarize
 └── docs/

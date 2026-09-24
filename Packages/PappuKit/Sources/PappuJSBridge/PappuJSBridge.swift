@@ -32,7 +32,8 @@ public struct JSLoad: Codable, Sendable, Equatable {
     /// Which bytes these are: the approved digest. An `invoke` for a different generation is answered
     /// `notLoaded`, so a world built from yesterday's files never runs today's action.
     public var generation: String
-    /// Every script and JSON file in the package, by path relative to its root.
+    /// Every script and JSON file in the package, by path relative to its root: JavaScript, TypeScript
+    /// and JSON (`PackageSources`).
     public var files: [String: String]
 
     public init(extensionName: String, generation: String, files: [String: String]) {
@@ -58,6 +59,8 @@ public struct JSInvoke: Codable, Sendable, Equatable {
     public var input: JSInput
     /// The extension's option values, by option id (§8.9).
     public var options: [String: String]
+    /// The script is TypeScript, which the helper transpiles before running it (JS-14).
+    public var typeScript: Bool
 
     public init(
         invocation: UInt64,
@@ -65,7 +68,8 @@ public struct JSInvoke: Codable, Sendable, Equatable {
         generation: String,
         entry: Entry,
         input: JSInput,
-        options: [String: String] = [:]
+        options: [String: String] = [:],
+        typeScript: Bool = false
     ) {
         self.invocation = invocation
         self.extensionName = extensionName
@@ -73,6 +77,7 @@ public struct JSInvoke: Codable, Sendable, Equatable {
         self.entry = entry
         self.input = input
         self.options = options
+        self.typeScript = typeScript
     }
 }
 

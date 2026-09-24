@@ -94,7 +94,8 @@ public final class JSHostClient: JavaScriptRunning, Sendable {
             generation: job.generation,
             entry: entry,
             input: JSInput(text: job.text, matchedText: job.matchedText),
-            options: job.options
+            options: job.options,
+            typeScript: job.action.isTypeScript
         ))) { reply in started.settle(reply) }
         return started
     }

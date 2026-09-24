@@ -26,7 +26,6 @@ let libraries: [(name: String, dependencies: [Target.Dependency])] = [
     // (architecture §11, §9.4). Both stay here: nothing below the install pipeline needs either.
     ("PappuExtensions", [core, grdb, zip]),
     ("PappuJSBridge", [core]),
-    ("PappuJSHost", [core, "PappuJSBridge"]),
     // PappuClipRunner.xpc's messages, and the Runner's side of them (architecture §2.1, §9.5). The
     // bridge depends on nothing, so the Runner links none of the app's rules; it is told values, not
     // what they mean.
@@ -51,6 +50,7 @@ let package = Package(
     defaultLocalization: "en",
     platforms: [.macOS(.v15)],
     products: libraries.map { .library(name: $0.name, targets: [$0.name]) } + [
+        .library(name: "PappuJSHost", targets: ["PappuJSHost"]),
         .library(name: "PappuSurfaces", targets: ["PappuSurfaces"]),
         .library(name: "PappuSettings", targets: ["PappuSettings"]),
         .library(name: "PappuApp", targets: ["PappuApp"]),
@@ -64,6 +64,14 @@ let package = Package(
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", from: "0.9.19"),
     ],
     targets: libraries.map { .target(name: $0.name, dependencies: $0.dependencies) } + [
+        // The helper's JavaScript: the environment's globals and the libraries `require()` can load
+        // (JS-2, JS-9), built by Scripts/update-js-environment.sh and read from the helper's own
+        // bundle. Copied as a folder, so `libraries/` stays a directory.
+        .target(
+            name: "PappuJSHost",
+            dependencies: [core, "PappuJSBridge"],
+            resources: [.copy("JavaScript")]
+        ),
         // The bar takes what the coordinator hands it (PappuSelection) and owns the strings it shows.
         .target(
             name: "PappuSurfaces",

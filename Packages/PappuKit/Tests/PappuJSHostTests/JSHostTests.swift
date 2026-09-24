@@ -44,6 +44,7 @@ import Testing
             text: String = "hello",
             generation: String = "1",
             options: [String: String] = [:],
+            typeScript: Bool = false,
             id: UInt64? = nil
         ) async -> JSHostReply {
             await ask(.invoke(JSInvoke(
@@ -52,8 +53,13 @@ import Testing
                 generation: generation,
                 entry: entry,
                 input: JSInput(text: text, matchedText: text),
-                options: options
+                options: options,
+                typeScript: typeScript
             )))
+        }
+
+        func printed() -> [String] {
+            lines.withLock { $0.map(\.1) }
         }
 
         func run(_ name: String, _ script: String, text: String = "hello") async -> JSHostReply {
@@ -115,9 +121,11 @@ import Testing
     @Test func thereIsNoFetchProcessDOMOrFileSystem() async {
         let harness = Harness()
         await harness.load("a")
-        let script = "return [typeof fetch, typeof process, typeof document, typeof XMLHttpRequest, typeof window].join()"
-        #expect(await harness.run("a", script) == .returned("undefined,undefined,undefined,undefined,undefined"))
-        #expect(await harness.run("a", "require('fs')") == .threw("Cannot find module 'fs'"))
+        let script = "return [typeof fetch, typeof process, typeof document, typeof XMLHttpRequest].join()"
+        #expect(await harness.run("a", script) == .returned("undefined,undefined,undefined,undefined"))
+        // `window` is only the global object, for libraries that look for one (JS-2).
+        #expect(await harness.run("a", "return String(window === globalThis)") == .returned("true"))
+        #expect(await harness.run("a", "return typeof require('fs')") == .returned("undefined"))
     }
 
     @Test func printGoesToTheLog() async {
@@ -168,6 +176,123 @@ import Testing
         let harness = Harness()
         await harness.load("a")
         #expect(await harness.invoke("a", .file("nope.js")) == .threw("Cannot find the script nope.js."))
+    }
+
+    // MARK: The environment (JS-2, JS-9, JS-10, JS-14)
+
+    /// The implementation plan's "done when" for M3 week 2: the conformance suite's environment
+    /// section, `Tests/conformance/environment`, run as the package it is.
+    @Test func theEnvironmentSectionOfTheConformanceSuitePasses() async throws {
+        let suite = URL(filePath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Tests/conformance/environment")
+        let files = try Self.files(in: suite)
+        try #require(files["suite.js"] != nil, "Tests/conformance/environment/suite.js is missing")
+        let harness = Harness()
+        #expect(await harness.load("conformance", files: files) == .loaded)
+        #expect(await harness.invoke("conformance", .file("suite.js")) == .returned("ok"))
+    }
+
+    /// The scripts and JSON under `folder`, by path relative to it: what `PackageSources` would send.
+    static func files(in folder: URL) throws -> [String: String] {
+        let root = folder.standardizedFileURL.path + "/"
+        var files: [String: String] = [:]
+        let walker = FileManager.default.enumerator(
+            at: folder,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        )
+        while let url = walker?.nextObject() as? URL {
+            guard ["js", "cjs", "mjs", "ts", "json"].contains(url.pathExtension),
+                  try url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true
+            else { continue }
+            files[String(url.standardizedFileURL.path.dropFirst(root.count))] = try String(contentsOf: url, encoding: .utf8)
+        }
+        return files
+    }
+
+    @Test func aTimerOutlivesItsInvocationButNotItsWorld() async throws {
+        let harness = Harness()
+        await harness.load("a")
+        #expect(await harness.run("a", "setTimeout(() => print('later'), 20); return 'now'") == .returned("now"))
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(harness.printed() == ["later"])
+
+        _ = await harness.run("a", "setTimeout(() => print('never'), 50)")
+        #expect(await harness.ask(.unload(extension: "a")) == .unloaded)
+        try await Task.sleep(for: .milliseconds(250))
+        #expect(harness.printed() == ["later"])
+    }
+
+    @Test func aTimerCallbackThatThrowsIsWrittenDownAndNothingElse() async {
+        let harness = Harness()
+        await harness.load("a")
+        let script = "setTimeout(() => { throw new Error('boom') }, 0); await sleep(20); return 'still here'"
+        #expect(await harness.run("a", script) == .returned("still here"))
+        #expect(harness.printed() == ["Uncaught boom"])
+    }
+
+    @Test func anInlineTypeScriptActionIsTranspiledImportsIncluded() async {
+        let harness = Harness()
+        await harness.load("a")
+        let script = "import yaml from 'js-yaml'\nconst n: number = yaml.load('a: 2').a\nreturn String(n * 2) as string"
+        #expect(await harness.invoke("a", .inline(script), typeScript: true) == .returned("4"))
+    }
+
+    /// An action's own file follows `require`'s rule: `.mjs`, and `.js` with `import` statements.
+    @Test func anActionFileWithImportStatementsIsTranspiled() async {
+        let harness = Harness()
+        await harness.load("a", files: [
+            "main.mjs": "import yaml from 'js-yaml'\nreturn yaml.dump({ a: 1 }).trim()",
+            "main.js": "import { x } from './x.mjs'\nreturn x",
+            "x.mjs": "export const x = 'x'",
+        ])
+        #expect(await harness.invoke("a", .file("main.mjs")) == .returned("a: 1"))
+        #expect(await harness.invoke("a", .file("main.js")) == .returned("x"))
+    }
+
+    @Test func aTypeScriptSyntaxErrorIsThrownWithItsPlace() async {
+        let harness = Harness()
+        await harness.load("a")
+        guard case .threw(let message) = await harness.invoke("a", .inline("const x: = 1"), typeScript: true) else {
+            Issue.record("A syntax error should be thrown")
+            return
+        }
+        #expect(message.hasPrefix("pappuclip:action: "))
+    }
+
+    @Test func aBareNameIsLookedForInThePackageBeforeTheLibraries() async {
+        let harness = Harness()
+        await harness.load("own", files: ["js-yaml.js": "module.exports = 'the package\u{2019}s own'"])
+        await harness.load("plain")
+        #expect(await harness.run("own", "return require('js-yaml')") == .returned("the package\u{2019}s own"))
+        #expect(await harness.run("plain", "return typeof require('js-yaml').load") == .returned("function"))
+    }
+
+    @Test func whatIsNotFoundIsUndefinedAndTheConsoleSaysSo() async {
+        let harness = Harness()
+        await harness.load("a")
+        #expect(await harness.run("a", "return String(require('lodash'))") == .returned("undefined"))
+        #expect(harness.printed() == ["require('lodash') found nothing, so it is undefined."])
+    }
+
+    /// PopClip's `module`, `define` and the rest are globals, which a script may shadow. Here they are
+    /// the script's own, from a scope outside it, so it still may.
+    @Test func aScriptMayDeclareTheNamesItIsGiven() async {
+        let harness = Harness()
+        await harness.load("a")
+        let script = "const module = 'm'; let define = 'd'; class exports {}; const require = 1; return module + define + typeof exports + require"
+        #expect(await harness.run("a", script) == .returned("mdfunction1"))
+    }
+
+    @Test func twoExtensionsDoNotShareALibrary() async {
+        let harness = Harness()
+        await harness.load("a")
+        await harness.load("b")
+        _ = await harness.run("a", "require('js-yaml').added = 1; Buffer.added = 1; URL.prototype.added = 1")
+        let script = "return [typeof require('js-yaml').added, typeof Buffer.added, typeof URL.prototype.added].join()"
+        #expect(await harness.run("b", script) == .returned("undefined,undefined,undefined"))
     }
 
     // MARK: SEC-1b
@@ -253,13 +378,76 @@ import Testing
         #expect(ModulePath.normalize("a/../..") == nil)
     }
 
+    static let files: Set = ["lib/a.js", "lib/b/index.js", "lib/c.ts", "data.json", "types/index.ts"]
+
     @Test func resolvesAsNodeDoesForRelativePaths() {
-        let files: Set = ["lib/a.js", "lib/b/index.js", "data.json"]
-        #expect(ModulePath.resolve("./a", from: "lib/main.js", in: files) == "lib/a.js")
-        #expect(ModulePath.resolve("./b", from: "lib/main.js", in: files) == "lib/b/index.js")
-        #expect(ModulePath.resolve("../data", from: "lib/main.js", in: files) == "data.json")
-        #expect(ModulePath.resolve("./data.json", from: "", in: files) == "data.json")
-        #expect(ModulePath.resolve("lodash", from: "", in: files) == nil)
-        #expect(ModulePath.resolve("../data", from: "", in: files) == nil)
+        let files = Self.files
+        #expect(ModulePath.resolve("./a", from: "lib/main.js", in: files) == .file("lib/a.js"))
+        #expect(ModulePath.resolve("./b", from: "lib/main.js", in: files) == .file("lib/b/index.js"))
+        #expect(ModulePath.resolve("./c", from: "lib/main.js", in: files) == .file("lib/c.ts"))
+        #expect(ModulePath.resolve("../data", from: "lib/main.js", in: files) == .file("data.json"))
+        #expect(ModulePath.resolve("./data.json", from: "", in: files) == .file("data.json"))
+        #expect(ModulePath.resolve("./nope", from: "", in: files) == .missing)
+    }
+
+    /// JS-10 and PopClip: anything but `./` and `../` is from the package root, whoever asks.
+    @Test func otherPathsAreFromThePackageRoot() {
+        let files = Self.files
+        #expect(ModulePath.resolve("lib/a", from: "lib/deep/main.js", in: files) == .file("lib/a.js"))
+        #expect(ModulePath.resolve("types", from: "", in: files) == .file("types/index.ts"))
+        #expect(ModulePath.resolve("lodash", from: "", in: files) == .missing)
+    }
+
+    @Test func anAbsolutePathOrAnEscapeIsInvalid() {
+        let files = Self.files
+        #expect(ModulePath.resolve("../data", from: "", in: files) == .invalid)
+        #expect(ModulePath.resolve("../../data", from: "lib/main.js", in: files) == .invalid)
+        #expect(ModulePath.resolve("/data.json", from: "", in: files) == .invalid)
+        #expect(ModulePath.resolve("lib/../../data", from: "", in: files) == .invalid)
+        #expect(ModulePath.resolve("", from: "", in: files) == .invalid)
+    }
+}
+
+@Suite struct TranspilerTests {
+    @Test func typesAreRemovedAndModulesBecomeCommonJS() throws {
+        let transpiler = Transpiler()
+        let typeScript = try transpiler.transform("const x: number = 1\nexport default x", as: .typeScript).get()
+        #expect(typeScript.contains("const x = 1"))
+        #expect(typeScript.contains("exports. default = x"))
+        let module = try transpiler.transform("import a from 'a'\nexport const b = a", as: .module).get()
+        #expect(module.contains("require('a')"))
+    }
+
+    @Test func linesStayWhereTheAuthorPutThem() throws {
+        let output = try Transpiler().transform("type A = string\n\nconst a: A = 'x'\nthrow new Error(a)", as: .typeScript).get()
+        #expect(output.split(separator: "\n", omittingEmptySubsequences: false).count == 4)
+    }
+
+    @Test func aSyntaxErrorSaysWhere() {
+        guard case .failure(let error) = Transpiler().transform("const x: = 1", as: .typeScript) else {
+            Issue.record("A syntax error should fail")
+            return
+        }
+        #expect(error.message.contains("(1:"))
+    }
+}
+
+@Suite struct JavaScriptResourcesTests {
+    /// JS-9's list: every name but `buffer`, which the environment serves, is a file of its own.
+    @Test func everyBundledLibraryIsThere() {
+        let names = [
+            "axios", "case-anything", "content-type", "dom-serializer", "emoji-regex", "entities",
+            "fast-json-stable-stringify", "fast-plist", "htmlparser2", "js-yaml", "linkedom", "linkifyjs",
+            "oauth-1.0a", "rot13-cipher", "sanitize-html", "sucrase", "turndown", "valibot",
+        ]
+        #expect(Set(JavaScriptResources.libraryFiles.keys) == Set(names))
+        #expect(names.filter { JavaScriptResources.library($0) == nil } == [])
+        #expect(JavaScriptResources.environment != nil)
+    }
+
+    @Test func aNameIsLookedUpAndNeverMadeIntoAPath() {
+        #expect(JavaScriptResources.library("../environment") == nil)
+        #expect(JavaScriptResources.library("libraries/axios") == nil)
+        #expect(JavaScriptResources.library("buffer") == nil)
     }
 }

@@ -3,15 +3,17 @@
 A free, open-source selection bar for macOS: select text, and a small bar of actions appears next to it. It aims to
 run existing PopClip extensions unchanged.
 
-**Status: pre-alpha, milestone M2 (running PopClip extensions) in progress.** There is an app that builds and
+**Status: pre-alpha, milestone M3 (the JavaScript runtime) in progress.** There is an app that builds and
 nothing anyone should rely on:
 - M1 assembled the bar, the five built-in actions, the menu bar item, Settings and the onboarding flow. Nobody has run it
   for long enough to call it working.
-- M2 has begun with the extension parser, the extension store and the first executors. The parser loads 368 of the
-  381 extensions in PopClip's public repository (`swift run pappu-dev corpus load`), and every one that loads also
-  installs into the store. URL, Key Press and Shortcut actions can run, together with every `before` and `after`
-  step, and a result can be shown in the bar. Scripts and JavaScript cannot run yet, and the app does not show
-  installed extensions yet.
+- M2 built the extension parser, the store and the six non-JavaScript action types, behind consent. The parser loads
+  368 of the 381 extensions in PopClip's public repository (`swift run pappu-dev corpus load`), and every one that
+  loads also installs into the store. Its manual checklist has not been run.
+- M3 has a sandboxed JavaScript helper with one isolated world per extension, and PopClip's language environment:
+  timers, `Buffer`, `URL` and the rest, the 19 bundled libraries, `require`, and TypeScript. JavaScript and
+  TypeScript actions run. Module extensions, the `popclip` methods, `util`, `pasteboard` and network access are still
+  to come.
 
 The M0 spikes still need a Mac with a person at it ([what is left](docs/spikes/RUNBOOK.md)), and `SpikeLab` is the
 throwaway app that runs them.

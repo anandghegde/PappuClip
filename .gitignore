@@ -21,3 +21,6 @@ Package.resolved.orig
 # Local tooling
 .codegraph/
 .serena/
+
+# JavaScript tooling (Resources/JavaScript)
+node_modules/

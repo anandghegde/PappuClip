@@ -241,10 +241,23 @@ final class InProcessJSHost: JSHostTransport {
     @Test func onlyScriptsInsideThePackageAreSent() throws {
         let outside = FileManager.default.temporaryDirectory.appendingPathComponent("outside-\(UUID().uuidString).js")
         try Data("secret".utf8).write(to: outside)
-        let setup = try Setup(files: ["a.js": "1", "data.json": "{}", "notes.txt": "no", ".hidden.js": "no"])
+        let setup = try Setup(files: [
+            "a.js": "1", "b.ts": "2", "c.mjs": "3", "d.cjs": "4", "data.json": "{}", "notes.txt": "no", ".hidden.js": "no",
+        ])
         try FileManager.default.createSymbolicLink(at: setup.package.appendingPathComponent("link.js"), withDestinationURL: outside)
         let files = try PackageSources.read(setup.package).get()
-        #expect(Set(files.keys) == ["a.js", "data.json"])
+        #expect(Set(files.keys) == ["a.js", "b.ts", "c.mjs", "d.cjs", "data.json"])
+    }
+
+    /// JS-14: the action says it is TypeScript, and the helper transpiles it before running it.
+    @Test func aTypeScriptActionRunsFromThePackage() async throws {
+        let setup = try Setup(files: [
+            "main.ts": "import { count } from './count'\nreturn String(count(popclip.input.text)) as string",
+            "count.ts": "export const count = (s: string): number => s.length",
+        ])
+        var job = setup.job("")
+        job.action = JavaScriptAction(source: .file("main.ts"), isTypeScript: true)
+        #expect(await setup.run(job) == .returned("5"))
     }
 
     @Test func settingsPrefixesAreCaseInsensitive() {

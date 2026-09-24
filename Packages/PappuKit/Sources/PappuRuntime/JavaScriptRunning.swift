@@ -66,11 +66,12 @@ enum JavaScriptFailure {
 /// The files a package's scripts may `require`, read for sending to the helper (JS-10).
 ///
 /// The helper cannot read the package itself — it has no file access at all (SEC-1a) — so it is sent
-/// the text of every script and JSON file, and nothing else. A file reached through a link out of the
-/// package is not sent, and nor is anything past the limits: a package this large is not one the
-/// helper should be asked to hold.
+/// the text of every script and JSON file, and nothing else: JavaScript in its CommonJS and module
+/// spellings, TypeScript, which the helper transpiles (JS-14), and JSON. A file reached through a link
+/// out of the package is not sent, and nor is anything past the limits: a package this large is not
+/// one the helper should be asked to hold.
 enum PackageSources {
-    static let extensions: Set<String> = ["js", "cjs", "json"]
+    static let extensions: Set<String> = ["js", "cjs", "mjs", "ts", "json"]
     static let fileLimit = 1 << 20
     static let totalLimit = 8 << 20
     static let countLimit = 2_000

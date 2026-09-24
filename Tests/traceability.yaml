@@ -1478,7 +1478,8 @@ requirements:
     milestone: M3
     note: >-
       Header detection and shell and AppleScript code snippets load in M2. JavaScript and TypeScript
-      bodies parse and wait for the M3 runtime.
+      snippets that are one action run from M3 week 2, TypeScript through the helper's transpiler. A
+      snippet that is a module still waits for module loading (JS-12).
     tests:
       - PappuCoreTests/aCodeSnippetsHeaderIsTheCommentRunAfterTheMarker
       - PappuCoreTests/aShebangAndCommentsMayComeBeforeTheMarker
@@ -1550,15 +1551,60 @@ requirements:
       - PappuJSHostTests/thereIsNoFetchProcessDOMOrFileSystem
       - PappuJSHostTests/printGoesToTheLog
       - PappuRuntimeTests/runsAScriptAndReturnsItsString
-  JS-2: { priority: P1, milestone: M3, tests: [] }
+  JS-2:
+    priority: P1
+    milestone: M3
+    note: >-
+      M3 week 2: `print`, timers, `sleep`, `window`, `pappuclip` beside `popclip`, `require`, `module`,
+      `exports`, `define` and `defineExtension` in every script, and from Resources/JavaScript the
+      environment's `Buffer` (with base64url), `URL`, `URLSearchParams`, `structuredClone`, `atob`, `btoa`,
+      `TextEncoder` and `Blob`. `util`, `pasteboard`, `RichString` and `$` arrive with the host API (week 3)
+      and `XMLHttpRequest` with the network (week 4).
+    tests:
+      - PappuJSHostTests/theEnvironmentSectionOfTheConformanceSuitePasses
+      - PappuJSHostTests/thereIsNoFetchProcessDOMOrFileSystem
+      - PappuJSHostTests/aTimerOutlivesItsInvocationButNotItsWorld
+      - PappuJSHostTests/aTimerCallbackThatThrowsIsWrittenDownAndNothingElse
+      - PappuJSHostTests/twoExtensionsDoNotShareALibrary
   JS-3: { priority: P1, milestone: M3, tests: [] }
   JS-4: { priority: P1, milestone: M3, tests: [] }
   JS-5: { priority: P1, milestone: M3, tests: [] }
   JS-6: { priority: P1, milestone: M3, tests: [] }
   JS-7: { priority: P1, milestone: M3, tests: [] }
   JS-8: { priority: P1, milestone: M3, tests: [] }
-  JS-9: { priority: P1, milestone: M3, tests: [] }
-  JS-10: { priority: P1, milestone: M3, tests: [] }
+  JS-9:
+    priority: P1
+    milestone: M3
+    note: >-
+      Built by Scripts/update-js-environment.sh from pinned versions. The licence audit is
+      Resources/JavaScript/README.md: every package's licence is checked as the build runs, and the
+      notices ship with the helper. Six majors (content-type, emoji-regex, fast-json-stable-stringify,
+      fast-plist, linkifyjs, sucrase) are not yet confirmed against PopClip's documentation.
+    tests:
+      - PappuJSHostTests/theEnvironmentSectionOfTheConformanceSuitePasses
+      - PappuJSHostTests/everyBundledLibraryIsThere
+      - PappuJSHostTests/aNameIsLookedUpAndNeverMadeIntoAPath
+      - PappuJSHostTests/twoExtensionsDoNotShareALibrary
+  JS-10:
+    priority: P1
+    milestone: M3
+    note: >-
+      `./` and `../` from the requiring file; anything else from the package root, then the bundled
+      libraries. Absolute paths and escapes throw; anything else not found is undefined, as PopClip
+      documents. The package's files are sent with `load` rather than fetched per `require`
+      (architecture §10.8 as built).
+    tests:
+      - PappuJSHostTests/requireIsRelativeToTheRequiringFile
+      - PappuJSHostTests/requireCannotLeaveThePackage
+      - PappuJSHostTests/aModuleIsEvaluatedOncePerWorld
+      - PappuJSHostTests/resolvesAsNodeDoesForRelativePaths
+      - PappuJSHostTests/otherPathsAreFromThePackageRoot
+      - PappuJSHostTests/anAbsolutePathOrAnEscapeIsInvalid
+      - PappuJSHostTests/aBareNameIsLookedForInThePackageBeforeTheLibraries
+      - PappuJSHostTests/whatIsNotFoundIsUndefinedAndTheConsoleSaysSo
+      - PappuJSHostTests/aScriptMayDeclareTheNamesItIsGiven
+      - PappuJSHostTests/theEnvironmentSectionOfTheConformanceSuitePasses
+      - PappuRuntimeTests/onlyScriptsInsideThePackageAreSent
   JS-11:
     priority: P1
     milestone: M3
@@ -1570,9 +1616,31 @@ requirements:
       - PappuJSHostTests/anythingButAStringIsNoResult
       - PappuRuntimeTests/aSettingsErrorAsksForSettings
       - PappuRuntimeTests/settingsPrefixesAreCaseInsensitive
-  JS-12: { priority: P1, milestone: M3, tests: [] }
+  JS-12:
+    priority: P1
+    milestone: M3
+    note: >-
+      Week 2 built the exporting half: `define` and `defineExtension` as one partial AMD, default and
+      named exports through the transpiler, and CommonJS. Loading a module extension's actions from what
+      it exports is not built yet, so no test is mapped.
+    tests: []
   JS-13: { priority: P1, milestone: M3, tests: [] }
-  JS-14: { priority: P1, milestone: M3, tests: [] }
+  JS-14:
+    priority: P1
+    milestone: M3
+    note: >-
+      Sucrase in the helper's one tooling world, with its output kept by digest. `.ts` files, `.mjs` files,
+      `.js` files with `import` or `export` statements, and TypeScript actions.
+    tests:
+      - PappuJSHostTests/anInlineTypeScriptActionIsTranspiledImportsIncluded
+      - PappuJSHostTests/aTypeScriptSyntaxErrorIsThrownWithItsPlace
+      - PappuJSHostTests/anActionFileWithImportStatementsIsTranspiled
+      - PappuJSHostTests/typesAreRemovedAndModulesBecomeCommonJS
+      - PappuJSHostTests/linesStayWhereTheAuthorPutThem
+      - PappuJSHostTests/aSyntaxErrorSaysWhere
+      - PappuJSHostTests/theEnvironmentSectionOfTheConformanceSuitePasses
+      - PappuRuntimeTests/aTypeScriptActionRunsFromThePackage
+      - PappuRuntimeTests/aTypeScriptActionIsOffered
   JS-15: { priority: P1, milestone: M3, tests: [] }
   JS-16: { priority: P1, milestone: M3, tests: [] }
   JS-17: { priority: P1, milestone: M3, tests: [] }

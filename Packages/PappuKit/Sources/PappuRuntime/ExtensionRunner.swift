@@ -10,9 +10,8 @@ import PappuSelection
 /// **The step pipeline.** Three stages in order, each one a chance to stop:
 ///
 /// 1. `before` — `cut`, `copy`, `paste` or `paste-plain`, whatever the action is.
-/// 2. The executor — this build runs URL, Key Press, Shortcut, Service, AppleScript, Shell Script
-///    and JavaScript. TypeScript is refused by the resolver until it can be transpiled (M3 week 2),
-///    and this runner says `notPerformed` if one reaches it.
+/// 2. The executor — this build runs URL, Key Press, Shortcut, Service, AppleScript, Shell Script,
+///    JavaScript and TypeScript, which the JavaScript helper transpiles (M3 week 2).
 /// 3. `after` — what to do with the result, or, for the four edit commands, one more edit.
 ///
 /// Between stages the invocation must still be live (RUN-3b): a cancelled Shortcut's late answer is
@@ -331,12 +330,10 @@ public struct ExtensionRunner: Sendable {
         )
     }
 
-    /// What the helper is asked to run. Nil for TypeScript, which needs transpiling first (M3 week 2),
-    /// and for an action with no package or no approved bytes to load — a built-in, which is never
-    /// JavaScript.
+    /// What the helper is asked to run, TypeScript included (the helper transpiles it). Nil for an
+    /// action with no package or no approved bytes to load — a built-in, which is never JavaScript.
     static func javaScriptJob(_ action: JavaScriptAction, _ request: Request) -> JavaScriptRunRequest? {
-        guard !action.isTypeScript,
-              let owner = request.approval.owner,
+        guard let owner = request.approval.owner,
               let digest = request.approval.digest,
               let directory = request.action.directory
         else { return nil }

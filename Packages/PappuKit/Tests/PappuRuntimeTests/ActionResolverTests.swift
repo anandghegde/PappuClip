@@ -298,15 +298,15 @@ import Testing
         return (resolution, manifest.actions[0].executor)
     }
 
-    /// TypeScript waits for its transpiler (M3 week 2).
-    @Test func anActionWithNoRunnerIsRefusedByName() {
+    /// JS-14: TypeScript is offered like any other script, now that the helper transpiles it.
+    @Test func aTypeScriptActionIsOffered() {
         let (resolution, executor) = resolve(ExtensionManifest(
             name: "Shout",
             identifier: "com.example.shout",
             actions: [ActionManifest(executor: .javaScript(JavaScriptAction(source: .file("shout.ts"), isTypeScript: true)))]
         ))
-        #expect(resolution.actions.isEmpty)
-        #expect(Array(resolution.refusals.values) == [.noRunner(executor)])
+        #expect(resolution.actions.map(\.action.executor) == [executor])
+        #expect(resolution.refusals.isEmpty)
     }
 
     @Test(arguments: [

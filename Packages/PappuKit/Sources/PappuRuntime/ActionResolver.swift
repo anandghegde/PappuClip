@@ -76,10 +76,6 @@ public struct ActionResolver: Sendable {
         /// A built-in's native condition said no (PRD §7.4): the clipboard is empty, or the selection
         /// is longer than Search will take.
         case builtinCondition(BuiltinAction)
-        /// An executor this build cannot run yet. `ManifestBuilder` reads every PopClip action type,
-        /// and the runners arrive one at a time after it; until an action's runner exists it must be
-        /// *absent from the bar with a reason*, never a button that does nothing.
-        case noRunner(ActionExecutor)
     }
 
     /// The approval each action runs under, or nil. The app asks the store (`ExtensionStore.approvals`);
@@ -162,15 +158,10 @@ public struct ActionResolver: Sendable {
                     refusals[action.key] = .builtinCondition(builtin)
                     continue
                 }
-            case .url, .keyPress, .shortcut, .service, .appleScript, .shellScript:
-                // `ExtensionRunner` (M2 weeks 3 and 4).
+            case .url, .keyPress, .shortcut, .service, .appleScript, .shellScript, .javaScript:
+                // `ExtensionRunner`: M2 weeks 3 and 4, and the JavaScript helper, which transpiles
+                // TypeScript (M3 weeks 1 and 2).
                 break
-            case .javaScript(let script):
-                // The helper runs JavaScript (M3 week 1). TypeScript waits for its transpiler (week 2).
-                if script.isTypeScript {
-                    refusals[action.key] = .noRunner(action.executor)
-                    continue
-                }
             }
             actions.append(ResolvedAction(action: action, match: match, approval: approval))
         }

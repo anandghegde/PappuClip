@@ -61,12 +61,44 @@ public enum JSHostCheck {
 
         let reached = await run("""
             if (typeof fetch !== 'undefined' || typeof process !== 'undefined') return 'reached'
-            try { require('fs'); return 'fs' } catch (e) { return 'none' }
+            return require('fs') === undefined ? 'none' : 'fs'
             """)
         lines.append(Line(
             name: "no network, process or file system (JS-1)",
             passed: reached == .returned("none"),
             detail: String(describing: reached)
+        ))
+
+        // The environment and the libraries are resources in the helper's own bundle. A sandboxed
+        // service that cannot find them fails every world it makes, so this is the line that says the
+        // bundle was embedded where the helper looks.
+        began = clock.now
+        let environment = await run("""
+            const url = new URL('https://example.com/?q=1')
+            url.searchParams.set('q', Buffer.from('hi').toString('base64url'))
+            await sleep(1)
+            return url.href + ' ' + require('js-yaml').dump({ ok: true }).trim()
+            """)
+        lines.append(Line(
+            name: "the environment and a bundled library load in the helper (JS-2, JS-9)",
+            passed: environment == .returned("https://example.com/?q=aGk ok: true"),
+            detail: "\(String(describing: environment)), in \(clock.now - began)"
+        ))
+
+        began = clock.now
+        let typeScript = await client.start(JavaScriptRunRequest(
+            owner: "check-a",
+            generation: "1",
+            extensionName: "check-a",
+            directory: package,
+            action: JavaScriptAction(source: .inline("const n: number = 2\nreturn `${n * 21}` as string"), isTypeScript: true),
+            text: "hello",
+            matchedText: "hello"
+        ))?.result()
+        lines.append(Line(
+            name: "TypeScript is transpiled in the helper (JS-14)",
+            passed: typeScript == .returned("42"),
+            detail: "\(String(describing: typeScript)), in \(clock.now - began)"
         ))
 
         let waiting = await client.start(job("await new Promise(() => {})"))
