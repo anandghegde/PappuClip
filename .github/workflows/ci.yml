@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A branch without a pull request, from the Actions tab or the API.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -18,6 +20,9 @@ jobs:
         working-directory: Packages/PappuKit
     steps:
       - uses: actions/checkout@v4
+        with:
+          # CorpusInstallTests installs every loadable corpus package (EXM-1, SEC-8a).
+          submodules: true
       - name: Toolchain
         run: swift --version
       - name: Build
