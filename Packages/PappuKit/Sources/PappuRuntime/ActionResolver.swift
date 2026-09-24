@@ -1,6 +1,7 @@
 import Foundation
 import PappuAnalysis
 import PappuCore
+import PappuExtensions
 
 /// Which actions this selection shows, and what each one acts on (FLT-1, FLT-5, architecture §6.3).
 ///
@@ -19,7 +20,7 @@ import PappuCore
 ///
 /// | Step | M1 |
 /// |---|---|
-/// | 1. Drop unapproved, disabled, suspended, revoked | Disabled only. `ExecutionApproval` is M2 (EXM-5); until there is a way to install an extension there is nothing to approve. |
+/// | 1. Drop unapproved, disabled, suspended, revoked | Disabled, and anything without an `ExecutionApproval` that covers its gates (M2 week 5, EXM-5). The store mints none for a suspended or revoked extension. |
 /// | 2. App filters and option conditions | `ActionMatching` step 1, and option conditions against whatever values the caller has. |
 /// | 3. `requirements`, negation, synonyms, narrowing | `ActionMatching` steps 2–5. |
 /// | 4. `regex` | `ActionMatching` step 4 (M2). |
@@ -36,6 +37,9 @@ public struct ActionResolver: Sendable {
         public var action: CatalogAction
         /// What it acts on (§8.5 steps 3 and 5).
         public var match: ActionMatching.Match
+        /// What lets it run. Carried to the click so that the runner is handed the approval the bar
+        /// was drawn with, not whatever it would find by looking again.
+        public var approval: ExecutionApproval
 
         public var key: ActionKey { action.key }
     }
@@ -61,6 +65,12 @@ public struct ActionResolver: Sendable {
         /// ALM-4: the user turned it off. Checked before anything else, because a disabled action is
         /// not a question about the selection.
         case disabled
+        /// EXM-5: nothing approves this extension's code — it is waiting for the user, its bytes
+        /// changed since they approved it (SEC-8c), or they revoked it (SEC-4b).
+        case notApproved
+        /// EXM-5d: approved, but this action needs gated capabilities the user left at "Don't Allow".
+        /// Absent rather than a button that fails, and the inspector can say which.
+        case notGranted(Set<GatedCapability>)
         /// §8.5 said no.
         case filtered(ActionMatching.Refusal)
         /// A built-in's native condition said no (PRD §7.4): the clipboard is empty, or the selection
@@ -72,7 +82,24 @@ public struct ActionResolver: Sendable {
         case noRunner(ActionExecutor)
     }
 
-    public init() {}
+    /// The approval each action runs under, or nil. The app asks the store (`ExtensionStore.approvals`);
+    /// the default approves only the app's own built-ins (EXM-5g), so a resolver that was never told
+    /// about the store runs nothing an extension wrote.
+    public typealias Approvals = @Sendable (CatalogAction) -> ExecutionApproval?
+
+    private let approvals: Approvals
+
+    public init(approvals: @escaping Approvals = ExecutionApproval.bundled) {
+        self.approvals = approvals
+    }
+
+    /// A resolver over the store's approvals, keyed by identity. Built-ins are approved by the app.
+    public init(approvals table: [LocalIdentity: ExecutionApproval]) {
+        self.init { action in
+            if let bundled = ExecutionApproval.bundled(action) { return bundled }
+            return action.owner.flatMap(LocalIdentity.init).flatMap { table[$0] }
+        }
+    }
 
     /// Resolve against an analysed selection and its context.
     public func resolve(
@@ -110,6 +137,16 @@ public struct ActionResolver: Sendable {
                 refusals[action.key] = .disabled
                 continue
             }
+            // Before matching: an unapproved extension's requirements are its own code's claims about
+            // itself, and nothing it wrote is consulted until the user has agreed to it.
+            guard let approval = approvals(action), approval.owner == action.owner else {
+                refusals[action.key] = .notApproved
+                continue
+            }
+            guard approval.permits(action) else {
+                refusals[action.key] = .notGranted(action.gates.subtracting(approval.gates))
+                continue
+            }
             let outcome = ActionMatching.match(
                 action.manifest,
                 against: facts,
@@ -128,12 +165,14 @@ public struct ActionResolver: Sendable {
             case .url, .keyPress, .shortcut, .service, .appleScript, .shellScript:
                 // `ExtensionRunner` (M2 weeks 3 and 4).
                 break
-            case .javaScript:
-                // The manifest reads it (M2 week 1); its runner is M3's.
-                refusals[action.key] = .noRunner(action.executor)
-                continue
+            case .javaScript(let script):
+                // The helper runs JavaScript (M3 week 1). TypeScript waits for its transpiler (week 2).
+                if script.isTypeScript {
+                    refusals[action.key] = .noRunner(action.executor)
+                    continue
+                }
             }
-            actions.append(ResolvedAction(action: action, match: match))
+            actions.append(ResolvedAction(action: action, match: match, approval: approval))
         }
 
         return Resolution(actions: actions, refusals: refusals)

@@ -54,7 +54,7 @@ public struct BarItemMeasurer: BarMeasuring {
         let square = metrics.height - iconPadding
         return content.items.map { item in
             switch item.display {
-            case .icon(.symbol):
+            case .icon(.symbol), .icon(.image):
                 return max(minimumWidth, square)
             case .icon(.letters(let letters)):
                 return max(minimumWidth, BarType.width(of: letters, in: BarType.letters) + textPadding * 2)
@@ -179,6 +179,20 @@ final class BarButtonView: NSView {
             label.stringValue = letters
             label.font = BarType.letters
             imageView.isHidden = true
+        case .icon(.image(let file, let isTemplate)):
+            // A package whose icon file is missing or unreadable gets the same fallback as an unknown
+            // symbol: the action's initials.
+            if let image = NSImage(contentsOf: file) {
+                image.isTemplate = isTemplate
+                image.size = NSSize(width: BarType.symbolPointSize * 1.3, height: BarType.symbolPointSize * 1.3)
+                imageView.image = image
+                imageView.imageScaling = .scaleNone
+                label.isHidden = true
+            } else {
+                label.stringValue = Self.initials(of: item.name)
+                label.font = BarType.letters
+                imageView.isHidden = true
+            }
         case .text(let text):
             label.stringValue = text
             label.font = BarType.label

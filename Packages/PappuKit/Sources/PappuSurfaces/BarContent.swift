@@ -11,14 +11,16 @@ public struct BarItemID: Hashable, Sendable, Codable, RawRepresentable {
     public init(_ rawValue: String) { self.rawValue = rawValue }
 }
 
-/// What a button draws (BAR-6). The full icon-specifier grammar — text, file, SF Symbol, Iconify,
-/// `svg:`, `data:` and the modifiers — is §8.11, and lands with extensions in M2 and M4. These two
-/// forms are what the five bundled built-ins need.
+/// What a button draws (BAR-6): §8.11's P0 base forms. Iconify, `svg:` and `data:` are P1 and land
+/// in M4; until then an action that uses one shows its name.
 public enum BarIcon: Sendable, Equatable {
     /// An SF Symbol name, drawn as a template so the accent highlight can tint it.
     case symbol(String)
     /// Up to three characters drawn in the icon's place (§8.11).
     case letters(String)
+    /// A `.png` or `.svg` from the extension's package. PopClip draws a file icon as a template —
+    /// its shape in the bar's colour — unless the specifier says `preserve-color`.
+    case image(URL, isTemplate: Bool)
 }
 
 /// One button on the bar.

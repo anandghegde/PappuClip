@@ -79,9 +79,9 @@ func manifest(_ text: String) throws -> ExtensionManifest {
 final class Reviews: @unchecked Sendable {
     private let lock = NSLock()
     private var shown: [ExtensionLibrary.Proposal] = []
-    var answer: @Sendable (ExtensionLibrary.Proposal) -> ExtensionLibrary.Answer
+    var answer: @Sendable (ExtensionLibrary.Proposal) -> ExtensionLibrary.Consent
 
-    init(_ answer: @escaping @Sendable (ExtensionLibrary.Proposal) -> ExtensionLibrary.Answer = { _ in .install }) {
+    init(_ answer: @escaping @Sendable (ExtensionLibrary.Proposal) -> ExtensionLibrary.Consent = { _ in .install }) {
         self.answer = answer
     }
 

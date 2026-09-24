@@ -399,7 +399,7 @@ Steps 1, 2, 3 and 5 exist; step 4 (`regex`) waits on M2's parser and step 6 on M
 
 **The five built-ins are files** (§19 item 2), in `Resources/BuiltinExtensions/`, each a real manifest whose `executor` names the reserved `builtin` form that `validate(origin:)` accepts only from `.appBundle`. They are read in `BuiltinAction.allCases` order rather than by sorting a directory, because that is PRD §7.4's order and a product decision. Two of PRD §7.4's "shown when" clauses are not expressible in §8.5's vocabulary — Paste needs text on the *clipboard*, Search has a maximum length — and rather than invent two requirement spellings, which would add to a vocabulary that is a public API this project does not own, they are `BuiltinConditions` and the resolver applies them after the shared pipeline. The third, "Search unless the selection is only a URL", needed nothing new: it is the requirement list `[text, !isurl]`.
 
-**Still open.** `regex` and option-value conditions are FLT-5's remaining two steps. Per-app visibility is ALM-8 and M4. `wantsPrimaryDisplay` rides along from the manifest to the bar and nothing honours it yet; `stayVisible` is honoured since M2 week 3 (§9.5). A resolved action does run: `BuiltinRunner` stands behind the reserved executor (§8.7), and `SelectionBridge` is where the resolver, the bar and `InvocationManager` are assembled (§13.1). An extension's URL, Key Press and Shortcut executors run through `ExtensionRunner` since M2 week 3, and Service, AppleScript and Shell Script since week 4 (§9.5); JavaScript waits on M3.
+**Still open.** `regex` and option-value conditions landed in M2 week 5 (§9.6). Per-app visibility is ALM-8 and M4. `wantsPrimaryDisplay` rides along from the manifest to the bar and nothing honours it yet; `stayVisible` is honoured since M2 week 3 (§9.5). A resolved action does run: `BuiltinRunner` stands behind the reserved executor (§8.7), and `SelectionBridge` is where the resolver, the bar and `InvocationManager` are assembled (§13.1). An extension's URL, Key Press and Shortcut executors run through `ExtensionRunner` since M2 week 3, and Service, AppleScript and Shell Script since week 4 (§9.5); JavaScript waits on M3.
 
 ---
 
@@ -621,7 +621,7 @@ Staging happens in `Staging/<uuid>` on the same volume. Activation is one `renam
 
 **Built-ins are rows with no folder.** `seedBuiltins` adds each built-in the store has never seen, once. So if a user deletes a built-in's actions, the next launch does not bring them back; `restoreBuiltins` does (EXM-9). Deleting an installed extension's last live action uninstalls it: the row and version rows go, instances and items become tombstones, and the folders are removed after the commit.
 
-**Not yet wired:** the app still builds its catalog from the bundled built-ins alone. Three things wait on that integration: reading `placedActions()` into `ActionCatalog`, the Open handler for extension files, and the bar's Install Extension offer. `ActionKey.extensionIdentifier` is also not unique once two separate installs share an identifier, so that integration has to key catalog entries by instance rather than by identifier.
+**Not yet wired:** the app still builds its catalog from the bundled built-ins alone. Three things wait on that integration: reading `placedActions()` into `ActionCatalog`, the Open handler for extension files, and the bar's Install Extension offer. `ActionKey.extensionIdentifier` is also not unique once two separate installs share an identifier, so that integration has to key catalog entries by instance rather than by identifier. *(Settled in week 5: `ExtensionHost` builds the catalog from the store, `AppAssembly.open` handles files, and the bar offers to install a selected snippet; see §9.6. Per-install keys remain a known gap there.)*
 
 ### 9.5 Executors
 
@@ -700,7 +700,7 @@ While a result is on screen, a press runs nothing.
 - A result that arrives after a cancel is dropped at the gate.
 - Two endings are new. Shell exit 2 or AppleScript error 502 fails the run with `Report.attention = .settings`. AppleScript error -1743 fails it with `.automationPermission` (ONB-5).
 
-`SelectionBridge` shows the X first, then hands the attention to an `AttentionPresenting`. In the app, `ScriptAttention` opens the Settings window for `.settings`; the options sheet it should open is week 5. For `.automationPermission` it shows an alert whose button opens Privacy & Security → Automation.
+`SelectionBridge` shows the X first, then hands the attention to an `AttentionPresenting`. In the app, `ScriptAttention` opens the Settings window for `.settings`; since week 5 it also opens the extension's options sheet (§9.6). For `.automationPermission` it shows an alert whose button opens Privacy & Security → Automation.
 
 **§8.7's variables.** `ScriptVariables` in `PappuCore` is one pure table read two ways:
 - A shell script gets every value as an environment variable under both `POPCLIP_` and `PAPPUCLIP_`.
@@ -708,7 +708,7 @@ While a result is on screen, a press runs nothing.
 - An `appleScriptCall` handler gets its parameters looked up by the same names.
 - A missing value is an empty string, never an unset variable.
 
-`URLS`, `EMAILS` and `PATHS` come from the analysed selection, which the bridge now passes in `Request.selection`. Options are empty until week 5.
+`URLS`, `EMAILS` and `PATHS` come from the analysed selection, which the bridge now passes in `Request.selection`. Options are filled in since week 5 (§9.6).
 
 **Shell Script.** `ShellInvocation` in `PappuCore` decides what runs; `SystemShellScriptRunner` runs it as a `ChildProcess`:
 - `interpreter` is split on whitespace and given the script's path. An inline script with no interpreter and no `#!` runs under `/bin/sh`.
@@ -741,13 +741,47 @@ A shell script is `owned`, so a cancel is `stopped`. `ChildProcess` no longer wa
 **Known gaps:**
 - launchd does not start a job again sooner than 10 s after its last start. A Runner killed within 10 s of its launch therefore holds up the next AppleScript until that time is up. That was 10 s in the check above; the same check with a Runner that had been up for 11 s relaunched it in 77 ms. The fix, if it matters in use, is for the Runner to run each script in a child process of its own and kill that child, so the Runner itself survives.
 - Killing the Runner stops every job in it. Only one runs at a time in practice, because the bar runs one action at a time.
-- Option values are empty until the options sheet in week 5.
+- Option values are empty until the options sheet in week 5. *(Settled in week 5; see §9.6.)*
 - No one has yet granted and refused Automation for a real target app by hand, so the alert is untested there.
 
 ### 9.6 Options, secrets, icons
 
 - **Options UI (ALM-6, §8.9).** A SwiftUI form generated from the option schema. Values are stored per instance. `secret` values go to the Keychain under `LocalIdentity` + instance + option ID; `password` values exist only for the duration of an `auth` call.
 - **Icons (§8.11).** `IconSpecifierParser` → `IconSpec` (modifiers + base) → `IconRenderer` → template `NSImage`, cached in memory and on disk by specifier hash and scale. Iconify lookups are made by the app, cached, and disclosed in the privacy policy.
+
+#### Consent, options and the bar as built (M2 week 5)
+
+**Capabilities.** `CapabilityAnalyzer` in `PappuCore` reads a manifest into a `CapabilitySet`: `ListedCapability` values (§S4's table: a host, a Service, a Shortcut, keys) and `GatedCapability` values (`script`, `network`, …). The gated raw values are the grant keys in the store, so a case is only ever added, never renamed. `ConsentPresenter` in `PappuSettings` turns the set into the review: one title, the listed sentences read together, a provenance line ("from this Mac" for selected text, SEC-8b), each gate as a switch that starts off, and any collision by the installed extension's name. `consent(_:granting:)` grants only the switches turned on, and Cancel grants nothing (EXM-5c–d).
+
+**One reviewer.** `ConsentWindow` is the only `ExtensionLibrary.Reviewer` in the app. Every route hands its proposal to it: a file the Finder opens, the bar's Install Extension offer, and later a drag or a link. So "a gated capability defaults to Don't Allow on every route" rests on one place, not on each route getting it right.
+
+**Approval as a token.** `ExecutionApproval` (§9.3) is minted by the store for the active bytes of an enabled extension, or by `bundled(_:)` for a built-in. Its initialiser is internal. `ActionResolver` takes an `approvals` closure, refuses an action without a token as `.notApproved` and one whose gates are not granted as `.notGranted`, and does so before matching: an unapproved extension's requirements are its own code's claims. `ExtensionRunner.Request` cannot be built without a token. No extension code path is reachable without one, and the types enforce it; no caller has to remember.
+
+**`ExtensionHost`** in `PappuApp` is what the bridge reads. It holds one `Snapshot` behind a `Mutex`:
+- the catalog, built-ins first;
+- approvals by `LocalIdentity`;
+- option values by manifest identifier, with no secrets;
+- installed extensions by owner.
+
+All four are replaced together by `reload()`, so a catalog from after a revocation never sits beside approvals from before it. The store is the only place a decision is made. The snapshot caches it, and a failed load keeps the built-ins and nothing else. `start()` recovers interrupted installs, seeds the built-ins' records, and reloads. `install(_:review:)` reloads after each file, so a second file's review can name the first as a collision.
+
+**Revocation (SEC-4b).** Extension Info (`ExtensionsModel` and `ExtensionsView`, the Extensions tab) lists each install with its approval, its gates and its state. Revoking, uninstalling or turning a gate off is announced as `.revoked` or `.removed`. `ExtensionHost.handle(_:)` reloads first, so the bar cannot redraw the button in the gap, and then calls `InvocationManager.invalidate(ownedBy:)`. A running invocation finds itself cancelled at its next checkpoint. An option change is `.updated`, which reloads and stops nothing. Approving again restores the approval with its gates off (EXM-5d).
+
+**Options (ALM-6, §8.9).** The options sheet is generated from the manifest's option schema and opens in two ways:
+- from an action's gear on the Actions tab;
+- from a script that exits asking for its settings. `ScriptAttention` opens Settings and calls `SettingsModel.showOptions(_:owner:)`.
+
+`OptionValues.effective` is the one place defaults are applied. It serves the sheet, the matcher's option conditions and the run. Values are stored per instance in the store. `secret` values go to `KeychainSecretStore`, as generic passwords under one service with an account of identity + instance + option id, `AfterFirstUnlockThisDeviceOnly` and never synchronisable, and they are deleted with the install (SEC-3). The matcher sees stored values and defaults only. The run is handed the Keychain's values too, read at the click through `runtimeOptions(for:)`, so a secret is fetched only for something about to run.
+
+**Icons and matching.** `IconSpec` in `PappuCore` parses the whole §8.11 grammar. The bar draws text, file and SF Symbol bases as `BarIcon`; Iconify, `svg:` and `data:` are kept as `.unread` and fall back to the title until M4. The resolver now runs every §8.5 step, including `regex` and option conditions. Each extension's conditions are checked against its own options table (FLT-5).
+
+**Installing from a selection (EXM-2).** `SnippetOffer` in `PappuCore` reads the selection on each appearance. Text that is not a snippet costs a look at its head, and only text within the 5,000-character limit is parsed. `SelectionBridge` puts **Install Extension "Name"** first on the bar, because the bar drops what does not fit. Over the limit, or when the snippet does not load, the same words are dimmed with the reason (BAR-17). A press is not an invocation: nothing is written into the source app, so nothing goes through `InvocationManager`. The bar is put away, and the text goes to `AppAssembly` as a `SelectionInstalling`, which installs it through `ExtensionHost.install(sources:)` and the same review as a file. The bridge offers it only when an installer is attached, which the app does only when the library opened.
+
+**Opening files.** `Info.plist` declares `pappuext`, `pappuextz` and `pappucliptxt` as the app's own document types, and PopClip's three as Alternate. `application(_:open:)` passes them to `AppAssembly.open`, which queues any that arrive before launch finishes. Each failure is shown in an alert.
+
+**Known gaps:**
+- `ActionKey` and the options table are keyed by manifest identifier, so two installs of one identifier share a key. The first install wins on the bar and keeps its options. The second is listed in Settings and reaches the bar only once the first is uninstalled. Per-install keys are ALM-2a, M4.
+- The review and the Extensions tab have not yet been tried by hand with VoiceOver. That, the Keychain, a revocation during a real script and every install route are `docs/checklists/m2-manual.md`, which is written and not yet run.
 
 ---
 
@@ -808,6 +842,53 @@ launchd does not restart a helper that died before it was ten seconds old until 
 ### 10.8 Developer support (DEV-1, DEV-2)
 
 Development mode sets `JSContext.isInspectable` for Safari Web Inspector and enables verbose logging for an approved development folder. `pappuclip run <file> [function]` loads a module in the same helper code, with host calls served by a headless stub, and exits 0 or 1.
+
+#### The helper as built (M3 week 1)
+
+**PappuClipJSHost.xpc** is embedded in the app next to the Runner. Its only entitlement is `com.apple.security.app-sandbox`, with no JIT. `main.swift` calls `JSHostListener.run()` and nothing else. Everything it runs is `PappuJSHost`, and the layering lint keeps every app-side module out of that. `PappuJSBridge` is the wire format: `JSHostRequest` (`identify`, `load`, `invoke`, `drop`, `unload`), `JSHostReply`, and `JSHostEvent.log`.
+
+**The listener** decodes each request and answers with `handoffReply(to:)` on a concurrent queue. The reply is made whenever the world settles it, often after the handler has returned. `--check-js-host` confirms that XPC allows this. Log lines go back as events on the session that loaded the extension.
+
+**`JSHost`** keeps one `ExtensionVM` per extension:
+- **`load`** makes a fresh world at the given generation (the approved bytes' digest) and replaces the old one. Anything the old one still owed is answered `dropped`.
+- **`invoke`** runs in the world at that generation. With no world, or one at another generation, the answer is `notLoaded`.
+- **`drop`** answers at once and discards whatever the script settles to later.
+- **`unload`** forgets the world.
+
+Each of these runs on the world's own serial queue, so a slow extension holds up only itself.
+
+**`ExtensionVM`** has its own `JSVirtualMachine` and `JSContext`. A JavaScript prelude does three things:
+- It captures `eval`, `Object.freeze` and `Object.defineProperty` before any extension code runs.
+- It implements CommonJS `require` over the files the world was loaded with, with the module cache inside the prelude.
+- It defines `print` and `console`, and wraps each action's script in an async function called with its own `require`. `popclip` is a frozen global holding `input` (`text`, `matchedText`) and `options`.
+
+A returned string is the result and any other value is none. A throw is reported as its message (JS-11).
+
+`print` lines are cut at 4,096 characters. `require` takes only `./` and `../` specifiers. `ModulePath` resolves them the way Node does, and refuses a path that is absolute or leaves the package.
+
+**This differs from §10.3.** The helper does not ask the app for each module. `load` carries the text of every `.js`, `.cjs` and `.json` file in the package. `PackageSources` reads them in the app, skips hidden files and links, keeps to the package, and refuses more than 1 MB per file, 8 MB in all or 2,000 files. That is one round trip per load and none per `require`, and the helper still reads no file. Bare specifiers (bundled libraries) and TypeScript are not supported yet, and `ActionResolver` still refuses a TypeScript action as `.noRunner`.
+
+**`JSHostClient`** in `PappuRuntime` is the app's side. `ExtensionRunner` now runs `.javaScript` actions through it with `runScript`, like any other script:
+- **Connecting.** It opens one `XPCSession` when first needed; its first message learns the helper's process ID.
+- **Loading.** An extension is loaded on first use, and again when its generation changes. A new connection starts with nothing loaded.
+- **Cancelling.** Jobs are `owned`. A cancel sends `drop`. If that is not answered within 500 ms, because the script is in a loop that never yields, the helper is killed with SIGKILL, logged as `hung`, and the job ends `stopped`.
+- **SEC-1d.** When the helper goes away, every request in flight fails at once and the connection is forgotten. The next action opens another, and launchd starts a new helper. Each extension that had code running and was not being cancelled is charged with a crash. Three within ten minutes suspend it in memory until the app restarts. §10.7's rule of suspending on the first crash during loading is not implemented.
+
+**The Debug Console (DIA-1).** `DebugConsole` in `PappuDiagnostics` keeps up to 2,000 lines in memory: printed text, load failures, returns, throws, stops, crashes, hangs and suspensions, each with the extension's name. `DebugConsoleWindow` in `PappuApp` opens from the menu bar's **Debug Console** and offers Copy All and Clear.
+
+`PappuClip --check-js-host` runs the week's "done when" against the real helper. On the first run:
+- A script returned in 0.5 s, including the launch.
+- Two extensions did not see each other's globals.
+- A waiting script was dropped in under a millisecond without a restart.
+- Killing the helper from outside failed the action in it at once.
+- The next action ran in a new helper after 10 s of launchd's throttle.
+- A `while (true) {}` was stopped by a restart in about 0.5 s.
+
+**Known gaps:**
+- launchd's 10-second throttle applies here as it does to the Runner (§9.5 as built). A helper killed within 10 s of its launch holds up the next JavaScript action for the rest of that time.
+- Killing the helper stops every extension's code in it. This is the trade §10.7 accepts.
+- There is no host API yet: no `popclip.*` methods, `pasteboard`, XHR, timers or population (weeks 2 onward). No CPU or memory watchdog yet (SEC-2).
+- Suspension is not persisted and is not shown in Extension Info.
 
 ---
 

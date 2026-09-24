@@ -11,7 +11,7 @@ import Testing
         let menu = MenuBarMenu(rules: PrivacyRules(), now: noon)
         #expect(!menu.isPaused)
         #expect(menu.statusLine == nil)
-        #expect(menu.commands == [.appearAutomatically, .pauseForOneHour, .pauseUntilResumed, .settings, .quit])
+        #expect(menu.commands == [.appearAutomatically, .pauseForOneHour, .pauseUntilResumed, .settings, .debugConsole, .quit])
     }
 
     /// While paused there is one pause command and it is the way out. Offering "Pause for One Hour"
@@ -19,7 +19,7 @@ import Testing
     @Test func aPausedMenuOffersResumeAndNeitherPause() {
         let menu = MenuBarMenu(rules: PrivacyRules(pause: .untilResumed), now: noon)
         #expect(menu.isPaused)
-        #expect(menu.commands == [.appearAutomatically, .resume, .settings, .quit])
+        #expect(menu.commands == [.appearAutomatically, .resume, .settings, .debugConsole, .quit])
     }
 
     @Test func aPauseWithNoEndSaysOnlyThatItIsPaused() {

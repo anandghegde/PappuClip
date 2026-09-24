@@ -293,6 +293,18 @@ public actor InvocationManager {
         return reports
     }
 
+    /// SEC-4b: revoking an extension invalidates what it is running now, on the same path as
+    /// cancellation, and leaves everyone else's runs alone.
+    @discardableResult
+    public func invalidate(ownedBy owner: String, _ reason: InvocationInvalidation = .revoked) async -> [CancellationReport] {
+        var reports: [CancellationReport] = []
+        let owned = live.filter { $0.value.request.owner == owner }.keys.sorted(by: { $0.rawValue < $1.rawValue })
+        for invocation in owned {
+            reports.append(await cancel(invocation, reason: reason))
+        }
+        return reports
+    }
+
     /// Asks the work to stop: owned work is waited for, up to the grace; delegated work is asked and
     /// reported as possibly complete, because that is the truth (RUN-3d, RUN-3e).
     private func stop(

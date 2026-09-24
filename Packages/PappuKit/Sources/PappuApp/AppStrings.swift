@@ -1,4 +1,5 @@
 import Foundation
+import PappuDiagnostics
 
 /// Every word the menu bar and the app's own alerts say, looked up rather than written in place
 /// (PRD §7.12).
@@ -33,6 +34,10 @@ public enum AppStrings {
 
     public static var settings: String {
         localized("menu.settings", "Settings…")
+    }
+
+    public static var debugConsole: String {
+        localized("menu.debugConsole", "Debug Console")
     }
 
     public static var quit: String {
@@ -168,6 +173,7 @@ public enum AppStrings {
         "menu.pauseUntilResumed",
         "menu.resume",
         "menu.settings",
+        "menu.debugConsole",
         "menu.quit",
         "menu.status.pausedUntil",
         "menu.status.pausedUntilResumed",
@@ -187,7 +193,50 @@ public enum AppStrings {
         "automation.alert.body",
         "automation.alert.open",
         "automation.alert.dismiss",
+        "console.window.title",
+        "console.empty",
+        "console.clear",
+        "console.copy",
+        "console.kind.loadFailed",
+        "console.kind.returned",
+        "console.kind.threw",
+        "console.kind.stopped",
+        "console.kind.crashed",
+        "console.kind.hung",
+        "console.kind.suspended",
     ]
+
+    // MARK: The Debug Console (DIA-1)
+
+    public static var consoleWindowTitle: String {
+        localized("console.window.title", "Debug Console")
+    }
+
+    public static var consoleEmpty: String {
+        localized("console.empty", "Nothing yet. What extensions print, and how their actions end, appears here.")
+    }
+
+    public static var consoleClear: String {
+        localized("console.clear", "Clear")
+    }
+
+    public static var consoleCopy: String {
+        localized("console.copy", "Copy All")
+    }
+
+    /// The words the window puts beside a line of each kind. Printed text stands on its own.
+    public static func consoleLabel(_ kind: ConsoleEntry.Kind) -> String? {
+        switch kind {
+        case .printed: nil
+        case .loadFailed: localized("console.kind.loadFailed", "Could not load")
+        case .returned: localized("console.kind.returned", "Returned")
+        case .threw: localized("console.kind.threw", "Threw")
+        case .stopped: localized("console.kind.stopped", "Stopped")
+        case .crashed: localized("console.kind.crashed", "The JavaScript helper stopped while this was running")
+        case .hung: localized("console.kind.hung", "Did not stop when asked; the JavaScript helper was restarted")
+        case .suspended: localized("console.kind.suspended", "Crashed too often and will not run until PappuClip restarts")
+        }
+    }
 
     private static func localized(_ key: StaticString, _ value: String.LocalizationValue) -> String {
         String(localized: key, defaultValue: value, bundle: .module)

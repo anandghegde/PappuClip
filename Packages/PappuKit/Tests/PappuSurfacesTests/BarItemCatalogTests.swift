@@ -65,13 +65,31 @@ import Testing
         #expect(BarItem(Self.action(showAs: .text)).display == .text("Copy"))
     }
 
-    /// The fallback that makes §8.11's unfinished half survivable: an icon form M1 cannot draw — a
-    /// file in the package, Iconify, `svg:`, `data:` — becomes the action's name rather than a blank
-    /// square, which is a button the user can still read and still click.
+    /// The fallback that makes §8.11's unfinished half survivable: an icon form this build cannot draw
+    /// — Iconify, `svg:`, `data:`, or a file with no package to find it in — becomes the action's name
+    /// rather than a blank square, which is a button the user can still read and still click.
     @Test func anIconThisBuildCannotDrawBecomesTheName() {
         for specifier in ["iconify:mdi:home", "icon.png", "svg:<svg/>", "data:image/png;base64,AA"] {
             #expect(BarItem(Self.action(icon: .specifier(specifier))).display == .text("Copy"), "\(specifier)")
         }
+    }
+
+    /// A file icon is found in the package's folder and drawn as a template unless it says otherwise.
+    @Test func aFileIconIsFoundInThePackage() throws {
+        let folder = URL(fileURLWithPath: "/tmp/Pkg.popclipext")
+        let file = try #require(BarIcon.file("icons/a.png", in: folder))
+        #expect(file.lastPathComponent == "a.png")
+        let spec = ActionIcon.specifier("preserve-color icons/a.png")
+        #expect(BarIcon(spec, directory: folder) == .image(file, isTemplate: false))
+        #expect(BarIcon(.specifier("file:icons/a.png"), directory: folder) == .image(file, isTemplate: true))
+    }
+
+    /// A specifier cannot reach outside its own package for a picture.
+    @Test func aFileIconCannotEscapeThePackage() {
+        let folder = URL(fileURLWithPath: "/tmp/Pkg.popclipext")
+        #expect(BarIcon.file("../other/a.png", in: folder) == nil)
+        #expect(BarIcon.file("/etc/a.png", in: folder) == nil)
+        #expect(BarIcon.file("a/../../a.png", in: folder) == nil)
     }
 
     /// `icon: null` is an answer (`ActionIcon.none`), and it means the same thing on the bar as an

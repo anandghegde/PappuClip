@@ -2,8 +2,8 @@ import Foundation
 import GRDB
 import PappuCore
 
-// The rows of architecture §11's main tables, as M2 week 2 has them. `grant` is week 5's and
-// `app_rule` and its neighbours are M4's; the tables arrive with the code that reads them, through a
+// The rows of architecture §11's main tables, as M2 weeks 2 and 5 have them. `app_rule` and its
+// neighbours are M4's; the tables arrive with the code that reads them, through a
 // new migration, rather than sitting empty.
 
 /// ALM-4 and SEC-5's states for an extension as a whole.
@@ -209,5 +209,54 @@ extension OrderKey: DatabaseValueConvertible {
 
     public static func fromDatabaseValue(_ dbValue: DatabaseValue) -> OrderKey? {
         String.fromDatabaseValue(dbValue).flatMap(OrderKey.init)
+    }
+}
+
+/// One approval (EXM-5, SEC-4, SEC-8): a capability key, given to one identity for one version's bytes.
+///
+/// The digest is what makes an approval about *code* and not about a name (SEC-8a, SEC-8c): a grant
+/// whose digest is not the active version's approves nothing, so a content change is pending approval
+/// again without anything having to remember to revoke the old grant.
+public struct GrantRecord: Sendable, Equatable, Codable, FetchableRecord, PersistableRecord {
+    public static let databaseTableName = "grant"
+
+    public var localIdentity: LocalIdentity
+    /// `GrantKey`'s raw value.
+    public var capability: String
+    public var contentDigest: ContentDigest
+    public var grantedAt: Date
+
+    public var key: GrantKey? { GrantKey(rawValue: capability) }
+
+    enum CodingKeys: String, CodingKey {
+        case localIdentity = "local_identity"
+        case capability
+        case contentDigest = "content_digest"
+        case grantedAt = "granted_at"
+    }
+}
+
+/// What a grant row approves: running at all, or one gated capability.
+public enum GrantKey: Sendable, Hashable, RawRepresentable {
+    /// EXM-5c: the install confirmation, which approves every listed capability together.
+    case execution
+    /// EXM-5d: one switch, off unless the user turned it on.
+    case gated(GatedCapability)
+
+    public init?(rawValue: String) {
+        if rawValue == "execution" {
+            self = .execution
+        } else if let gate = GatedCapability(rawValue: rawValue) {
+            self = .gated(gate)
+        } else {
+            return nil
+        }
+    }
+
+    public var rawValue: String {
+        switch self {
+        case .execution: "execution"
+        case .gated(let gate): gate.rawValue
+        }
     }
 }

@@ -194,8 +194,25 @@ final class RecordingAttention: AttentionPresenting {
         self.bar = bar
     }
 
-    func present(_ attention: ExtensionRunner.Attention, for action: String) {
+    func present(_ attention: ExtensionRunner.Attention, for action: String, owner: String?) {
         presented.append((attention, action))
         barStatesBefore.append(bar?.states ?? [])
+    }
+}
+
+/// What the bar's Install Extension offer handed on, and what the bar had been told by then.
+@MainActor
+final class RecordingInstaller: SelectionInstalling {
+    private(set) var installed: [String] = []
+    private(set) var barEventsBefore: [[RecordingBar.Event]] = []
+    private weak var bar: RecordingBar?
+
+    init(bar: RecordingBar) {
+        self.bar = bar
+    }
+
+    func installExtension(fromSelection text: String) async {
+        installed.append(text)
+        barEventsBefore.append(bar?.events ?? [])
     }
 }

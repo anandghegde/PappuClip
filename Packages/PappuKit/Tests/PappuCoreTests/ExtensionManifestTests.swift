@@ -94,14 +94,47 @@ import Testing
         #expect(IconSpec(parsing: "text:AB") == .text("AB"))
         #expect(IconSpec(parsing: "AB") == .text("AB"))
         #expect(IconSpec(parsing: "ABC") == .text("ABC"))
+        #expect(IconSpec(parsing: "icon.png") == .file("icon.png"))
+        #expect(IconSpec(parsing: "broom-icon.svg") == .file("broom-icon.svg"))
+        #expect(IconSpec(parsing: "file:icons/a b.png") == .file("icons/a b.png"))
     }
 
-    /// Nothing is silently dropped: a form M1 does not render is kept whole so the bar can fall back
-    /// to the title and M2 can read it without a format change.
+    /// Nothing is silently dropped: a P1 form is kept whole so the bar can fall back to the title and
+    /// M4 can read it without a format change.
     @Test func aFormThisBuildDoesNotRenderIsKeptWhole() {
         #expect(IconSpec(parsing: "iconify:mdi:home") == .unread("iconify:mdi:home"))
-        #expect(IconSpec(parsing: "icon.png") == .unread("icon.png"))
+        #expect(IconSpec(parsing: "svg:<svg/>") == .unread("svg:<svg/>"))
+        #expect(IconSpec(parsing: "data:image/png;base64,AA") == .unread("data:image/png;base64,AA"))
         #expect(IconSpec(parsing: "ABCD") == .unread("ABCD"))
+    }
+
+    /// §8.11 modifiers, as the corpus writes them: before the base, `=0` to negate, legacy underscores.
+    @Test func modifiersAreReadBeforeTheBase() {
+        let boxed = IconSpec(parsing: "square filled T")
+        #expect(boxed.base == .text("T"))
+        #expect(boxed.modifiers.square && boxed.modifiers.filled)
+
+        let scaled = IconSpec(parsing: "scale=90 file:yandex.png")
+        #expect(scaled.base == .file("yandex.png"))
+        #expect(scaled.modifiers.scale == 90)
+
+        let legacy = IconSpec(parsing: "flip_x preserve_color=1 move_y=-10 rotate=45 icon.svg")
+        #expect(legacy.modifiers.flipX && legacy.modifiers.preserveColor)
+        #expect(legacy.modifiers.moveY == -10 && legacy.modifiers.rotate == 45)
+
+        #expect(IconSpec(parsing: "search=0 A").modifiers == .none)
+        #expect(IconSpec(parsing: "strike iconify:tabler:tex").base == .unread("iconify:tabler:tex"))
+    }
+
+    /// A lone modifier word is the base, and brackets are PopClip's spelling of a border.
+    @Test func textEdgeCasesReadAsTheCorpusMeansThem() {
+        #expect(IconSpec(parsing: "search") == .unread("search"))
+        #expect(IconSpec(parsing: "Go") == .text("Go"))
+        let circled = IconSpec(parsing: "text:(E2)")
+        #expect(circled.base == .text("E2") && circled.modifiers.circle)
+        let boxed = IconSpec(parsing: "[#]")
+        #expect(boxed.base == .text("#") && boxed.modifiers.square)
+        #expect(IconSpec(parsing: "text:A B") == .text("A B"))
     }
 
     // MARK: The reserved executor

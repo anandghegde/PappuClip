@@ -37,6 +37,8 @@ public struct AppResources: Sendable {
 
     /// The actions a fresh install starts with, in `BuiltinAction.allCases` order (ALM-3).
     public var catalog: ActionCatalog
+    /// The same actions as the manifests they came from, which the store seeds its list with (EXM-9).
+    public var builtins: [ActionCatalog.Entry]
     public var policies: DetectionPolicies
     public var engines: SearchEngines
     public var schemes: URLSchemes
@@ -78,7 +80,9 @@ public struct AppResources: Sendable {
         schemes: () throws -> URLSchemes,
         domains: () throws -> TopLevelDomains
     ) throws {
-        catalog = ActionCatalog(entries: try Self.mustRead(BuiltinExtensions.directoryName, builtins))
+        let entries = try Self.mustRead(BuiltinExtensions.directoryName, builtins)
+        self.builtins = entries
+        catalog = ActionCatalog(entries: entries)
         self.policies = try Self.mustRead(DetectionPolicies.fileName, policies)
 
         var failures: [Failure] = []

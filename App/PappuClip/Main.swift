@@ -22,6 +22,15 @@ enum Main {
             }
             RunLoop.main.run()
         }
+        // M3 week 1's, against the real JavaScript helper.
+        if CommandLine.arguments.contains("--check-js-host") {
+            Task { @MainActor in
+                let lines = await JSHostCheck.run()
+                for line in lines { print("\(line.passed ? "PASS" : "FAIL")  \(line.name): \(line.detail)") }
+                exit(lines.allSatisfy(\.passed) ? 0 : 1)
+            }
+            RunLoop.main.run()
+        }
         let app = NSApplication.shared
         // PRD §12: an agent app. No Dock icon and no menu bar of its own; the status item is the whole
         // of the app the user can point at, and every window it opens activates the app by hand.
@@ -36,6 +45,9 @@ enum Main {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var assembly: AppAssembly?
+    /// Files the Finder handed over before the assembly existed: a double-click that launched the app
+    /// arrives here before `start` has finished.
+    private var pendingURLs: [URL] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let resources: AppResources
@@ -56,7 +68,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let assembly = await AppAssembly(resources: resources)
             self.assembly = assembly
             await assembly.start()
+            let urls = pendingURLs
+            pendingURLs = []
+            if !urls.isEmpty { await assembly.open(urls) }
         }
+    }
+
+    /// A double-clicked or dropped extension file (EXM-1). The install review is the assembly's.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let assembly else {
+            pendingURLs += urls
+            return
+        }
+        Task { await assembly.open(urls) }
     }
 
     /// The taps, the status item and the hotkey all die with the process, so this is about the parts

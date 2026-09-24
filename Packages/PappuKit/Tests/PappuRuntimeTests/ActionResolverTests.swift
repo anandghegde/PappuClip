@@ -1,6 +1,7 @@
 import Foundation
 import PappuAnalysis
 import PappuCore
+import PappuExtensions
 import PappuRuntime
 import Testing
 
@@ -269,10 +270,20 @@ import Testing
 /// An action the manifest reads but no runner can run yet is absent, with a reason — never a button
 /// that does nothing. The ones that have a runner are on the bar.
 @Suite struct ActionResolverRunnerTests {
-    private func resolve(_ body: String) throws -> (ActionResolver.Resolution, ActionExecutor) {
+    private func resolve(
+        _ body: String,
+        with resolver: ActionResolver = ActionResolver { .approving($0) }
+    ) throws -> (ActionResolver.Resolution, ActionExecutor) {
         let manifest = try ExtensionLoader.loadSnippet("#popclip\nname: Shout\nidentifier: com.example.shout\n\(body)").manifest
-        let catalog = ActionCatalog(entries: [.init(manifest: manifest, origin: .installed)])
-        let resolution = ActionResolver().resolve(
+        return resolve(manifest, with: resolver)
+    }
+
+    private func resolve(
+        _ manifest: ExtensionManifest,
+        with resolver: ActionResolver = ActionResolver { .approving($0) }
+    ) -> (ActionResolver.Resolution, ActionExecutor) {
+        let catalog = ActionCatalog(entries: [.init(manifest: manifest, origin: .installed, owner: LocalIdentity().description)])
+        let resolution = resolver.resolve(
             catalog,
             selection: AnalyzedSelection(text: "hello", detections: []),
             context: SelectionContext(
@@ -287,8 +298,13 @@ import Testing
         return (resolution, manifest.actions[0].executor)
     }
 
-    @Test func anActionWithNoRunnerIsRefusedByName() throws {
-        let (resolution, executor) = try resolve("javascript: return popclip.input.text")
+    /// TypeScript waits for its transpiler (M3 week 2).
+    @Test func anActionWithNoRunnerIsRefusedByName() {
+        let (resolution, executor) = resolve(ExtensionManifest(
+            name: "Shout",
+            identifier: "com.example.shout",
+            actions: [ActionManifest(executor: .javaScript(JavaScriptAction(source: .file("shout.ts"), isTypeScript: true)))]
+        ))
         #expect(resolution.actions.isEmpty)
         #expect(Array(resolution.refusals.values) == [.noRunner(executor)])
     }
@@ -300,10 +316,61 @@ import Testing
         "serviceName: Make Sticky",
         "applescript: return \"{popclip text}\"",
         "shellScript: echo hi",
+        "javascript: return popclip.input.text",
     ])
     func everyOtherExecutorHasARunner(_ body: String) throws {
         let (resolution, _) = try resolve(body)
         #expect(resolution.actions.count == 1)
         #expect(resolution.refusals.isEmpty)
+    }
+
+    // MARK: Approval (EXM-5)
+
+    /// The resolver that was never told about the store runs nothing an extension wrote — only the
+    /// app's own built-ins (EXM-5g).
+    @Test(arguments: ["keyCombo: command b", "url: https://example.com/?q=***", "shellScript: echo hi"])
+    func anUnapprovedExtensionIsNotOfferedAndSaysSo(_ body: String) throws {
+        let (resolution, _) = try resolve(body, with: ActionResolver())
+        #expect(resolution.actions.isEmpty)
+        #expect(Array(resolution.refusals.values) == [.notApproved])
+    }
+
+    @Test func anApprovalForAnotherExtensionDoesNotCount() throws {
+        let (resolution, _) = try resolve("keyCombo: command b", with: ActionResolver { .approvingSomethingElse(than: $0) })
+        #expect(Array(resolution.refusals.values) == [.notApproved])
+    }
+
+    /// EXM-5d: approved, with the gate left at "Don't Allow", the action is absent and says which gate.
+    @Test func anActionWhoseGateIsNotGrantedIsNotOffered() throws {
+        let (resolution, _) = try resolve("shellScript: echo hi", with: ActionResolver { .approving($0, gates: []) })
+        #expect(resolution.actions.isEmpty)
+        #expect(Array(resolution.refusals.values) == [.notGranted([.script])])
+    }
+
+    /// EXM-5g: a built-in is approved by being in the app — and only there. The same executor from a
+    /// manifest installed from outside is not the app's.
+    @Test func onlyTheAppsOwnBuiltinsAreApprovedByTheApp() throws {
+        let manifest = ExtensionManifest(
+            name: "Copy",
+            identifier: "com.example.copy",
+            actions: [ActionManifest(executor: .builtin(.copy))]
+        )
+        let context = SelectionContext(
+            app: AppIdentity(pid: 42, bundleID: "com.example.Editor", name: "Editor"),
+            editability: Editability(isEditable: false, source: .settableSelectedText),
+            canCut: false, canCopy: true, canPaste: false, hasFormatting: false
+        )
+        let bundled = ActionResolver().resolve(
+            ActionCatalog(entries: [.init(manifest: manifest, origin: .appBundle)]),
+            selection: AnalyzedSelection(text: "hello", detections: []),
+            context: context
+        )
+        let installed = ActionResolver().resolve(
+            ActionCatalog(entries: [.init(manifest: manifest, origin: .installed)]),
+            selection: AnalyzedSelection(text: "hello", detections: []),
+            context: context
+        )
+        #expect(bundled.actions.count == 1)
+        #expect(Array(installed.refusals.values) == [.notApproved])
     }
 }

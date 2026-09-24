@@ -13,8 +13,8 @@ import PappuCore
 /// revision, the device that last wrote them and a tombstone instead of a `DELETE`; the list's order
 /// is `OrderKey`s. Nothing syncs until 1.x; the point is that nothing will need migrating when it does.
 public actor ExtensionStore {
-    private let database: DatabaseQueue
-    private let now: @Sendable () -> Date
+    let database: DatabaseQueue
+    let now: @Sendable () -> Date
     /// This Mac, as the writer of a row (SYN-2). Minted with the database.
     public nonisolated let deviceID: String
 
@@ -107,6 +107,25 @@ public actor ExtensionStore {
                 table.column("version_digest", .text).notNull()
                 table.column("options", .text).notNull()
                 table.column("created_at", .datetime).notNull()
+            }
+        }
+        // M2 week 5 (EXM-5, SEC-4, SEC-8c): what the user approved, and for which bytes. One row per
+        // capability key — `execution`, or a `GatedCapability` — at the digest it was given to. A
+        // grant goes with its extension's row, which is how a trust transition leaves the old
+        // identity's grants behind (SEC-8e).
+        migrator.registerMigration("v2: grants") { db in
+            try db.create(table: "grant") { table in
+                table.column("local_identity", .text).notNull().references("extension", onDelete: .cascade)
+                table.column("capability", .text).notNull()
+                table.column("content_digest", .text).notNull()
+                table.column("granted_at", .datetime).notNull()
+                table.primaryKey(["local_identity", "capability"])
+            }
+            // Anything installed before consent existed was never approved: it waits for the user
+            // rather than being grandfathered in (EXM-5a: before any of its code runs).
+            for var record in try ExtensionRecord.fetchAll(db) where !record.isBuiltin && record.state == .enabled {
+                record.state = .pendingApproval
+                try record.update(db)
             }
         }
         return migrator
@@ -291,23 +310,38 @@ public actor ExtensionStore {
         public var provenance: Provenance
         public var digest: ContentDigest
         public var form: StagedForm
+        /// The gated capabilities the user switched on in the review (EXM-5d). Execution itself is
+        /// approved by the review's confirmation (EXM-5c), so an activation always grants it.
+        public var granted: Set<GatedCapability>
 
-        public init(kind: Kind, identity: LocalIdentity, manifest: ExtensionManifest, provenance: Provenance, digest: ContentDigest, form: StagedForm) {
+        public init(
+            kind: Kind,
+            identity: LocalIdentity,
+            manifest: ExtensionManifest,
+            provenance: Provenance,
+            digest: ContentDigest,
+            form: StagedForm,
+            granted: Set<GatedCapability> = []
+        ) {
             self.kind = kind
             self.identity = identity
             self.manifest = manifest
             self.provenance = provenance
             self.digest = digest
             self.form = form
+            self.granted = granted
         }
 
         public var folder: VersionFolder { VersionFolder(identity: identity, digest: digest) }
     }
 
-    /// One transaction: the version row, the pointer, the list. Returns the folders no row points at
-    /// any more, which the caller deletes *after* this has committed.
+    /// One transaction: the version row, the pointer, the grants, the list. Returns the folders no row
+    /// points at any more, which the caller deletes *after* this has committed.
+    ///
+    /// The grants are in the same transaction as the pointer so that there is no moment at which the
+    /// new bytes are active under the old bytes' approval (SEC-8c), or approved with nothing active.
     public func activate(_ activation: Activation) throws -> [VersionFolder] {
-        try database.write { db in
+        let retired = try database.write { db in
             let manifest = activation.manifest
             let keys = Self.actionKeys(of: manifest)
             var retired: [VersionFolder] = []
@@ -349,6 +383,9 @@ public actor ExtensionStore {
                 record.identifierOrigin = manifest.identifierOrigin
                 record.name = manifest.name.english
                 record.provenance = activation.provenance
+                // The user has just approved these bytes. A version the user had switched off stays
+                // off; one that was waiting for approval has it now.
+                if record.state == .pendingApproval { record.state = .enabled }
                 try record.update(db)
                 let instances = try InstanceRecord
                     .filter(Column("local_identity") == record.localIdentity && Column("deleted_at") == nil)
@@ -356,6 +393,7 @@ public actor ExtensionStore {
                 for instance in instances {
                     try reconcile(instance.id, with: keys, in: db)
                 }
+                try replaceGrants(of: record.localIdentity, at: activation.digest, granting: activation.granted, in: db)
                 return retired
             }
 
@@ -393,8 +431,10 @@ public actor ExtensionStore {
                 let instance = try insertInstance(for: activation.identity, in: db)
                 try appendItems(keys, for: instance, in: db)
             }
+            try replaceGrants(of: activation.identity, at: activation.digest, granting: activation.granted, in: db)
             return retired
         }
+        return retired
     }
 
     /// What deleting one list item did.

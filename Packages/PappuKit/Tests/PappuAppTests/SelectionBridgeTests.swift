@@ -3,6 +3,7 @@ import PappuAnalysis
 import PappuApp
 import PappuAX
 import PappuCore
+@testable import PappuExtensions
 import PappuRuntime
 import PappuSelection
 import PappuSurfaces
@@ -56,6 +57,7 @@ private struct Scene {
     let sleeper: InstantSleep
     let keys: CountingKeyPresses
     let attention: RecordingAttention
+    let installer: RecordingInstaller
 
     static func make(
         rules: PrivacyRules = PrivacyRules(),
@@ -64,6 +66,9 @@ private struct Scene {
         clipboard: String? = "the user's own clipboard",
         shortcuts: AnsweringShortcuts = AnsweringShortcuts(),
         scripts: AnsweringScripts = AnsweringScripts(),
+        approvals: @escaping ActionResolver.Approvals = ExecutionApproval.bundled,
+        runtimeOptions: @escaping @Sendable (CatalogAction) -> [String: String] = { _ in [:] },
+        installs: Bool = true,
         catalog: ActionCatalog
     ) async throws -> Scene {
         let focused = Node(role: editable ? "AXTextArea" : "AXStaticText")
@@ -147,6 +152,8 @@ private struct Scene {
             ),
             conditions: { BuiltinConditions(clipboardHasText: clipboardHasText) },
             secureInput: { .clear },
+            resolver: ActionResolver(approvals: approvals),
+            runtimeOptions: runtimeOptions,
             locale: { Locale(identifier: "en_US") },
             sleeper: sleeper,
             timing: BridgeTiming(confirmation: .milliseconds(700))
@@ -154,6 +161,8 @@ private struct Scene {
         let attention = await RecordingAttention(bar: bar)
         await bridge.attach(bar)
         await bridge.attach(attention: attention)
+        let installer = await RecordingInstaller(bar: bar)
+        if installs { await bridge.attach(installer: installer) }
         return Scene(
             bridge: bridge,
             bar: bar,
@@ -162,7 +171,8 @@ private struct Scene {
             opener: opener,
             sleeper: sleeper,
             keys: keys,
-            attention: attention
+            attention: attention,
+            installer: installer
         )
     }
 }
@@ -373,6 +383,44 @@ private func presentation(
         })
     }
 
+    /// What the store would mint for an extension approved with every gate it asks for. These tests are
+    /// about running; `ExecutionApprovalTests` and `ExtensionHostTests` are about approving.
+    private static let approveAll: ActionResolver.Approvals = { action in
+        ExecutionApproval.bundled(action)
+            ?? ExecutionApproval(identity: action.owner.flatMap(LocalIdentity.init), digest: nil, gates: action.gates)
+    }
+
+    private func approvedScene(
+        shortcuts: AnsweringShortcuts = AnsweringShortcuts(),
+        scripts: AnsweringScripts = AnsweringScripts(),
+        runtimeOptions: @escaping @Sendable (CatalogAction) -> [String: String] = { _ in [:] },
+        _ bodies: [String: String]
+    ) async throws -> Scene {
+        try await Scene.make(
+            shortcuts: shortcuts,
+            scripts: scripts,
+            approvals: Self.approveAll,
+            runtimeOptions: runtimeOptions,
+            catalog: catalog(bodies)
+        )
+    }
+
+    /// EXM-5: with no approval, an installed extension's action is not on the bar at all.
+    @Test func anUnapprovedExtensionIsNotOnTheBar() async throws {
+        let scene = try await Scene.make(catalog: catalog(["Look": "url: https://x.test/?q=***"]))
+        let content = await scene.bridge.content(for: presentation())
+        #expect(!content.items.contains { $0.name == "Look" })
+    }
+
+    /// §8.9: the run is handed the extension's option values, which the bridge asks for at the click.
+    @Test func theRunIsHandedTheOptions() async throws {
+        let scene = try await approvedScene(runtimeOptions: { _ in ["lang": "fr"] }, [
+            "Look": "options:\n  - identifier: lang\n    type: string\n    label: Language\nurl: https://x.test/?q=***&l={popclip option lang}",
+        ])
+        try await press("Look", in: scene)
+        #expect(scene.opener.urls == [URL(string: "https://x.test/?q=some%20words&l=fr")])
+    }
+
     /// Shows the bar, then presses the button with that name.
     private func press(_ name: String, in scene: Scene) async throws {
         let content = await scene.bridge.content(for: presentation())
@@ -381,7 +429,7 @@ private func presentation(
     }
 
     @Test func aURLActionOpensItsAddressAndSaysDone() async throws {
-        let scene = try await Scene.make(catalog: catalog(["Look": "url: https://x.test/?q=***"]))
+        let scene = try await approvedScene(["Look": "url: https://x.test/?q=***"])
         try await press("Look", in: scene)
 
         #expect(scene.opener.urls == [URL(string: "https://x.test/?q=some%20words")])
@@ -392,7 +440,7 @@ private func presentation(
     /// BAR-12b, BAR-10: a result stays until the user dismisses it the way any bar is dismissed. A
     /// clock under something being read is a clock the reader loses to.
     @Test func aResultReplacesTheButtonsAndStays() async throws {
-        let scene = try await Scene.make(catalog: catalog(["Ask": "shortcutName: Ask\nafter: show-result"]))
+        let scene = try await approvedScene(["Ask": "shortcutName: Ask\nafter: show-result"])
         try await press("Ask", in: scene)
 
         #expect(await scene.bar.states == [.result("the answer")])
@@ -402,7 +450,7 @@ private func presentation(
 
     /// §8.6 `popclip-appear`: the buttons come back rather than the bar going away.
     @Test func popclipAppearPutsTheButtonsBack() async throws {
-        let scene = try await Scene.make(catalog: catalog(["Look": "url: https://x.test/?q=***\nafter: popclip-appear"]))
+        let scene = try await approvedScene(["Look": "url: https://x.test/?q=***\nafter: popclip-appear"])
         try await press("Look", in: scene)
 
         #expect(await scene.bar.states == [.idle])
@@ -411,7 +459,7 @@ private func presentation(
 
     /// `stay visible`: the tick for its moment, then the buttons again.
     @Test func stayVisibleReturnsToTheButtonsAfterTheConfirmation() async throws {
-        let scene = try await Scene.make(catalog: catalog(["Look": "url: https://x.test/?q=***\nstay visible: true"]))
+        let scene = try await approvedScene(["Look": "url: https://x.test/?q=***\nstay visible: true"])
         try await press("Look", in: scene)
 
         #expect(await scene.bar.states == [.succeeded, .idle])
@@ -420,7 +468,7 @@ private func presentation(
     }
 
     @Test func copyResultSaysCopied() async throws {
-        let scene = try await Scene.make(catalog: catalog(["Ask": "shortcutName: Ask\nafter: copy-result"]))
+        let scene = try await approvedScene(["Ask": "shortcutName: Ask\nafter: copy-result"])
         try await press("Ask", in: scene)
 
         #expect(scene.pasteboard.currentText == "the answer")
@@ -428,9 +476,9 @@ private func presentation(
     }
 
     @Test func aShortcutThatFailsShowsTheFailure() async throws {
-        let scene = try await Scene.make(
+        let scene = try await approvedScene(
             shortcuts: AnsweringShortcuts(answer: .failed),
-            catalog: catalog(["Ask": "shortcutName: Ask\nafter: show-result"])
+            ["Ask": "shortcutName: Ask\nafter: show-result"]
         )
         try await press("Ask", in: scene)
 
@@ -440,9 +488,9 @@ private func presentation(
 
     /// **Done when: exit code 2 opens settings.** The X first, then the settings, named for the action.
     @Test func aScriptThatNeedsSettingsFailsAndAsksForThem() async throws {
-        let scene = try await Scene.make(
+        let scene = try await approvedScene(
             scripts: AnsweringScripts(answer: .needsSettings),
-            catalog: catalog(["Translate": "shellScript: exit 2\nafter: copy-result"])
+            ["Translate": "shellScript: exit 2\nafter: copy-result"]
         )
         try await press("Translate", in: scene)
 
@@ -454,9 +502,9 @@ private func presentation(
 
     /// ONB-5.
     @Test func anAppleScriptRefusedAutomationAsksForThePermission() async throws {
-        let scene = try await Scene.make(
+        let scene = try await approvedScene(
             scripts: AnsweringScripts(answer: .automationDenied),
-            catalog: catalog(["Note": #"applescript: tell application "Notes" to activate"#])
+            ["Note": #"applescript: tell application "Notes" to activate"#]
         )
         try await press("Note", in: scene)
 
@@ -465,7 +513,7 @@ private func presentation(
     }
 
     @Test func aScriptThatSucceedsAsksNothing() async throws {
-        let scene = try await Scene.make(catalog: catalog(["Shout": "shellScript: tr a-z A-Z\nafter: copy-result"]))
+        let scene = try await approvedScene(["Shout": "shellScript: tr a-z A-Z\nafter: copy-result"])
         try await press("Shout", in: scene)
 
         #expect(scene.pasteboard.currentText == "the answer")
@@ -476,12 +524,71 @@ private func presentation(
     /// is what holds the key tap and asks for a permit. Here the destination cannot be verified, so
     /// nothing is pressed.
     @Test func aKeyPressIsBegunAsAMutationAndRefusedWithoutADestination() async throws {
-        let scene = try await Scene.make(catalog: catalog(["Bold": "keyCombo: command b"]))
+        let scene = try await approvedScene(["Bold": "keyCombo: command b"])
         try await press("Bold", in: scene)
 
         let record = try #require(await scene.manager.lastRecord)
         #expect(record.mayMutate)
         #expect(scene.keys.count == 0)
+        #expect(await scene.bar.states == [.failed])
+    }
+}
+
+/// EXM-2 from the bar's side: a selection that is an extension offers to install itself, and pressing
+/// the offer hands the text to the one review every install route goes through.
+@Suite struct SelectionBridgeInstallOfferTests {
+    static let catalog = try! builtinCatalog()
+    static let snippet = "#popclip\nname: Shout\nkeyCombo: command b"
+
+    @Test func aSnippetIsOfferedFirstByItsName() async throws {
+        let scene = try await Scene.make(catalog: Self.catalog)
+        let content = await scene.bridge.content(for: presentation(text: Self.snippet))
+        let offer = try #require(content.items.first)
+        #expect(offer.id == .installExtension)
+        #expect(offer.name == "Install Extension \u{201C}Shout\u{201D}")
+        #expect(offer.isEnabled)
+        #expect(content.items.dropFirst().map(\.name) == ["Copy", "Search"])
+    }
+
+    @Test func ordinaryTextIsNotOffered() async throws {
+        let scene = try await Scene.make(catalog: Self.catalog)
+        let content = await scene.bridge.content(for: presentation())
+        #expect(!content.items.contains { $0.id == .installExtension })
+    }
+
+    /// PRD EXM-2: "over the limit the bar says so" — dimmed, with the reason in the tooltip.
+    @Test func overTheLimitTheOfferIsDimmedAndSaysWhy() async throws {
+        let scene = try await Scene.make(catalog: Self.catalog)
+        let long = Self.snippet + "\n# " + String(repeating: "x", count: SnippetDetector.maximumSelectionLength)
+        let content = await scene.bridge.content(for: presentation(text: long))
+        let offer = try #require(content.items.first)
+        #expect(offer.id == .installExtension && !offer.isEnabled)
+        #expect(offer.tooltip.contains("5,000"))
+    }
+
+    /// An app with no library to install into draws no button that could not work.
+    @Test func withNowhereToInstallNothingIsOffered() async throws {
+        let scene = try await Scene.make(installs: false, catalog: Self.catalog)
+        let content = await scene.bridge.content(for: presentation(text: Self.snippet))
+        #expect(!content.items.contains { $0.id == .installExtension })
+    }
+
+    @Test func pressingTheOfferPutsTheBarAwayAndHandsOnTheText() async throws {
+        let scene = try await Scene.make(catalog: Self.catalog)
+        _ = await scene.bridge.content(for: presentation(text: Self.snippet))
+        await scene.bridge.invoke(BarClick(item: .installExtension), for: presentation(text: Self.snippet))
+        #expect(await scene.installer.installed == [Self.snippet])
+        #expect(await scene.installer.barEventsBefore == [[.dismissed(.actionRun)]])
+        // Not an invocation: nothing began that the manager would have to hold.
+        #expect(await scene.manager.runningInvocations.isEmpty)
+    }
+
+    /// A press on the offer of a bar whose attempt has been retired installs nothing.
+    @Test func anOfferFromAnOlderAttemptInstallsNothing() async throws {
+        let scene = try await Scene.make(catalog: Self.catalog)
+        _ = await scene.bridge.content(for: presentation(attempt: 1, text: Self.snippet))
+        await scene.bridge.invoke(BarClick(item: .installExtension), for: presentation(attempt: 2, text: Self.snippet))
+        #expect(await scene.installer.installed.isEmpty)
         #expect(await scene.bar.states == [.failed])
     }
 }

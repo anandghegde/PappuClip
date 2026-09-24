@@ -22,6 +22,9 @@
 /* The pause status line when the pause has no end (ACT-18). */
 "menu.status.pausedUntilResumed" = "Paused";
 
+/* Opens the Debug Console (DIA-1). */
+"menu.debugConsole" = "Debug Console";
+
 /* Quits the app (PRD §7.5). */
 "menu.quit" = "Quit PappuClip";
 
@@ -72,3 +75,36 @@
 
 /* The Automation alert's other button. */
 "automation.alert.dismiss" = "Not Now";
+
+/* The Debug Console window's title (DIA-1). */
+"console.window.title" = "Debug Console";
+
+/* The Debug Console when nothing has been logged since launch. */
+"console.empty" = "Nothing yet. What extensions print, and how their actions end, appears here.";
+
+/* Empties the Debug Console. */
+"console.clear" = "Clear";
+
+/* Copies every line of the Debug Console. */
+"console.copy" = "Copy All";
+
+/* Beside an extension whose code would not load. */
+"console.kind.loadFailed" = "Could not load";
+
+/* Beside what an action returned. */
+"console.kind.returned" = "Returned";
+
+/* Beside the message an action threw. */
+"console.kind.threw" = "Threw";
+
+/* An action stopped before it ended. */
+"console.kind.stopped" = "Stopped";
+
+/* SEC-1d: the helper crashed while this extension's code ran. */
+"console.kind.crashed" = "The JavaScript helper stopped while this was running";
+
+/* An action ignored a cancel and the helper was restarted. */
+"console.kind.hung" = "Did not stop when asked; the JavaScript helper was restarted";
+
+/* SEC-1d: the extension is suspended until the app restarts. */
+"console.kind.suspended" = "Crashed too often and will not run until PappuClip restarts";

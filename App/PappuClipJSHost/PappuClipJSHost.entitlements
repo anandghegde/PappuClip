@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- SEC-1a. The whole list, on purpose: the sandbox and nothing it could be relaxed with. No
+	     network client, no file access beyond the container, and no com.apple.security.cs.allow-jit,
+	     which spike 5 showed JavaScriptCore does without (architecture §10.1). Extension code is
+	     sent in as text by the app; this process never reads a package. -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+</dict>
+</plist>

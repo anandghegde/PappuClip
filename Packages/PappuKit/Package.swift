@@ -37,6 +37,7 @@ let libraries: [(name: String, dependencies: [Target.Dependency])] = [
     // PappuSelection and PappuAnalysis may not know each other.
     ("PappuRuntime", [
         core, "PappuAX", "PappuSelection", "PappuAnalysis", "PappuExtensions", "PappuJSBridge", "PappuRunnerBridge",
+        "PappuDiagnostics",
     ]),
     ("PappuRegistry", [core, "PappuExtensions"]),
     ("PappuDiagnostics", [core]),
@@ -84,8 +85,8 @@ let package = Package(
         .target(
             name: "PappuApp",
             dependencies: [
-                core, "PappuAX", "PappuSelection", "PappuAnalysis",
-                "PappuSurfaces", "PappuRuntime", "PappuSettings",
+                core, "PappuAX", "PappuSelection", "PappuAnalysis", "PappuExtensions",
+                "PappuSurfaces", "PappuRuntime", "PappuSettings", "PappuDiagnostics", "PappuJSBridge",
             ],
             resources: [.process("Resources")]
         ),
@@ -109,11 +110,19 @@ let package = Package(
         .testTarget(name: "PappuSelectionTests", dependencies: ["PappuSelection", "PappuTestSupport", "PappuDevTools"]),
         .testTarget(name: "PappuAnalysisTests", dependencies: ["PappuAnalysis", "PappuTestSupport", "PappuDevTools"]),
         .testTarget(name: "PappuExtensionsTests", dependencies: ["PappuExtensions", core, "PappuDevTools", grdb, zip]),
-        .testTarget(name: "PappuRuntimeTests", dependencies: ["PappuRuntime", "PappuAnalysis", "PappuTestSupport"]),
+        .testTarget(
+            name: "PappuRuntimeTests",
+            dependencies: [
+                "PappuRuntime", "PappuAnalysis", "PappuExtensions", "PappuTestSupport",
+                "PappuJSHost", "PappuJSBridge", "PappuDiagnostics",
+            ]
+        ),
         .testTarget(name: "PappuRunnerHostTests", dependencies: ["PappuRunnerHost", "PappuRunnerBridge"]),
-        .testTarget(name: "PappuAppTests", dependencies: ["PappuApp", "PappuTestSupport", "PappuDevTools"]),
+        .testTarget(name: "PappuJSHostTests", dependencies: ["PappuJSHost", "PappuJSBridge"]),
+        .testTarget(name: "PappuDiagnosticsTests", dependencies: ["PappuDiagnostics"]),
+        .testTarget(name: "PappuAppTests", dependencies: ["PappuApp", "PappuExtensions", "PappuTestSupport", "PappuDevTools"]),
         .testTarget(name: "PappuSurfacesTests", dependencies: ["PappuSurfaces", core, "PappuTestSupport"]),
-        .testTarget(name: "PappuSettingsTests", dependencies: ["PappuSettings", "PappuTestSupport", "PappuDevTools"]),
+        .testTarget(name: "PappuSettingsTests", dependencies: ["PappuSettings", "PappuExtensions", "PappuTestSupport", "PappuDevTools"]),
         .testTarget(name: "PappuHarnessTests", dependencies: ["PappuHarness", "PappuTestSupport"]),
         .testTarget(name: "PappuDevToolsTests", dependencies: ["PappuDevTools"]),
     ]

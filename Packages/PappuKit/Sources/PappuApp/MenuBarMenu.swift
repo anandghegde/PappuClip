@@ -13,6 +13,8 @@ public enum MenuCommand: String, Sendable, Equatable, Codable, CaseIterable {
     /// ONB-1: the grant is missing or stale, and this is the way back to the screen that explains it.
     case onboarding
     case settings
+    /// DIA-1: what extensions printed, and how their actions ended.
+    case debugConsole
     case quit
 }
 
@@ -99,6 +101,7 @@ public struct MenuBarMenu: Sendable, Equatable {
 
         entries.append(.separator)
         entries.append(.item(Item(command: .settings, title: AppStrings.settings, keyEquivalent: ",")))
+        entries.append(.item(Item(command: .debugConsole, title: AppStrings.debugConsole)))
         entries.append(.separator)
         entries.append(.item(Item(command: .quit, title: AppStrings.quit, keyEquivalent: "q")))
 

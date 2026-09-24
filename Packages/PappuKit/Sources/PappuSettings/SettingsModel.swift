@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import PappuCore
+import PappuExtensions
 import PappuSelection
 import PappuSurfaces
 
@@ -65,6 +66,8 @@ public final class SettingsModel {
         public var isBuiltIn: Bool
         /// ALM-4. A disabled action keeps its place in the list and says so.
         public var isEnabled: Bool
+        /// The installed extension it belongs to (`CatalogAction.owner`): whose options its gear opens.
+        public var owner: String?
 
         public var id: ActionKey { key }
 
@@ -74,7 +77,8 @@ public final class SettingsModel {
             extensionName: String,
             icon: BarIcon?,
             isBuiltIn: Bool,
-            isEnabled: Bool
+            isEnabled: Bool,
+            owner: String? = nil
         ) {
             self.key = key
             self.title = title
@@ -82,6 +86,20 @@ public final class SettingsModel {
             self.icon = icon
             self.isBuiltIn = isBuiltIn
             self.isEnabled = isEnabled
+            self.owner = owner
+        }
+    }
+
+    /// The options sheet an action's gear, or a script asking for its settings, opened (ALM-6, §8.4).
+    public struct OptionsRequest: Sendable, Equatable, Identifiable {
+        public var title: String
+        public var owner: String?
+
+        public var id: String { "\(owner ?? "")/\(title)" }
+
+        public init(title: String, owner: String?) {
+            self.title = title
+            self.owner = owner
         }
     }
 
@@ -93,6 +111,8 @@ public final class SettingsModel {
     private let displayName: @Sendable (String) -> String?
     private let locale: Locale
     private let openAccessibilitySettings: @MainActor () -> Void
+    /// Extension Info and the options sheets. Nil where there is no library behind the window.
+    public let extensions: ExtensionsModel?
 
     /// Apps named in the sheet during this session that have no rule yet, so that a row does not vanish
     /// between adding it and choosing what it is for. Not stored: an app with neither box ticked has no
@@ -110,6 +130,8 @@ public final class SettingsModel {
     public private(set) var grant = AccessibilityGrant.notTrusted
     public private(set) var apps: [AppRule] = []
     public private(set) var actions: [ActionRow] = []
+    /// Set to open an options sheet over whichever tab is showing.
+    public var optionsRequest: OptionsRequest?
 
     public init(
         rules: PrivacyRulesStore,
@@ -119,8 +141,10 @@ public final class SettingsModel {
         catalog: @escaping @Sendable () -> ActionCatalog,
         displayName: @escaping @Sendable (String) -> String? = { _ in nil },
         locale: Locale = .current,
+        extensions: ExtensionsModel? = nil,
         openAccessibilitySettings: @escaping @MainActor () -> Void = {}
     ) {
+        self.extensions = extensions
         self.rules = rules
         self.shortcuts = shortcuts
         self.bar = bar
@@ -158,6 +182,12 @@ public final class SettingsModel {
         grant = onboarding.grant
         apps = Self.appRules(from: current, alsoShowing: awaitingARule, named: displayName)
         actions = catalog().actions.map { ActionRow($0, locale: locale) }
+    }
+
+    // MARK: Options (ALM-6)
+
+    public func showOptions(_ title: String, owner: String?) {
+        optionsRequest = OptionsRequest(title: title, owner: owner)
     }
 
     // MARK: General
@@ -274,9 +304,10 @@ extension SettingsModel.ActionRow {
             key: action.key,
             title: action.title.text(for: locale),
             extensionName: action.extensionName.text(for: locale),
-            icon: BarIcon(action.icon),
+            icon: BarIcon(action.icon, directory: action.directory),
             isBuiltIn: action.builtin != nil,
-            isEnabled: action.isEnabled
+            isEnabled: action.isEnabled,
+            owner: action.owner
         )
     }
 }

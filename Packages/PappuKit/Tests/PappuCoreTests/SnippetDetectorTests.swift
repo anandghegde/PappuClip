@@ -180,3 +180,38 @@ import Testing
         #expect(throws: ManifestLoadFailure.self) { try ExtensionLoader.loadSnippet("hello") }
     }
 }
+
+/// EXM-2: what the bar offers for a selection, before anything is installed.
+@Suite struct SnippetOfferTests {
+    @Test func aSnippetIsOfferedByItsName() {
+        #expect(SnippetOffer.evaluate("#popclip\nname: Shout\nkeyCombo: command b") == .install(name: "Shout"))
+        #expect(SnippetOffer.evaluate("#!/bin/zsh\n# #popclip\n# name: Up\ntr a-z A-Z") == .install(name: "Up"))
+    }
+
+    @Test func ordinaryTextIsOfferedNothing() {
+        #expect(SnippetOffer.evaluate("some words") == nil)
+        #expect(SnippetOffer.evaluate("") == nil)
+        #expect(SnippetOffer.evaluate("name: A\n#popclip") == nil)
+    }
+
+    /// PRD EXM-2: "The limit is 5,000 characters, and over the limit the bar says so."
+    @Test func overTheLimitTheOfferSaysSo() {
+        let header = "#popclip\nname: Long\nurl: https://example.com/?q=***\n# "
+        let atTheLimit = header + String(repeating: "x", count: SnippetDetector.maximumSelectionLength - header.count)
+        #expect(SnippetOffer.evaluate(atTheLimit) == .install(name: "Long"))
+        #expect(SnippetOffer.evaluate(atTheLimit + "x") == .tooLong)
+    }
+
+    /// A long selection that is not a snippet is not read past its head to find that out.
+    @Test func longTextThatIsNotASnippetIsOfferedNothing() {
+        #expect(SnippetOffer.evaluate(String(repeating: "words ", count: 100_000)) == nil)
+    }
+
+    @Test func aSnippetThatDoesNotLoadSaysWhy() throws {
+        guard case .unreadable(let reason) = SnippetOffer.evaluate("#popclip\nname: [unclosed") else {
+            Issue.record("offered as installable")
+            return
+        }
+        #expect(!reason.isEmpty)
+    }
+}

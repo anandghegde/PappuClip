@@ -2,6 +2,7 @@ import Foundation
 import PappuAnalysis
 import PappuAX
 import PappuCore
+import PappuExtensions
 import PappuRuntime
 import PappuSelection
 import PappuTestSupport
@@ -242,7 +243,8 @@ private struct Scene {
             mayMutate: action.manifest.mayMutateTheDestination,
             text: text,
             range: selectedRange,
-            strategy: .ax
+            strategy: .ax,
+            owner: action.owner
         ))
     }
 
@@ -268,6 +270,7 @@ private struct Scene {
         let report = await runner.run(ExtensionRunner.Request(
             invocation: invocation,
             action: action,
+            approval: .approving(action),
             match: ActionMatching.Match(narrowing: nil, span: nil, value: value, fullText: fullText ?? value),
             context: SelectionContext(
                 app: AppIdentity(pid: editor.pid, bundleID: editor.bundleID, name: "Editor"),
@@ -436,6 +439,7 @@ private struct Scene {
             await scene.runner.run(ExtensionRunner.Request(
                 invocation: invocation,
                 action: action,
+                approval: .approving(action),
                 match: ActionMatching.Match(narrowing: nil, span: nil, value: "x", fullText: "x"),
                 context: SelectionContext(
                     app: AppIdentity(pid: editor.pid, bundleID: editor.bundleID, name: "Editor"),
@@ -455,6 +459,78 @@ private struct Scene {
         #expect(shortcuts.run.timesCancelled == 1)
         #expect(scene.pasteboard.brokerWrites.isEmpty)
         #expect(await scene.manager.record(of: invocation)?.outcome == nil)
+    }
+}
+
+// MARK: Approval (EXM-5, SEC-4b, SEC-7d)
+
+/// The runner's half of "no extension code path is reachable without an `ExecutionApproval`": the
+/// resolver never offers an unapproved action, and a request assembled some other way is refused here
+/// before any stage runs.
+@Suite struct ExtensionRunnerApprovalTests {
+    private static func request(
+        _ action: CatalogAction,
+        _ approval: ExecutionApproval,
+        invocation: InvocationID
+    ) -> ExtensionRunner.Request {
+        ExtensionRunner.Request(
+            invocation: invocation,
+            action: action,
+            approval: approval,
+            match: ActionMatching.Match(narrowing: nil, span: nil, value: "x", fullText: "x"),
+            context: SelectionContext(
+                app: AppIdentity(pid: editor.pid, bundleID: editor.bundleID, name: "Editor"),
+                editability: Editability(isEditable: true, source: .settableSelectedText),
+                canCut: true, canCopy: true, canPaste: true
+            ),
+            target: editor
+        )
+    }
+
+    @Test func anApprovalForAnotherExtensionRunsNothing() async throws {
+        let scene = Scene()
+        var action = try Scene.action("shortcutName: Shout")
+        action.owner = LocalIdentity().description
+        let invocation = await scene.begin(action)
+        let report = await scene.runner.run(Self.request(action, .approvingSomethingElse(than: action), invocation: invocation))
+        #expect(report.outcome == .notRunning)
+        #expect(scene.shortcuts.calls.isEmpty)
+    }
+
+    /// EXM-5d, SEC-7d: a shell script needs `script`, and an approval without it is not enough.
+    @Test func aGateLeftAtDontAllowRunsNothing() async throws {
+        let scene = Scene()
+        var action = try Scene.action("shellScript: echo hi")
+        action.owner = LocalIdentity().description
+        #expect(action.gates == [.script])
+        let invocation = await scene.begin(action)
+        let report = await scene.runner.run(Self.request(action, .approving(action, gates: []), invocation: invocation))
+        #expect(report.outcome == .notRunning)
+        #expect(scene.scripts.calls.isEmpty)
+    }
+
+    /// SEC-4b, RUN-3f: revoking an extension invalidates its running invocation — the Shortcut is
+    /// asked to stop, what it returns is dropped, and the record says why.
+    @Test func revokingTheExtensionInvalidatesItsRunningInvocation() async throws {
+        let gate = Gate()
+        let shortcuts = FakeShortcuts(.returned("late"), gate: gate)
+        let scene = Scene(shortcuts: shortcuts)
+        var action = try Scene.action("shortcutName: Shout\nafter: copy-result")
+        let owner = LocalIdentity().description
+        action.owner = owner
+        let invocation = await scene.begin(action)
+        let running = Task { await scene.runner.run(Self.request(action, .approving(action), invocation: invocation)) }
+        #expect(await eventually { !shortcuts.calls.isEmpty })
+
+        #expect(await scene.manager.invalidate(ownedBy: LocalIdentity().description).isEmpty)
+        let reports = await scene.manager.invalidate(ownedBy: owner)
+        #expect(reports.map(\.invocation) == [invocation])
+        await gate.open()
+        let ended = await running.value
+        #expect(ended.outcome == .notRunning)
+        #expect(shortcuts.run.timesCancelled == 1)
+        #expect(scene.pasteboard.brokerWrites.isEmpty)
+        #expect(await scene.manager.record(of: invocation)?.invalidation == .revoked)
     }
 }
 
@@ -613,6 +689,7 @@ private struct Scene {
             await scene.runner.run(ExtensionRunner.Request(
                 invocation: invocation,
                 action: action,
+                approval: .approving(action),
                 match: ActionMatching.Match(narrowing: nil, span: nil, value: "x", fullText: "x"),
                 context: SelectionContext(
                     app: AppIdentity(pid: editor.pid, bundleID: editor.bundleID, name: "Editor"),

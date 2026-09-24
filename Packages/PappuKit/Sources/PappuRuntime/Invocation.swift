@@ -28,6 +28,9 @@ public struct InvocationRequest: Sendable {
     public var text: String?
     public var range: AXTextRange?
     public var strategy: SelectionStrategyKind?
+    /// The installed extension the action belongs to (`CatalogAction.owner`), so that revoking it can
+    /// find its running work (SEC-4b, RUN-3f). Nil for a built-in, which cannot be revoked.
+    public var owner: String?
 
     public init(
         attempt: AttemptID,
@@ -37,7 +40,8 @@ public struct InvocationRequest: Sendable {
         mayMutate: Bool,
         text: String? = nil,
         range: AXTextRange? = nil,
-        strategy: SelectionStrategyKind? = nil
+        strategy: SelectionStrategyKind? = nil,
+        owner: String? = nil
     ) {
         self.attempt = attempt
         self.route = route
@@ -47,6 +51,7 @@ public struct InvocationRequest: Sendable {
         self.text = text
         self.range = range
         self.strategy = strategy
+        self.owner = owner
     }
 }
 

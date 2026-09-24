@@ -20,9 +20,17 @@ extension BarController: InvocationReporting {}
 
 /// What the bridge hands on when a script asks something of the user (§8.4, ONB-5): its settings,
 /// for a shell exit 2 or an AppleScript error 502, or the Automation permission it was refused.
+/// `owner` is the installed extension the action belongs to, whose options the settings are.
 @MainActor
 public protocol AttentionPresenting: AnyObject, Sendable {
-    func present(_ attention: ExtensionRunner.Attention, for action: String)
+    func present(_ attention: ExtensionRunner.Attention, for action: String, owner: String?)
+}
+
+/// Where the bar's Install Extension offer goes when it is pressed (EXM-2): the same review every other
+/// install route goes through (EXM-5). The bar only offers it while one is attached.
+@MainActor
+public protocol SelectionInstalling: AnyObject, Sendable {
+    func installExtension(fromSelection text: String) async
 }
 
 /// How long a finished action's answer stays on screen (BAR-12a).
@@ -67,9 +75,13 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
         var selection: AnalyzedSelection
         var context: SelectionContext
         var resolution: ActionResolver.Resolution
+        /// EXM-2: the selection is an extension, and this is what the bar said about it.
+        var offer: SnippetOffer?
     }
 
     private let catalog: @Sendable () -> ActionCatalog
+    private let options: @Sendable () -> [String: [String: String]]
+    private let runtimeOptions: @Sendable (CatalogAction) -> [String: String]
     private let gate: PrivacyGate
     private let probe: ContextProbe
     private let analyzer: ContentAnalyzer
@@ -85,6 +97,7 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
 
     private weak var reporter: (any InvocationReporting)?
     private weak var attention: (any AttentionPresenting)?
+    private weak var installer: (any SelectionInstalling)?
     private var prepared: Prepared?
     /// The run a press started, so that the next press can take it back (RUN-3).
     private var running: InvocationID?
@@ -102,11 +115,17 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
         conditions: @escaping @Sendable () -> BuiltinConditions,
         secureInput: @escaping @Sendable () -> SecureInputState,
         resolver: ActionResolver = ActionResolver(),
+        // §8.9: what the matcher compares `option-<id>=` against, keyed by extension, and what a run is
+        // handed, secrets included. Both read at the moment they are needed, like the catalog.
+        options: @escaping @Sendable () -> [String: [String: String]] = { [:] },
+        runtimeOptions: @escaping @Sendable (CatalogAction) -> [String: String] = { _ in [:] },
         locale: @escaping @Sendable () -> Locale = { .current },
         sleeper: any InvocationSleeping = SystemInvocationSleep(),
         timing: BridgeTiming = .initial
     ) {
         self.catalog = catalog
+        self.options = options
+        self.runtimeOptions = runtimeOptions
         self.gate = gate
         self.probe = probe
         self.analyzer = analyzer
@@ -131,6 +150,11 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
     /// Where a script's request for settings or permission goes. Attached after, like the bar.
     public func attach(attention presenter: any AttentionPresenting) {
         self.attention = presenter
+    }
+
+    /// Where a selected extension is installed from. Until one is attached the bar does not offer to.
+    public func attach(installer: any SelectionInstalling) {
+        self.installer = installer
     }
 
     // MARK: BarContentProviding
@@ -163,21 +187,33 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
             catalog(),
             selection: selection,
             context: context,
-            conditions: conditions()
+            conditions: conditions(),
+            options: options()
         )
+
+        // First, not last: the bar drops whatever does not fit, and the one thing this selection is
+        // plainly for should not be what falls off the end.
+        let offer = installer == nil ? nil : SnippetOffer.evaluate(text, locale: locale())
 
         prepared = Prepared(
             attempt: presentation.attempt,
             selection: selection,
             context: context,
-            resolution: resolution
+            resolution: resolution,
+            offer: offer
         )
-        return BarContent(actions: resolution.actions.map(\.action), locale: locale())
+        var content = BarContent(actions: resolution.actions.map(\.action), locale: locale())
+        if let offer { content.items.insert(BarItem(offer), at: 0) }
+        return content
     }
 
     // MARK: BarActionInvoking
 
     public func invoke(_ click: BarClick, for presentation: AttemptPresentation) async {
+        if click.item == .installExtension {
+            await install(for: presentation)
+            return
+        }
         guard let prepared, prepared.attempt == presentation.attempt,
               let resolved = prepared.resolution.actions.first(where: { BarItemID($0.key) == click.item })
         else {
@@ -199,7 +235,8 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
                 // verification is what decides whether it is still there.
                 text: prepared.selection.text,
                 range: presentation.range,
-                strategy: presentation.strategy
+                strategy: presentation.strategy,
+                owner: resolved.action.owner
             )
         )
         running = invocation
@@ -224,13 +261,12 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
                 ExtensionRunner.Request(
                     invocation: invocation,
                     action: resolved.action,
+                    approval: resolved.approval,
                     match: resolved.match,
                     context: prepared.context,
                     target: presentation.target,
                     modifiers: click.modifiers,
-                    // Option values come from the extension's settings, which are M3's (EXT-9); until
-                    // then every option placeholder expands to nothing, as an unset option does.
-                    options: [:],
+                    options: runtimeOptions(resolved.action),
                     selection: prepared.selection
                 )
             )
@@ -242,8 +278,23 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
         // After the bar has said the action failed, so that the sheet or the alert is what follows
         // the X rather than something that covers it.
         if let request, let attention {
-            await attention.present(request, for: resolved.action.title.text(for: locale()))
+            await attention.present(request, for: resolved.action.title.text(for: locale()), owner: resolved.action.owner)
         }
+    }
+
+    /// EXM-2. Not an invocation: nothing is written into the app the text came from, so there is no
+    /// destination to verify and nothing for `InvocationManager` to hold. The bar goes first, because
+    /// what follows is a window the user has to answer.
+    private func install(for presentation: AttemptPresentation) async {
+        guard let prepared, prepared.attempt == presentation.attempt,
+              case .install = prepared.offer, let installer
+        else {
+            await finish(.failed)
+            return
+        }
+        await reporter?.dismiss(.actionRun)
+        // The text the offer was worked out from, which is the text the bar was built from.
+        await installer.installExtension(fromSelection: prepared.selection.text)
     }
 
     /// RUN-3: the press that arrives while something is running means stop.

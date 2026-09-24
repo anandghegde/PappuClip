@@ -72,13 +72,15 @@ public actor ExtensionLibrary {
         }
     }
 
-    /// What the review sheet is shown (EXM-5, SEC-8c). Week 5 adds the permission summary.
+    /// What the review sheet is shown (EXM-5, SEC-8c).
     public struct Proposal: Sendable, Equatable {
         public var manifest: ExtensionManifest
         public var warnings: [ManifestDiagnostic]
         public var provenance: Provenance
         public var digest: ContentDigest
         public var decision: IdentityResolver.Decision
+        /// EXM-5b: worked out from the staged files, never from what the manifest says about itself.
+        public var capabilities: CapabilitySet
     }
 
     /// The user's answer to a `Proposal`.
@@ -94,8 +96,36 @@ public actor ExtensionLibrary {
         case cancel
     }
 
+    /// The answer, and which gated capabilities the user turned on with it (EXM-5c, EXM-5d).
+    ///
+    /// **Nothing gated unless named.** Every static member here grants nothing, so a reviewer that only
+    /// says "install" — a test, a route that has no sheet, a sheet whose toggles were never touched —
+    /// installs with every gate at "Don't Allow". Granting takes `install(granting:)`, and even then
+    /// only gates the proposal actually listed are kept.
+    public struct Consent: Sendable, Equatable {
+        public var answer: Answer
+        public var granted: Set<GatedCapability>
+
+        public init(_ answer: Answer, granting granted: Set<GatedCapability> = []) {
+            self.answer = answer
+            self.granted = granted
+        }
+
+        public static let install = Consent(.install)
+        public static let installSeparately = Consent(.installSeparately)
+        public static let cancel = Consent(.cancel)
+
+        public static func replaceByTrustTransition(_ identity: LocalIdentity) -> Consent {
+            Consent(.replaceByTrustTransition(identity))
+        }
+
+        public static func install(granting gates: Set<GatedCapability>) -> Consent {
+            Consent(.install, granting: gates)
+        }
+    }
+
     /// Asks the user. The app shows a sheet; tests answer directly.
-    public typealias Reviewer = @Sendable (Proposal) async -> Answer
+    public typealias Reviewer = @Sendable (Proposal) async -> Consent
 
     public enum Outcome: Sendable, Equatable {
         case installed(LocalIdentity, replaced: LocalIdentity?)
@@ -208,7 +238,19 @@ public actor ExtensionLibrary {
             return .alreadyInstalled(identity)
         }
 
-        let answer = await review(Proposal(manifest: loaded.manifest, warnings: loaded.warnings, provenance: provenance, digest: digest, decision: decision))
+        let capabilities = CapabilityAnalyzer.effective(loaded.manifest, directory: staging)
+        let consent = await review(Proposal(
+            manifest: loaded.manifest,
+            warnings: loaded.warnings,
+            provenance: provenance,
+            digest: digest,
+            decision: decision,
+            capabilities: capabilities
+        ))
+        let answer = consent.answer
+        // A grant for something the analysis did not find would approve nothing today and something
+        // tomorrow, when a later version needs it without having been reviewed for it.
+        let granted = consent.granted.intersection(capabilities.gated)
         let kind: ExtensionStore.Activation.Kind
         let identity: LocalIdentity
         switch (answer, decision) {
@@ -228,7 +270,15 @@ public actor ExtensionLibrary {
             throw InstallError.answerNotOffered
         }
 
-        let activation = ExtensionStore.Activation(kind: kind, identity: identity, manifest: loaded.manifest, provenance: provenance, digest: digest, form: form)
+        let activation = ExtensionStore.Activation(
+            kind: kind,
+            identity: identity,
+            manifest: loaded.manifest,
+            provenance: provenance,
+            digest: digest,
+            form: form,
+            granted: granted
+        )
         let destination = paths.folder(activation.folder)
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)

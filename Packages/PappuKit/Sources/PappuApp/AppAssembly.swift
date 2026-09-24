@@ -3,6 +3,8 @@ import Foundation
 import PappuAX
 import PappuAnalysis
 import PappuCore
+import PappuDiagnostics
+import PappuExtensions
 import PappuRuntime
 import PappuSelection
 import PappuSettings
@@ -27,7 +29,7 @@ import PappuSurfaces
 /// comes before the bar but is handed the bar afterwards, because each needs the other and one of them
 /// has to be second.
 @MainActor
-public final class AppAssembly {
+public final class AppAssembly: SelectionInstalling {
     public let resources: AppResources
 
     private let taps: EventTapService
@@ -47,7 +49,12 @@ public final class AppAssembly {
     private let statusItem: MenuBarItem
     private let settingsWindow: SettingsWindow
     private let attention: ScriptAttention
+    /// Nil when the extension library could not be opened; the app then runs its built-ins only.
+    private let host: ExtensionHost?
+    private let settingsModel: SettingsModel
+    private let consentWindow: ConsentWindow
     private let onboardingWindow: OnboardingWindow
+    private let consoleWindow: DebugConsoleWindow
 
     /// The loops that read the three streams. Held so that `stop` can end them; an `AsyncStream` whose
     /// consumer is a detached task nobody kept would run for the life of the process either way, but a
@@ -106,6 +113,19 @@ public final class AppAssembly {
             frontmost: frontmost.reader
         )
         let manager = InvocationManager(verifier: verifier, probe: ax.destination, epochs: taps)
+
+        // The installed extensions (M2). After the manager, because a revocation has to reach what the
+        // extension is running (SEC-4b); before the bridge, which reads the catalog, the approvals and
+        // the options from it. A library that cannot be opened — a disk that refuses the database — is
+        // an app with its built-ins and no extensions, not an app that does not start.
+        let host = (try? ExtensionLibrary(paths: .standard)).map { library in
+            ExtensionHost(
+                library: library,
+                secrets: KeychainSecretStore(),
+                builtins: resources.builtins,
+                invalidate: { owner in await manager.invalidate(ownedBy: owner) }
+            )
+        }
         let editor = SelectionEditor(
             cut: SystemSyntheticCut(tag: tag),
             paste: SystemSyntheticPaste(tag: tag),
@@ -121,6 +141,10 @@ public final class AppAssembly {
             engines: resources.engines
         )
         let scripts = RunnerClient()
+        // What extensions print and how their actions end (DIA-1). The JavaScript helper is the first
+        // thing that writes to it; PappuClipJSHost.xpc is started on the first JavaScript action.
+        let console = DebugConsole()
+        let javaScript = JSHostClient(console: console)
         let extensions = ExtensionRunner(
             manager: manager,
             editor: editor,
@@ -132,12 +156,14 @@ public final class AppAssembly {
             shell: SystemShellScriptRunner(),
             // AppleScripts and Services both run in PappuClipRunner.xpc, over one session.
             appleScripts: scripts,
-            services: scripts
+            services: scripts,
+            javaScript: javaScript
         )
 
-        let catalog = resources.catalog
+        let builtinCatalog = resources.catalog
+        let catalog: @Sendable () -> ActionCatalog = { host?.catalog ?? builtinCatalog }
         let bridge = SelectionBridge(
-            catalog: { catalog },
+            catalog: catalog,
             gate: gate,
             probe: ax.context,
             analyzer: ContentAnalyzer(schemes: resources.schemes, domains: resources.domains),
@@ -157,7 +183,11 @@ public final class AppAssembly {
             // The focused field's own secureness was settled by the read that holds the permit. What
             // can still change between that read and the bar is the system-wide flag, and that is the
             // half asked for here (PRV-2).
-            secureInput: { SecureInput.state(focusedFieldIsSecure: false) }
+            secureInput: { SecureInput.state(focusedFieldIsSecure: false) },
+            // EXM-5: nothing an extension wrote runs without the store's approval of its active bytes.
+            resolver: ActionResolver { action in host?.approval(for: action) ?? ExecutionApproval.bundled(action) },
+            options: { host?.options ?? [:] },
+            runtimeOptions: { action in host?.runtimeOptions(for: action) ?? [:] }
         )
 
         let bar = BarController(
@@ -186,15 +216,27 @@ public final class AppAssembly {
         let accessibility = AccessibilityMonitor(store: onboarding)
         let health = TapHealthMonitor(service: taps, triggers: WorkspaceHealthTriggers())
 
-        let settingsWindow = SettingsWindow(model: SettingsModel(
+        // Settings changes to an extension reach the bar through the host, and the Actions tab after it.
+        // The model is made second, so the first is handed it through a weak reference.
+        weak var settingsRef: SettingsModel?
+        let extensionsModel = host.map { host in
+            ExtensionsModel(library: host.library, secrets: host.secrets) { change in
+                await host.handle(change)
+                settingsRef?.refresh()
+            }
+        }
+        let settingsModel = SettingsModel(
             rules: rules,
             shortcuts: shortcuts,
             bar: barPreferences,
             onboarding: onboarding,
-            catalog: { catalog },
+            catalog: catalog,
             displayName: Self.displayName,
+            extensions: extensionsModel,
             openAccessibilitySettings: { accessibility.openSystemSettings() }
-        ))
+        )
+        settingsRef = settingsModel
+        let settingsWindow = SettingsWindow(model: settingsModel)
         let onboardingWindow = OnboardingWindow(model: OnboardingModel(
             store: onboarding,
             requestGrant: { accessibility.requestGrant() },
@@ -204,6 +246,8 @@ public final class AppAssembly {
         // Built fresh every time the menu opens, from the settings and the grant as they stand: the
         // menu is the one surface that is looked at while nothing else is happening, and a tick left
         // over from an hour ago is worse than no menu (ACT-18).
+        let consoleWindow = DebugConsoleWindow(console: console)
+
         let statusItem = MenuBarItem(
             menu: { MenuBarMenu(rules: rules.rules, grant: onboarding.grant) },
             perform: { [rules] command in
@@ -220,6 +264,8 @@ public final class AppAssembly {
                     onboardingWindow.show()
                 case .settings:
                     settingsWindow.show()
+                case .debugConsole:
+                    consoleWindow.show()
                 case .quit:
                     NSApp.terminate(nil)
                 }
@@ -242,8 +288,16 @@ public final class AppAssembly {
         self.coordinator = coordinator
         self.statusItem = statusItem
         self.settingsWindow = settingsWindow
-        self.attention = ScriptAttention(openSettings: { settingsWindow.show() })
+        // A script that asked for its settings gets its extension's options sheet (ALM-6).
+        self.attention = ScriptAttention(openOptions: { title, owner in
+            settingsWindow.show()
+            settingsModel.showOptions(title, owner: owner)
+        })
+        self.host = host
+        self.settingsModel = settingsModel
+        self.consentWindow = ConsentWindow()
         self.onboardingWindow = onboardingWindow
+        self.consoleWindow = consoleWindow
     }
 
     /// Everything that begins talking to the system, in the order it may begin.
@@ -252,8 +306,16 @@ public final class AppAssembly {
     /// `applicationDidFinishLaunching`, which cannot wait, so the app's first visible moment is this
     /// task's first suspension — which is why the status item goes up inside it rather than after it.
     public func start() async {
+        // Before the bar can appear, so that its first resolution already has the installed extensions.
+        if let host {
+            await host.start()
+            await settingsModel.extensions?.refresh()
+            settingsModel.refresh()
+        }
         await bridge.attach(bar)
         await bridge.attach(attention: attention)
+        // Only with a library to install into; without one the bar does not offer it.
+        if host != nil { await bridge.attach(installer: self) }
         bar.prepare()
         statusItem.install()
 
@@ -307,6 +369,36 @@ public final class AppAssembly {
         coexistence.stop()
         accessibility.stop()
         statusItem.remove()
+    }
+
+    /// Files the Finder asked the app to open (EXM-1): each extension is reviewed, one at a time, in the
+    /// install sheet every route goes through (EXM-5). Failures are said, one alert per file.
+    public func open(_ urls: [URL]) async {
+        await install(urls.compactMap(ExtensionLibrary.Source.file))
+    }
+
+    private func install(_ sources: [ExtensionLibrary.Source]) async {
+        guard let host else { return }
+        let consentWindow = self.consentWindow
+        let results = await host.install(sources: sources) { proposal in
+            await consentWindow.review(proposal) { identity in
+                host.snapshot.installed[identity.description]?.manifest.name.text(for: .current)
+            }
+        }
+        await settingsModel.extensions?.refresh()
+        settingsModel.refresh()
+        for case .failure(let error) in results {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = ExtensionStrings.failed(String(describing: error))
+            NSApp.activate()
+            alert.runModal()
+        }
+    }
+
+    /// The bar's Install Extension offer (EXM-2), reviewed like a file.
+    public func installExtension(fromSelection text: String) async {
+        await install([.selectedText(text)])
     }
 
     /// Opened from the menu, and from the onboarding window when it hands the user on.

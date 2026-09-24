@@ -4,8 +4,8 @@ import PappuRuntime
 
 /// What the app does when a script asks something of the user (§8.4, ONB-5).
 ///
-/// **Settings** open the Settings window. The options sheet an extension's settings will have is M2
-/// week 5; until it exists the window is the nearest place, and the one the sheet will open from.
+/// **Settings** open the extension's options sheet over the Settings window (ALM-6, §8.9): the script
+/// said a value it needs is missing or wrong, and the sheet is where the user sets it.
 ///
 /// **Automation** is an alert, because it is a question only the user can answer and the answer is
 /// in System Settings, not in PappuClip. macOS asks once per pair of apps and never again, so the
@@ -14,16 +14,17 @@ import PappuRuntime
 final class ScriptAttention: AttentionPresenting {
     static let automationPane = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")
 
-    private let openSettings: @MainActor () -> Void
+    /// The action's title and the extension it belongs to.
+    private let openOptions: @MainActor (String, String?) -> Void
 
-    init(openSettings: @escaping @MainActor () -> Void) {
-        self.openSettings = openSettings
+    init(openOptions: @escaping @MainActor (String, String?) -> Void) {
+        self.openOptions = openOptions
     }
 
-    func present(_ attention: ExtensionRunner.Attention, for action: String) {
+    func present(_ attention: ExtensionRunner.Attention, for action: String, owner: String?) {
         switch attention {
         case .settings:
-            openSettings()
+            openOptions(action, owner)
         case .automationPermission:
             let alert = NSAlert()
             alert.alertStyle = .warning

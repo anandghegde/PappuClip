@@ -46,6 +46,13 @@ public struct CatalogAction: Sendable, Equatable {
     /// Where the extension's files are: a script file is resolved inside it, and a shell script runs
     /// in it (§8.4). Nil for a built-in.
     public var directory: URL? = nil
+    /// The installed extension this action belongs to, as its local identity's text: what the store's
+    /// approval is looked up by, and what a revocation cancels running work by (SEC-4b). Nil for a
+    /// built-in. Text rather than the store's type because the store is a layer above this one.
+    public var owner: String? = nil
+    /// The gated capabilities this action needs granted before it may run (EXM-5d, SEC-7d), worked
+    /// out once, here, by `CapabilityAnalyzer.gates` — never read from what the manifest claims.
+    public var gates: Set<GatedCapability> = []
 
     public var executor: ActionExecutor { manifest.executor }
 
@@ -75,12 +82,21 @@ public struct ActionCatalog: Sendable, Equatable {
         public var isEnabled: Bool
         /// The installed package's folder. Nil for a built-in, which has none.
         public var directory: URL?
+        /// The store's local identity for this install, as text. Nil for a built-in.
+        public var owner: String?
 
-        public init(manifest: ExtensionManifest, origin: ManifestOrigin, isEnabled: Bool = true, directory: URL? = nil) {
+        public init(
+            manifest: ExtensionManifest,
+            origin: ManifestOrigin,
+            isEnabled: Bool = true,
+            directory: URL? = nil,
+            owner: String? = nil
+        ) {
             self.manifest = manifest
             self.origin = origin
             self.isEnabled = isEnabled
             self.directory = directory
+            self.owner = owner
         }
     }
 
@@ -104,7 +120,9 @@ public struct ActionCatalog: Sendable, Equatable {
                         icon: action.icon.resolved(orInheriting: extensionIcon),
                         showAs: manifest.showAs,
                         isEnabled: entry.isEnabled,
-                        directory: entry.directory
+                        directory: entry.directory,
+                        owner: entry.owner,
+                        gates: CapabilityAnalyzer.gates(of: action, in: manifest)
                     )
                 )
             }

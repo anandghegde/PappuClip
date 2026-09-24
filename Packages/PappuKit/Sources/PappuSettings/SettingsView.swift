@@ -1,3 +1,4 @@
+import AppKit
 import PappuCore
 import PappuSelection
 import PappuSurfaces
@@ -20,6 +21,7 @@ public struct SettingsView: View {
     public enum Tab: String, Sendable, CaseIterable {
         case general
         case actions
+        case extensions
     }
 
     private let model: SettingsModel
@@ -36,13 +38,26 @@ public struct SettingsView: View {
             general
                 .tabItem { Label(SettingsStrings.general, systemImage: "gearshape") }
                 .tag(Tab.general)
-            ActionListView(actions: model.actions)
-                .tabItem { Label(SettingsStrings.actions, systemImage: "list.bullet") }
-                .tag(Tab.actions)
+            ActionListView(actions: model.actions) { action in
+                model.showOptions(action.title, owner: action.owner)
+            }
+            .tabItem { Label(SettingsStrings.actions, systemImage: "list.bullet") }
+            .tag(Tab.actions)
+            if let extensions = model.extensions {
+                ExtensionListView(model: extensions)
+                    .tabItem { Label(ExtensionStrings.tab, systemImage: "puzzlepiece.extension") }
+                    .tag(Tab.extensions)
+            }
         }
         .frame(width: 520, height: 400)
         .sheet(isPresented: $isShowingApps) {
             AppRulesView(model: model)
+        }
+        .sheet(item: Binding(get: { model.optionsRequest }, set: { model.optionsRequest = $0 })) { request in
+            OptionsSheet(model: model.extensions, owner: request.owner, title: request.title) {
+                model.optionsRequest = nil
+            }
+            .task { await model.extensions?.refresh() }
         }
     }
 
@@ -129,6 +144,8 @@ private struct AccessibilityBanner: View {
 /// question a user has about a bar they did not configure.
 private struct ActionListView: View {
     let actions: [SettingsModel.ActionRow]
+    /// ALM-6: the gear.
+    let showOptions: (SettingsModel.ActionRow) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -149,6 +166,12 @@ private struct ActionListView: View {
                     Text(action.isBuiltIn ? SettingsStrings.actionsBuiltIn : action.extensionName)
                         .font(.callout)
                         .foregroundStyle(.secondary)
+                    Button { showOptions(action) } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(ExtensionStrings.optionsButton)
+                    .accessibilityLabel(ExtensionStrings.optionsButton)
                 }
                 .opacity(action.isEnabled ? 1 : 0.5)
             }
@@ -168,6 +191,17 @@ private struct ActionIconView: View {
             Image(systemName: name).accessibilityHidden(true)
         case .letters(let letters):
             Text(letters).font(.caption).accessibilityHidden(true)
+        case .image(let file, let isTemplate):
+            if let image = NSImage(contentsOf: file) {
+                Image(nsImage: image)
+                    .resizable()
+                    .renderingMode(isTemplate ? .template : .original)
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
+                    .accessibilityHidden(true)
+            } else {
+                Text(String(title.prefix(1))).font(.caption).accessibilityHidden(true)
+            }
         case nil:
             Text(String(title.prefix(1))).font(.caption).accessibilityHidden(true)
         }

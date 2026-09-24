@@ -588,8 +588,10 @@ requirements:
     milestone: M1
     note: >-
       The two icon forms a bundled built-in needs — an SF Symbol drawn as a template so the highlight
-      can tint it, and one or two letters — plus text buttons, and the tooltip's words. The full
-      icon-specifier grammar of architecture §8.11 arrives with extensions in M2. The tooltip's
+      can tint it, and one or two letters — plus text buttons, and the tooltip's words. M2 week 5
+      added §8.11's P0 forms for extensions: `IconSpec` reads the whole grammar with its modifiers, and
+      a file icon is drawn from inside its own package and nowhere else. Iconify, `svg:` and `data:`
+      are P1 and fall back to the name until M4. The tooltip's
       *appearing* is `NSView.toolTip`, which needs a window server; what is tested is that a disabled
       button's tooltip says why rather than just repeating the name.
     tests:
@@ -604,6 +606,12 @@ requirements:
       - PappuSurfacesTests/anSFSymbolIsDrawnAsOne
       - PappuSurfacesTests/aShortTextSpecifierIsDrawnInTheIconsPlace
       - PappuSurfacesTests/showAsTextDrawsTheNameEvenWhenThereIsAnIcon
+      - PappuCoreTests/theSpecifierFormsThisBuildReads
+      - PappuCoreTests/aFormThisBuildDoesNotRenderIsKeptWhole
+      - PappuCoreTests/modifiersAreReadBeforeTheBase
+      - PappuCoreTests/textEdgeCasesReadAsTheCorpusMeansThem
+      - PappuSurfacesTests/aFileIconIsFoundInThePackage
+      - PappuSurfacesTests/aFileIconCannotEscapeThePackage
       - PappuSurfacesTests/anIconThisBuildCannotDrawBecomesTheName
       - PappuSurfacesTests/anExplicitNoIconDrawsTheName
       - PappuSurfacesTests/anIconButtonStillCarriesItsName
@@ -872,6 +880,9 @@ requirements:
       - PappuCoreTests/theFirstNarrowingRequirementWins
       - PappuCoreTests/theFullTextStaysAvailableAfterNarrowing
       - PappuCoreTests/thePluralFormsDoNotNarrow
+      - PappuCoreTests/aRequirementSeesTheDefault
+      - PappuAppTests/secretsReachTheRunAndNotTheMatcher
+      - PappuAppTests/theRunIsHandedTheOptions
   FLT-6:
     priority: P0
     milestone: M1
@@ -914,7 +925,15 @@ requirements:
   ALM-4a: { priority: P1, milestone: M4, tests: [] }
   ALM-4b: { priority: P1.x, milestone: 1.x, tests: [] }
   ALM-5: { priority: P1, milestone: M4, tests: [] }
-  ALM-6: { priority: P0, milestone: M2, tests: [] }
+  ALM-6:
+    priority: P0
+    milestone: M2
+    note: >-
+      Each row of the Actions tab has a gear that opens the options sheet generated from its extension's `options` (§8.9); a built-in, or an extension with none, says it has no options. A script asking for its settings (shell exit 2, AppleScript 502) opens the same sheet. The sheet's drawing is checked by running the app; its rows are tested here.
+    tests:
+      - PappuSettingsTests/anExtensionWithoutOptionsHasNone
+      - PappuSettingsTests/optionsAreGeneratedAndSecretsKeptApart
+      - PappuAppTests/aScriptThatNeedsSettingsFailsAndAsksForThem
   ALM-7: { priority: P2, milestone: post-1.0, tests: [] }
   ALM-8:
     priority: P1
@@ -951,8 +970,20 @@ requirements:
     priority: P0
     milestone: M2
     note: >-
-      The install pipeline and the collision table. The bar's Install Extension offer, which will call `ExtensionLibrary.install(.selectedText)`, is not wired yet.
+      The install pipeline and the collision table, and the bar's offer. `SnippetOffer` reads the selection on each appearance; the bridge puts **Install Extension "Name"** first on the bar, or the same words dimmed with the reason when the text is over 5,000 characters or does not load. Pressing it puts the bar away and hands the text to `ExtensionHost.install(sources:)` through the same `ConsentWindow` review as a file.
     tests:
+      - PappuCoreTests/aSnippetIsOfferedByItsName
+      - PappuCoreTests/ordinaryTextIsOfferedNothing
+      - PappuCoreTests/overTheLimitTheOfferSaysSo
+      - PappuCoreTests/longTextThatIsNotASnippetIsOfferedNothing
+      - PappuCoreTests/aSnippetThatDoesNotLoadSaysWhy
+      - PappuAppTests/aSnippetIsOfferedFirstByItsName
+      - PappuAppTests/overTheLimitTheOfferIsDimmedAndSaysWhy
+      - PappuAppTests/withNowhereToInstallNothingIsOffered
+      - PappuAppTests/pressingTheOfferPutsTheBarAwayAndHandsOnTheText
+      - PappuAppTests/anOfferFromAnOlderAttemptInstallsNothing
+      - PappuAppTests/aSelectedSnippetIsReviewedAndReachesTheBar
+      - PappuAppTests/aCancelledSelectionInstallsNothing
       - PappuExtensionsTests/selectedTextInstallsUpToTheLimit
       - PappuExtensionsTests/aNameCollisionNeverReplaces
       - PappuExtensionsTests/anIdentifierCollisionFromAnotherOriginInstallsSeparately
@@ -960,13 +991,64 @@ requirements:
       - PappuExtensionsTests/aMatchingNameIsOnlyAWarning
   EXM-3: { priority: P1, milestone: M3, tests: [] }
   EXM-4: { priority: P1, milestone: M3, tests: [] }
-  EXM-5a: { priority: P0, milestone: M2, tests: [] }
-  EXM-5b: { priority: P0, milestone: M2, tests: [] }
-  EXM-5c: { priority: P0, milestone: M2, tests: [] }
-  EXM-5d: { priority: P0, milestone: M2, tests: [] }
+  EXM-5a:
+    priority: P0
+    milestone: M2
+    note: >-
+      Every install route passes through `ExtensionLibrary.install`, whose reviewer is the app's `ConsentWindow`; nothing is written until it answers.
+    tests:
+      - PappuExtensionsTests/theReviewIsShownTheEffectiveCapabilities
+      - PappuExtensionsTests/cancellingTheReviewApprovesNothing
+      - PappuSettingsTests/aListedOnlyExtensionIsOneConfirmation
+      - PappuSettingsTests/selectedTextIsSaidToComeFromThisMac
+      - manual:docs/checklists/m2-manual.md
+  EXM-5b:
+    priority: P0
+    milestone: M2
+    note: >-
+      The review is shown `CapabilityAnalyzer.effective` of the files being installed, and Extension Info works it out again from the active folder rather than remembering it.
+    tests:
+      - PappuExtensionsTests/theReviewIsShownTheEffectiveCapabilities
+      - PappuExtensionsTests/anInstallIsReadBackFromItsFolder
+      - PappuSettingsTests/everyCapabilityHasASentence
+  EXM-5c:
+    priority: P0
+    milestone: M2
+    note: >-
+      Listed capabilities are sentences accepted together by the one Install button.
+    tests:
+      - PappuExtensionsTests/confirmingTheReviewApprovesTheBytesItShowed
+      - PappuSettingsTests/aListedOnlyExtensionIsOneConfirmation
+  EXM-5d:
+    priority: P0
+    milestone: M2
+    note: >-
+      Each gate is a switch that starts off on the review and in Extension Info; Approve keeps gates as they were, and an ungranted gate keeps the action off the bar.
+    tests:
+      - PappuExtensionsTests/aGatedCapabilityIsNotGrantedUnlessTheUserTurnsItOn
+      - PappuExtensionsTests/aGateTheUserTurnedOnIsGranted
+      - PappuExtensionsTests/aGateTheReviewDidNotShowIsNotGranted
+      - PappuSettingsTests/aGatedCapabilityIsASwitch
+      - PappuSettingsTests/theAnswerCarriesOnlyTheSwitchesTurnedOn
+      - PappuSettingsTests/aGateStartsOffAndCanBeGranted
+      - PappuSettingsTests/approvingAgainKeepsGatesOff
+      - PappuRuntimeTests/anActionWhoseGateIsNotGrantedIsNotOffered
+      - PappuAppTests/anUngrantedGateKeepsTheActionOffTheBar
   EXM-5e: { priority: P1, milestone: M5, tests: [] }
   EXM-5f: { priority: P1, milestone: M3, tests: [] }
-  EXM-5g: { priority: P0, milestone: M2, tests: [] }
+  EXM-5g:
+    priority: P0
+    milestone: M2
+    note: >-
+      Built-ins are approved by the app only when their manifest came from the app bundle; every other action needs the store's `ExecutionApproval` to be resolved or run.
+    tests:
+      - PappuExtensionsTests/aBuiltinIsApprovedByTheAppAndCannotBeRevoked
+      - PappuExtensionsTests/onlyTheAppBundleVouchesForABuiltinAction
+      - PappuRuntimeTests/onlyTheAppsOwnBuiltinsAreApprovedByTheApp
+      - PappuRuntimeTests/anApprovalForAnotherExtensionDoesNotCount
+      - PappuRuntimeTests/anApprovalForAnotherExtensionRunsNothing
+      - PappuAppTests/builtinsAreApprovedByTheApp
+      - PappuAppTests/anUnapprovedExtensionIsNotOnTheBar
   EXM-5h: { priority: P1, milestone: M5, tests: [] }
   EXM-6: { priority: P1, milestone: M4, tests: [] }
   EXM-7: { priority: P1, milestone: M4, tests: [] }
@@ -1227,20 +1309,97 @@ requirements:
       - manual:docs/checklists/m1-manual.md
 
   # Security (safety spec)
-  SEC-1a: { priority: P1, milestone: M3, tests: [] }
-  SEC-1b: { priority: P1, milestone: M3, tests: [] }
+  SEC-1a:
+    priority: P1
+    milestone: M3
+    note: >-
+      PappuClipJSHost.xpc is sandboxed with `com.apple.security.app-sandbox` and no other entitlement, and never reads a package: the app sends it the text of the package's scripts (§10 as built, M3 week 1). The entitlements are checked by `PappuClip --check-js-host`'s build and by reading the signed bundle; the tests show the world has no way out of itself.
+    tests:
+      - PappuJSHostTests/thereIsNoFetchProcessDOMOrFileSystem
+      - PappuJSHostTests/requireCannotLeaveThePackage
+      - PappuRuntimeTests/onlyScriptsInsideThePackageAreSent
+      - manual:docs/checklists/m3-manual.md
+  SEC-1b:
+    priority: P1
+    milestone: M3
+    note: >-
+      One `ExtensionVM` per extension: its own JSVirtualMachine, context, module cache and queue. Options go with each invocation. There are no timers yet; they arrive with the host API and must be per world too.
+    tests:
+      - PappuJSHostTests/twoExtensionsCannotSeeEachOthersGlobals
+      - PappuJSHostTests/twoExtensionsCannotSeeEachOthersModuleCaches
+      - PappuJSHostTests/aSlowExtensionDoesNotHoldUpAnother
+      - PappuJSHostTests/reloadingStartsAFreshWorld
+      - manual:docs/checklists/m3-manual.md
   SEC-1c: { priority: P1, milestone: M3, tests: [] }
-  SEC-1d: { priority: P1, milestone: M3, tests: [] }
+  SEC-1d:
+    priority: P1
+    milestone: M3
+    note: >-
+      A crash fails what was in flight and nothing else; the next action reconnects and launchd starts a new helper. The crash is charged to the extensions that had code running and were not being cancelled, and three within ten minutes suspend the extension until the app restarts. The explanation is in the Debug Console; Extension Info showing `suspended` is still to come. The process-level watchdog (§10.7) is SEC-2's.
+    tests:
+      - PappuRuntimeTests/aCrashFailsTheRunningActionAndTheNextOneRuns
+      - PappuRuntimeTests/aCrashIsChargedOnlyToWhatWasRunning
+      - PappuRuntimeTests/anExtensionThatKeepsCrashingIsSuspended
+      - PappuRuntimeTests/cancelKillsTheHelperForAScriptThatWillNotYield
+      - manual:docs/checklists/m3-manual.md
   SEC-2: { priority: P1, milestone: M3, tests: [] }
   SEC-3: { priority: P1, milestone: M3, tests: [] }
-  SEC-4a: { priority: P0, milestone: M2, tests: [] }
-  SEC-4b: { priority: P0, milestone: M2, tests: [] }
+  SEC-4a:
+    priority: P0
+    milestone: M2
+    note: >-
+      Extension Info lists what an extension can do and each gate with its grant, and lets each be switched.
+    tests:
+      - PappuSettingsTests/anInstalledExtensionIsListedAsApproved
+      - PappuSettingsTests/aGateStartsOffAndCanBeGranted
+      - PappuExtensionsTests/revokingOneGateKeepsTheRest
+  SEC-4b:
+    priority: P0
+    milestone: M2
+    note: >-
+      Revoking approval, or a gate, is announced as a revocation; the app reloads the catalog first and then invalidates the extension's running invocations on the cancellation path.
+    tests:
+      - PappuExtensionsTests/revokingAnExtensionLeavesNoApprovalUntilItIsApprovedAgain
+      - PappuSettingsTests/revokingIsAnnouncedAndTakesTheApprovalAway
+      - PappuSettingsTests/turningAGateOffIsARevocation
+      - PappuAppTests/revokingTakesTheButtonAwayAndStopsWhatItRuns
+      - PappuAppTests/anOptionChangeDoesNotStopAnything
+      - PappuRuntimeTests/revokingTheExtensionInvalidatesItsRunningInvocation
+      - manual:docs/checklists/m2-manual.md
   SEC-5: { priority: P1, milestone: M5, tests: [] }
   SEC-6: { priority: P1, milestone: M3, tests: [] }
-  SEC-7a: { priority: P0, milestone: M2, tests: [] }
+  SEC-7a:
+    priority: P0
+    milestone: M2
+    note: >-
+      `CapabilityAnalyzer` works out each non-JavaScript action's capabilities: hosts, schemes, keys, services, shortcuts, and the apps an AppleScript tells.
+    tests:
+      - PappuCoreTests/aFixedHostURLNamesTheHostAndSaysTheTextGoesThere
+      - PappuCoreTests/anAppSchemeIsThatApp
+      - PappuCoreTests/keyPressesAreShownAsTheMenusWriteThem
+      - PappuCoreTests/servicesAndShortcutsAreNamed
+      - PappuCoreTests/appleScriptTellTargetsAreKnownDestinations
+      - PappuCoreTests/aScriptFileIsReadForItsTargets
   SEC-7b: { priority: P1, milestone: M3, tests: [] }
-  SEC-7c: { priority: P0, milestone: M2, tests: [] }
-  SEC-7d: { priority: P0, milestone: M2, tests: [] }
+  SEC-7c:
+    priority: P0
+    milestone: M2
+    note: >-
+      Where the reach cannot be read — a script, network without hosts, unscanned JavaScript — the broader gate is asked for instead.
+    tests:
+      - PappuCoreTests/shellAndAppleScriptAreGatedAsScript
+      - PappuCoreTests/networkWithoutHostsIsGated
+      - PappuCoreTests/unscannedJavaScriptIsUnbounded
+      - PappuCoreTests/aFileOutsideThePackageIsNotRead
+  SEC-7d:
+    priority: P0
+    milestone: M2
+    note: >-
+      Approval is for the active bytes: an update needs its own review, and each action needs only its own gates, so denied access cannot be reached through another action.
+    tests:
+      - PappuExtensionsTests/aGrantForOtherBytesApprovesNothing
+      - PappuExtensionsTests/anUpdateIsApprovedForItsOwnBytesWithTheGatesItsReviewGranted
+      - PappuCoreTests/eachActionNeedsOnlyItsOwnGates
   SEC-8a:
     priority: P0
     milestone: M2
@@ -1382,7 +1541,15 @@ requirements:
       - PappuExtensionsTests/recoveryRemovesFoldersNoRowPointsAt
 
   # JavaScript runtime (extension spec)
-  JS-1: { priority: P1, milestone: M3, tests: [] }
+  JS-1:
+    priority: P1
+    milestone: M3
+    note: >-
+      JavaScriptCore as macOS ships it, with no fetch, DOM, process or file system, and `print` (and `console`) to the Debug Console. Polyfills for newer built-ins are not added yet.
+    tests:
+      - PappuJSHostTests/thereIsNoFetchProcessDOMOrFileSystem
+      - PappuJSHostTests/printGoesToTheLog
+      - PappuRuntimeTests/runsAScriptAndReturnsItsString
   JS-2: { priority: P1, milestone: M3, tests: [] }
   JS-3: { priority: P1, milestone: M3, tests: [] }
   JS-4: { priority: P1, milestone: M3, tests: [] }
@@ -1392,7 +1559,17 @@ requirements:
   JS-8: { priority: P1, milestone: M3, tests: [] }
   JS-9: { priority: P1, milestone: M3, tests: [] }
   JS-10: { priority: P1, milestone: M3, tests: [] }
-  JS-11: { priority: P1, milestone: M3, tests: [] }
+  JS-11:
+    priority: P1
+    milestone: M3
+    note: >-
+      Arrived with the helper in M3 week 1: the async wrapper, a returned string as the result, and the two settings prefixes.
+    tests:
+      - PappuJSHostTests/theScriptIsAnAsyncFunction
+      - PappuJSHostTests/aReturnedStringIsTheResult
+      - PappuJSHostTests/anythingButAStringIsNoResult
+      - PappuRuntimeTests/aSettingsErrorAsksForSettings
+      - PappuRuntimeTests/settingsPrefixesAreCaseInsensitive
   JS-12: { priority: P1, milestone: M3, tests: [] }
   JS-13: { priority: P1, milestone: M3, tests: [] }
   JS-14: { priority: P1, milestone: M3, tests: [] }
@@ -1503,7 +1680,17 @@ requirements:
       - PappuSelectionTests/popClipTakesTheFallbackAwayOnTheAutomaticPath
 
   # Diagnostics
-  DIA-1: { priority: P1, milestone: M3, tests: [] }
+  DIA-1:
+    priority: P1
+    milestone: M3
+    note: >-
+      A first Debug Console, from the menu bar: printed lines, load failures and how each JavaScript action ended, in memory only. Filtering and the sample-selection runner come later.
+    tests:
+      - PappuDiagnosticsTests/keepsLinesInOrder
+      - PappuDiagnosticsTests/dropsTheOldestPastCapacity
+      - PappuRuntimeTests/printReachesTheDebugConsoleUnderTheExtensionsName
+      - PappuJSHostTests/printGoesToTheLog
+      - PappuJSHostTests/aLongLineIsCut
   DIA-2:
     priority: P1
     milestone: M4

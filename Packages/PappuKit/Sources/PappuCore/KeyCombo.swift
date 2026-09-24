@@ -166,6 +166,38 @@ public struct KeyCombo: Sendable, Equatable, Hashable {
         ".": 0x41, "*": 0x43, "+": 0x45, "/": 0x4B, "-": 0x4E, "=": 0x51,
     ]
 
+    // MARK: Display
+
+    /// The combo as a Mac menu writes it — `⌃⌥⇧⌘A`, `⌘↩`, `F5` — for the consent sheet's "Presses ⌘A
+    /// in the current app" (safety spec §S4). A key with no name of its own is shown by its code.
+    public var symbols: String {
+        var result = ""
+        if modifiers.contains(.control) { result += "⌃" }
+        if modifiers.contains(.option) { result += "⌥" }
+        if modifiers.contains(.shift) { result += "⇧" }
+        if modifiers.contains(.command) { result += "⌘" }
+        switch key {
+        case .character(let character):
+            result += character.uppercased()
+        case .code(let code):
+            if let symbol = Self.keySymbols[code] {
+                result += symbol
+            } else if let name = Self.keyNames.first(where: { $0.value == code })?.key {
+                result += name.uppercased()
+            } else if let digit = Self.keypad.first(where: { $0.value == code })?.key {
+                result += String(digit)
+            } else {
+                result += String(format: "0x%02X", code)
+            }
+        }
+        return result
+    }
+
+    private static let keySymbols: [UInt16: String] = [
+        0x24: "↩", 0x31: "Space", 0x33: "⌫", 0x35: "⎋", 0x4C: "⌤",
+        0x7B: "←", 0x7C: "→", 0x7D: "↓", 0x7E: "↑",
+    ]
+
     // MARK: The US layout
 
     /// The key that types `character` on a US (ANSI) layout, and whether it needs Shift to.

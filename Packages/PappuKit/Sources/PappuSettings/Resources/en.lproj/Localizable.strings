@@ -70,3 +70,74 @@
 
 /* Closes a sheet. */
 "settings.done" = "Done";
+
+/* The Extensions tab (SEC-4a). */
+"settings.tab.extensions" = "Extensions";
+
+/* The install review (EXM-5). %@ is the extension's name. */
+"consent.title.install" = "Install \U201C%@\U201D?";
+"consent.title.update" = "Update \U201C%@\U201D?";
+"consent.listed.heading" = "When you use it, this extension:";
+"consent.gated.heading" = "It also asks for the following. Each stays off unless you turn it on.";
+"consent.nothing" = "It asks for nothing beyond showing its buttons.";
+
+/* Local code is never presented as trusted (SEC-8b). */
+"consent.provenance.local" = "From a file on this Mac. It is not signed, and nobody has reviewed it.";
+
+/* %@ is the name of the extension already installed. */
+"consent.collision" = "You already have an extension called \U201C%@\U201D. This one will be installed beside it, not over it.";
+"consent.install" = "Install";
+"consent.update" = "Update";
+"consent.installSeparately" = "Install Separately";
+"consent.replace" = "Replace It";
+"consent.cancel" = "Cancel";
+
+/* What an extension can do, one sentence per capability (safety spec §S4). */
+"capability.webPage.text" = "Sends the selected text to %@ when you click it.";
+"capability.webPage" = "Opens %@.";
+"capability.configuredURL.text" = "Opens a URL you configure, containing the selected text.";
+"capability.configuredURL" = "Opens a URL you configure.";
+"capability.appLink.text" = "Sends the selected text to the app that opens \U201C%@:\U201D links.";
+"capability.appLink" = "Opens the app that handles \U201C%@:\U201D links.";
+"capability.keys" = "Presses %@ in the current app.";
+"capability.service" = "Runs the \U201C%@\U201D service, which can do whatever that service does.";
+"capability.shortcut" = "Runs the shortcut \U201C%@\U201D. The shortcut can do whatever Shortcuts allows.";
+"capability.readsAndReplaces" = "Reads the selected text, and can copy, paste or replace it.";
+"capability.dynamic" = "Runs every time the bar appears, to decide what to show.";
+"capability.sendsData" = "Can send data to %@.";
+"capability.controlsApps" = "Its scripts control %@.";
+
+/* Gated capabilities: each is a switch that starts off (EXM-5d). */
+"capability.gate.script" = "Runs a script outside the sandbox, with your user permissions";
+"capability.gate.network" = "Can send the selected text to any server";
+"capability.gate.syntheticInput" = "Can type and press keys in the current app";
+"capability.gate.unboundedCode" = "Runs code whose reach this version of PappuClip cannot check";
+
+/* Extension Info (SEC-4a, SEC-4b). */
+"extensions.empty" = "No extensions are installed. Open an extension file, or select an extension\U2019s text and choose Install Extension.";
+"extensions.state.enabled" = "On";
+"extensions.state.pending" = "Waiting for approval";
+"extensions.state.disabled" = "Off";
+"extensions.state.suspended" = "Stopped";
+"extensions.state.revoked" = "Revoked";
+"extensions.info.capabilities" = "What it can do";
+"extensions.info.permissions" = "Permissions";
+"extensions.info.approve" = "Approve";
+"extensions.info.revoke" = "Revoke Approval";
+"extensions.info.revoke.help" = "Stops anything it is running. It will not run again until you approve it.";
+"extensions.info.pending" = "It will not run until you approve it.";
+"extensions.info.uninstall" = "Uninstall";
+
+/* %@ is the start of the version's content digest. */
+"extensions.info.version" = "Installed version %@";
+
+/* %@ is the reason. */
+"extensions.info.unreadable" = "Its files could not be read: %@";
+"extensions.failed" = "That did not work: %@";
+
+/* The options sheet (ALM-6, §8.9). */
+"extensions.options" = "Options";
+"extensions.options.button" = "Options\U2026";
+"extensions.options.none" = "This extension has no options.";
+"extensions.options.password" = "Asked for when signing in, and never stored.";
+"extensions.options.secret" = "Kept in your Keychain.";

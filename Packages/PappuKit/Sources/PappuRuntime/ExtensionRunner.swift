@@ -1,6 +1,7 @@
 import Foundation
 import PappuAnalysis
 import PappuCore
+import PappuExtensions
 import PappuSelection
 
 /// Runs an extension's action: its `before` step, its executor, and its `after` step (§8.4, §8.6,
@@ -9,9 +10,9 @@ import PappuSelection
 /// **The step pipeline.** Three stages in order, each one a chance to stop:
 ///
 /// 1. `before` — `cut`, `copy`, `paste` or `paste-plain`, whatever the action is.
-/// 2. The executor — this build runs URL, Key Press, Shortcut, Service, AppleScript and Shell
-///    Script. JavaScript is refused by the resolver and never reaches a click, and this runner says
-///    `notPerformed` if it does.
+/// 2. The executor — this build runs URL, Key Press, Shortcut, Service, AppleScript, Shell Script
+///    and JavaScript. TypeScript is refused by the resolver until it can be transpiled (M3 week 2),
+///    and this runner says `notPerformed` if one reaches it.
 /// 3. `after` — what to do with the result, or, for the four edit commands, one more edit.
 ///
 /// Between stages the invocation must still be live (RUN-3b): a cancelled Shortcut's late answer is
@@ -42,6 +43,9 @@ public struct ExtensionRunner: Sendable {
     public struct Request: Sendable {
         public var invocation: InvocationID
         public var action: CatalogAction
+        /// No request without one: the type is how "no extension code path is reachable without an
+        /// `ExecutionApproval`" is kept (EXM-5). `run` checks it covers `action` before anything else.
+        public var approval: ExecutionApproval
         public var match: ActionMatching.Match
         public var context: SelectionContext
         public var target: TargetApp
@@ -55,6 +59,7 @@ public struct ExtensionRunner: Sendable {
         public init(
             invocation: InvocationID,
             action: CatalogAction,
+            approval: ExecutionApproval,
             match: ActionMatching.Match,
             context: SelectionContext,
             target: TargetApp,
@@ -64,6 +69,7 @@ public struct ExtensionRunner: Sendable {
         ) {
             self.invocation = invocation
             self.action = action
+            self.approval = approval
             self.match = match
             self.context = context
             self.target = target
@@ -140,6 +146,7 @@ public struct ExtensionRunner: Sendable {
     private let shell: any ShellScriptRunning
     private let appleScripts: any AppleScriptRunning
     private let services: any ServiceRunning
+    private let javaScript: any JavaScriptRunning
 
     public init(
         manager: InvocationManager,
@@ -151,7 +158,8 @@ public struct ExtensionRunner: Sendable {
         shortcuts: any ShortcutRunning,
         shell: any ShellScriptRunning,
         appleScripts: any AppleScriptRunning,
-        services: any ServiceRunning
+        services: any ServiceRunning,
+        javaScript: any JavaScriptRunning = NoJavaScript()
     ) {
         self.manager = manager
         self.editor = editor
@@ -163,6 +171,7 @@ public struct ExtensionRunner: Sendable {
         self.shell = shell
         self.appleScripts = appleScripts
         self.services = services
+        self.javaScript = javaScript
     }
 
     /// Runs the action and ends its invocation, on the same terms as `BuiltinRunner.run`: finished
@@ -170,6 +179,10 @@ public struct ExtensionRunner: Sendable {
     public func run(_ request: Request) async -> Report {
         let manifest = request.action.manifest
         var run = Run(request: request)
+
+        // The approval came with the request, but a request is a value anyone can assemble from pieces;
+        // this is where "the approval is for *this* action" is checked, once, before any stage runs.
+        guard request.approval.covers(request.action) else { return await finish(run, .notRunning, at: .before) }
 
         if let before = manifest.before {
             let outcome = await edit(before, request)
@@ -230,9 +243,12 @@ public struct ExtensionRunner: Sendable {
         case .shellScript(let action):
             let job = ShellScriptJob(action: action, directory: request.action.directory, variables: Self.variables(for: request))
             return await runScript(request, into: &run) { await shell.start(job) }
-        case .builtin, .javaScript:
-            // The resolver keeps these off the bar until their runners exist; a request that gets here
-            // anyway came from somewhere that skipped it.
+        case .javaScript(let action):
+            guard let job = Self.javaScriptJob(action, request) else { return .notPerformed }
+            return await runScript(request, into: &run) { await javaScript.start(job) }
+        case .builtin:
+            // Built-ins are `BuiltinRunner`'s; a request that gets here came from somewhere that
+            // skipped the resolver.
             return .notPerformed
         }
     }
@@ -312,6 +328,27 @@ public struct ExtensionRunner: Sendable {
             source: source,
             handler: action.call?.handler,
             arguments: action.call?.parameters.map { variables.value(forPlaceholder: $0) ?? "" } ?? []
+        )
+    }
+
+    /// What the helper is asked to run. Nil for TypeScript, which needs transpiling first (M3 week 2),
+    /// and for an action with no package or no approved bytes to load — a built-in, which is never
+    /// JavaScript.
+    static func javaScriptJob(_ action: JavaScriptAction, _ request: Request) -> JavaScriptRunRequest? {
+        guard !action.isTypeScript,
+              let owner = request.approval.owner,
+              let digest = request.approval.digest,
+              let directory = request.action.directory
+        else { return nil }
+        return JavaScriptRunRequest(
+            owner: owner,
+            generation: digest.hex,
+            extensionName: request.action.extensionName.description,
+            directory: directory,
+            action: action,
+            text: request.match.fullText,
+            matchedText: request.match.value,
+            options: request.options
         )
     }
 
