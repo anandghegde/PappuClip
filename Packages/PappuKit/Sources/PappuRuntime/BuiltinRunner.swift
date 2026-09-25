@@ -11,6 +11,24 @@ import PappuSelection
 public protocol ClipboardKeeping: Sendable {
     func plainText() async -> String?
     func write(_ text: String, for invocation: InvocationID, into target: TargetApp) async -> ClipboardWriteResult
+    /// Several representations of one value, kept: a script's `copyContent` (JS-4).
+    func write(content: [PasteboardRepresentation], for invocation: InvocationID, into target: TargetApp) async -> ClipboardWriteResult
+    /// The clipboard's first item, as each of `types` it has: `pasteboard.content` (JS-7). Nil when it
+    /// may not be read now.
+    func content(types: [String]) async -> [String: Data]?
+}
+
+extension ClipboardKeeping {
+    /// A keeper that knows only text keeps the plain text among `content`.
+    public func write(content: [PasteboardRepresentation], for invocation: InvocationID, into target: TargetApp) async -> ClipboardWriteResult {
+        let plain = content.first { $0.type == PasteboardRepresentation.plainText }.flatMap { String(data: $0.data, encoding: .utf8) }
+        return await write(plain ?? "", for: invocation, into: target)
+    }
+
+    public func content(types: [String]) async -> [String: Data]? {
+        guard types.contains(PasteboardRepresentation.plainText) else { return [:] }
+        return await plainText().map { [PasteboardRepresentation.plainText: Data($0.utf8)] } ?? [:]
+    }
 }
 
 extension ClipboardBroker: ClipboardKeeping {}

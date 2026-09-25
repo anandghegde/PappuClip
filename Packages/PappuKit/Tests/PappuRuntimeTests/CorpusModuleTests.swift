@@ -9,12 +9,9 @@ import Testing
 /// The ones that cannot be described yet are named, with the reason, so that this fails both when
 /// something new breaks and when one of them starts to work and the list is stale.
 @Suite struct CorpusModuleTests {
-    /// What each module that cannot be described yet is waiting for, as its failure says it.
+    /// What each module that cannot be described yet is waiting for, as its failure says it. The nine
+    /// that call `util` while they load describe since week 3 built it.
     static let waiting: [String: String] = [
-        // They call `util` while they load, and `util` is the host API (M3 week 3).
-        "Droplr": "util", "Evernote": "util", "InstantTranslate": "util", "Instapaper": "util",
-        "PasteAndEnter": "util", "PasteAndMatch": "util", "Pinboard": "util", "RaindropIO": "util",
-        "TestJSAuth": "util",
         // An action with a submenu, which the bar has from M4; until then the builder refuses it, as it
         // does in a config.
         "OpenAIPrompt": "Submenus",
@@ -62,7 +59,7 @@ import Testing
             }
         }
 
-        #expect(modules >= 75)
+        #expect(modules >= 80)
         #expect(Set(failed.keys) == Set(Self.waiting.keys), "\(failed)")
         for (name, message) in failed {
             #expect(message.contains(Self.waiting[name] ?? "\u{0}"), "\(name): \(message)")

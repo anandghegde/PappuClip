@@ -22,6 +22,9 @@ public struct ConsoleEntry: Sendable, Equatable, Identifiable {
         /// The extension crashed the helper too often, and its code will not run again until the app
         /// restarts (SEC-1d). No text.
         case suspended
+        /// A host call was refused: the action had ended, or the extension's grants do not cover it
+        /// (SEC-7b). The text names the method and why, never what it was called with.
+        case refused
     }
 
     public let id: UInt64

@@ -10,17 +10,32 @@ import XPC
 /// Each request is handed to a queue of its own and answered from wherever its world settles it —
 /// possibly long after, for a script that awaits, or from a `drop`.
 ///
-/// **Log lines go back on the session that loaded the extension**, as messages that expect no reply.
-/// The app opens one session for its actions; a second — `--check-js-host` asking who the helper is —
-/// loads nothing and so hears nothing.
+/// **Log lines and host calls go back on the session that loaded the extension.** A log line expects no
+/// reply; a host call (`JSHostCall`) does, and its answer goes back to the world that asked. The app
+/// opens one session for its actions; a second — `--check-js-host` asking who the helper is — loads
+/// nothing and so hears nothing.
 public enum JSHostListener {
     /// Never returns. `App/PappuClipJSHost/main.swift` calls it and nothing else.
     public static func run() -> Never {
         let owners = Mutex<[String: SessionRef]>([:])
-        let host = JSHost { name, line in
-            let session = owners.withLock { $0[name]?.session }
-            try? session?.send(JSHostEvent.log(extensionName: name, line: line))
-        }
+        let host = JSHost(
+            call: { call, answer in
+                guard let session = owners.withLock({ $0[call.extensionName]?.session }) else {
+                    return answer(.refused("PappuClip is not listening."))
+                }
+                do {
+                    try session.send(call) { (result: Result<JSHostAnswer, any Error>) in
+                        answer((try? result.get()) ?? .failed("PappuClip did not answer."))
+                    }
+                } catch {
+                    answer(.failed("PappuClip could not be asked."))
+                }
+            },
+            log: { name, line in
+                let session = owners.withLock { $0[name]?.session }
+                try? session?.send(JSHostEvent.log(extensionName: name, line: line))
+            }
+        )
         let replies = DispatchQueue(label: "app.pappuclip.jshost.replies", attributes: .concurrent)
         do {
             let listener = try XPCListener(service: JSHostService.name) { request in

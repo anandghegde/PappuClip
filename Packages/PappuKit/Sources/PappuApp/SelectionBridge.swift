@@ -355,6 +355,7 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
             switch report.display {
             case .result(let text): return Ending(state: .result(text), then: .stay)
             case .reappear: return Ending(state: .idle, then: .stay)
+            case .failure: return Ending(state: .failed, then: .dismiss)
             case .copied: return Ending(state: .copied, then: stayVisible ? .returnToButtons : .dismiss)
             case .status: return Ending(state: .succeeded, then: stayVisible ? .returnToButtons : .dismiss)
             }

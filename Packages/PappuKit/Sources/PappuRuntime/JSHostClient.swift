@@ -27,6 +27,16 @@ import XPC
 /// **Describing a module (JS-12)** loads the extension as an action would and asks what its module
 /// exported. A module that is still loading after `describeLimit` — one in a loop — is stopped the way
 /// a script that will not yield is, by killing the helper.
+///
+/// **Host calls** (architecture §10.4) come from the helper on the same connection, each naming the
+/// invocation it was made for. The client finds the run and hands the call to its `HostAPIDispatcher`,
+/// which decides; a call for a run that has ended, or from an extension that is not the run's, is
+/// refused here. Every refusal is written to the Debug Console by method and reason (SEC-7b).
+///
+/// **A cancelled run's world is not used again.** Its script may still be running in the helper — only
+/// its answer was dropped — and it could reach the next invocation's `popclip`. So a cancel forgets that
+/// the extension is loaded, and its next run loads a fresh world, which the old code cannot reach
+/// (JS-15).
 public final class JSHostClient: JavaScriptRunning, ModuleDescribing, Sendable {
     /// SEC-1d: this many crashes inside `suspensionWindow` suspends the extension.
     public static let suspensionThreshold = 3
@@ -105,12 +115,40 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, Sendable {
             extensionName: job.owner,
             generation: job.generation,
             entry: entry,
-            input: JSInput(text: job.text, matchedText: job.matchedText),
+            input: job.input,
+            context: job.context,
+            modifiers: job.modifiers,
             options: job.options,
+            booleanOptions: job.booleanOptions,
             typeScript: job.action.isTypeScript,
             export: job.action.export
         ))) { reply in started.settle(reply) }
         return started
+    }
+
+    // MARK: Host calls (architecture §10.4)
+
+    /// A host call from the helper: to the dispatcher of the run it names, or refused.
+    private func served(_ call: JSHostCall, answer: @escaping @Sendable (JSHostAnswer) -> Void) {
+        let job = state.withLock { $0.running[call.invocation] }
+        guard let job, job.request.owner == call.extensionName else {
+            refused(call, "The action is no longer running.", name: names.withLock { $0[call.extensionName] } ?? call.extensionName)
+            return answer(.refused("The action is no longer running."))
+        }
+        guard let host = job.request.host else {
+            refused(call, "Nothing here answers host calls.", name: job.request.extensionName)
+            return answer(.refused("Nothing here answers host calls."))
+        }
+        Task {
+            let reply = await host.perform(call)
+            if case .refused(let why) = reply { self.refused(call, why, name: job.request.extensionName) }
+            answer(reply)
+        }
+    }
+
+    /// SEC-7b: the method and why, never what it was called with.
+    private func refused(_ call: JSHostCall, _ why: String, name: String) {
+        console?.add(.refused, from: name, "\(call.method): \(why)")
     }
 
     public func describe(_ module: ModuleDescribeRequest) async -> Result<ModuleExports, ModuleDescribeFailure> {
@@ -210,7 +248,13 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, Sendable {
 
     private func connect() async -> (any JSHostConnection)? {
         if let open = state.withLock({ $0.connection }) { return open }
-        let opened = await transport.connect { [weak self] event in self?.heard(event) }
+        let opened = await transport.connect(
+            events: { [weak self] event in self?.heard(event) },
+            calls: { [weak self] call, answer in
+                guard let self else { return answer(.refused("PappuClip is not listening.")) }
+                self.served(call, answer: answer)
+            }
+        )
         guard let opened else { return nil }
         return state.withLock { state in
             // Two actions that both found no connection: the first one's is kept.
@@ -315,6 +359,14 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, Sendable {
         lost(connection)
     }
 
+    /// JS-15: the next run of `owner` on `connection` loads a fresh world, out of reach of whatever the
+    /// cancelled one left running.
+    fileprivate func forgetWorld(of owner: String, on connection: any JSHostConnection) {
+        state.withLock { state in
+            if state.connection === connection { state.loaded[owner] = nil }
+        }
+    }
+
     fileprivate func finished(_ job: Job) {
         state.withLock { _ = $0.running.removeValue(forKey: job.id) }
     }
@@ -371,6 +423,7 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, Sendable {
                 return true
             }
             guard running else { return .mayHaveCompleted }
+            client.forgetWorld(of: request.owner, on: connection)
             connection.send(.drop(invocation: id)) { _ in }
             let sleeper = client.sleeper, grace = client.grace
             Task { [weak self] in
@@ -425,6 +478,22 @@ public protocol JSHostTransport: Sendable {
     /// Opens a connection to a helper, starting one if need be.
     /// - Parameter events: What the helper says unasked. Called on any queue.
     func connect(events: @escaping @Sendable (JSHostEvent) -> Void) async -> (any JSHostConnection)?
+    /// The same, and where the helper's host calls go (architecture §10.4). `calls` is given each call
+    /// and something to answer it with, exactly once, on any queue.
+    func connect(
+        events: @escaping @Sendable (JSHostEvent) -> Void,
+        calls: @escaping @Sendable (JSHostCall, @escaping @Sendable (JSHostAnswer) -> Void) -> Void
+    ) async -> (any JSHostConnection)?
+}
+
+extension JSHostTransport {
+    /// A transport that carries no host calls: the helper's every call is refused where it was made.
+    public func connect(
+        events: @escaping @Sendable (JSHostEvent) -> Void,
+        calls: @escaping @Sendable (JSHostCall, @escaping @Sendable (JSHostAnswer) -> Void) -> Void
+    ) async -> (any JSHostConnection)? {
+        await connect(events: events)
+    }
 }
 
 public protocol JSHostConnection: AnyObject, Sendable {
@@ -446,11 +515,27 @@ public struct XPCJSHostTransport: JSHostTransport {
     }
 
     public func connect(events: @escaping @Sendable (JSHostEvent) -> Void) async -> (any JSHostConnection)? {
+        await connect(events: events) { _, answer in answer(.refused("PappuClip is not listening.")) }
+    }
+
+    /// A host call is answered with `handoffReply`, from wherever its dispatcher finishes, so a call
+    /// that waits on the user — a paste's verification, a Service — holds up nothing else.
+    public func connect(
+        events: @escaping @Sendable (JSHostEvent) -> Void,
+        calls: @escaping @Sendable (JSHostCall, @escaping @Sendable (JSHostAnswer) -> Void) -> Void
+    ) async -> (any JSHostConnection)? {
         let session: XPCSession
+        let replies = DispatchQueue(label: "app.pappuclip.jshost.calls", attributes: .concurrent)
         do {
             session = try XPCSession(
                 xpcService: serviceName,
                 incomingMessageHandler: { (message: XPCReceivedMessage) -> (any Encodable)? in
+                    if let call = try? message.decode(as: JSHostCall.self) {
+                        nonisolated(unsafe) let message = message
+                        return message.handoffReply(to: replies) {
+                            calls(call) { answer in message.reply(answer) }
+                        }
+                    }
                     if let event = try? message.decode(as: JSHostEvent.self) { events(event) }
                     return nil
                 },

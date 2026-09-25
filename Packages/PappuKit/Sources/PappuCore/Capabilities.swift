@@ -39,8 +39,9 @@ public enum GatedCapability: String, Sendable, Equatable, Hashable, Codable, Cas
     /// `network` without `networkHosts`: "Can send the selected text to any server".
     case network
     /// Script-driven `pressKey`, `performService`, `share`: "Can type and press keys in the current
-    /// app". Reached only by JavaScript, whose host-method scan is M3; the key exists now so the grant
-    /// table's vocabulary does not change under it.
+    /// app". Reached only by JavaScript. It is disclosed for every extension with JavaScript, and it is
+    /// not needed to run one: `HostAPIDispatcher` checks it when a script asks for one of those three,
+    /// and refuses the call without it (SEC-7b).
     case syntheticInput = "synthetic-input"
     /// JavaScript whose reachable host methods this build cannot bound (EXM-5f, SEC-7c). Until M3's scan
     /// every script is this, which is the broader disclosure SEC-7c asks for.
@@ -134,6 +135,10 @@ public enum CapabilityAnalyzer {
         if manifest.module != nil, manifest.module != .detection(false) {
             gated.insert(.unboundedCode)
         }
+        // SEC-7b: JavaScript can reach the host methods that press keys and hand the text to other apps,
+        // and until week 4's scan can say whether it does, each such extension discloses them. The grant
+        // is checked when a script calls one, not when it runs, so declining it leaves the rest working.
+        if gated.contains(.unboundedCode) { gated.insert(.syntheticInput) }
         // Entitlements are disclosed whatever the actions are. A claim this build has no use for is
         // still one the user should see before it has a use (SEC-7c).
         if manifest.entitlements.contains(.dynamic) { list(.runsOnEveryAppearance) }

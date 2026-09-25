@@ -69,7 +69,14 @@ final class InProcessJSHost: JSHostTransport {
     var opened: Int { connections.withLock { $0.count } }
 
     func connect(events: @escaping @Sendable (JSHostEvent) -> Void) async -> (any JSHostConnection)? {
-        let connection = Connection(events: events)
+        await connect(events: events) { _, answer in answer(.refused("PappuClip is not listening.")) }
+    }
+
+    func connect(
+        events: @escaping @Sendable (JSHostEvent) -> Void,
+        calls: @escaping @Sendable (JSHostCall, @escaping @Sendable (JSHostAnswer) -> Void) -> Void
+    ) async -> (any JSHostConnection)? {
+        let connection = Connection(events: events, calls: calls)
         connections.withLock { $0.append(connection) }
         return connection
     }
@@ -88,10 +95,13 @@ final class InProcessJSHost: JSHostTransport {
         private let host: JSHost
         private let state = Mutex(State())
 
-        init(events: @escaping @Sendable (JSHostEvent) -> Void) {
+        init(
+            events: @escaping @Sendable (JSHostEvent) -> Void,
+            calls: @escaping @Sendable (JSHostCall, @escaping @Sendable (JSHostAnswer) -> Void) -> Void
+        ) {
             // Below the test's own priority: a script spinning here must not starve the client's
             // grace and limit timers, which in the app run in another process from the helper.
-            host = JSHost(qos: .utility) { name, line in events(.log(extensionName: name, line: line)) }
+            host = JSHost(qos: .utility, call: calls) { name, line in events(.log(extensionName: name, line: line)) }
         }
 
         var wasKilled: Bool { state.withLock { $0.killed } }

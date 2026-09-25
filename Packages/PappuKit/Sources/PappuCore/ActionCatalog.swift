@@ -53,6 +53,8 @@ public struct CatalogAction: Sendable, Equatable {
     /// The gated capabilities this action needs granted before it may run (EXM-5d, SEC-7d), worked
     /// out once, here, by `CapabilityAnalyzer.gates` — never read from what the manifest claims.
     public var gates: Set<GatedCapability> = []
+    /// The extension's options that are booleans, which a script reads as `true` and `false` (JS-3).
+    public var booleanOptions: Set<String> = []
 
     public var executor: ActionExecutor { manifest.executor }
 
@@ -122,7 +124,8 @@ public struct ActionCatalog: Sendable, Equatable {
                         isEnabled: entry.isEnabled,
                         directory: entry.directory,
                         owner: entry.owner,
-                        gates: CapabilityAnalyzer.gates(of: action, in: manifest)
+                        gates: CapabilityAnalyzer.gates(of: action, in: manifest),
+                        booleanOptions: Set(manifest.options.filter { $0.kind == .boolean }.compactMap(\.identifier))
                     )
                 )
             }

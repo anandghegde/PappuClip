@@ -10,6 +10,16 @@ import PappuSelection
 /// of all — can be tested by watching a clipboard that never gets called at all.
 public protocol TextPasting: Sendable {
     func paste(_ text: String, for invocation: InvocationID, into target: TargetApp) async -> ClipboardPasteResult
+    /// The same paste, holding several representations of one value: a script's `pasteContent` (JS-4).
+    func paste(content: [PasteboardRepresentation], for invocation: InvocationID, into target: TargetApp) async -> ClipboardPasteResult
+}
+
+extension TextPasting {
+    /// A paster that knows only text pastes the plain text among `content`.
+    public func paste(content: [PasteboardRepresentation], for invocation: InvocationID, into target: TargetApp) async -> ClipboardPasteResult {
+        let plain = content.first { $0.type == PasteboardRepresentation.plainText }.flatMap { String(data: $0.data, encoding: .utf8) }
+        return await paste(plain ?? "", for: invocation, into: target)
+    }
 }
 
 extension ClipboardBroker: TextPasting {}
@@ -107,6 +117,24 @@ public struct TextMutator: Sendable {
         with text: String,
         using permit: consuming MutationPermit
     ) async -> MutationReport {
+        await replaceSelection(content: [.text(text)], characters: text.count, using: permit)
+    }
+
+    /// The same, with several representations of one value — plain text, HTML, RTF — so the app pasted
+    /// into takes the richest it reads: a script's `pasteContent` (JS-4).
+    public func replaceSelection(
+        content: [PasteboardRepresentation],
+        using permit: consuming MutationPermit
+    ) async -> MutationReport {
+        let plain = content.first { $0.type == PasteboardRepresentation.plainText }.flatMap { String(data: $0.data, encoding: .utf8) }
+        return await replaceSelection(content: content, characters: plain?.count ?? 0, using: permit)
+    }
+
+    private func replaceSelection(
+        content: [PasteboardRepresentation],
+        characters: Int,
+        using permit: consuming MutationPermit
+    ) async -> MutationReport {
         let invocation = permit.invocation
         let tier = permit.tier
         let target = permit.target
@@ -116,7 +144,7 @@ public struct TextMutator: Sendable {
                 invocation: invocation,
                 target: target,
                 tier: tier,
-                characters: text.count,
+                characters: characters,
                 outcome: outcome,
                 clipboard: record
             )
@@ -124,7 +152,7 @@ public struct TextMutator: Sendable {
 
         guard await manager.accepts(invocation) else { return report(.notRunning) }
 
-        let result = await clipboard.paste(text, for: invocation, into: target)
+        let result = await clipboard.paste(content: content, for: invocation, into: target)
         switch result.outcome {
         case .pasted:
             await manager.noteMutation(of: invocation)

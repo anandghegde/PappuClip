@@ -2,6 +2,7 @@ import Foundation
 import PappuAnalysis
 import PappuCore
 import PappuExtensions
+import PappuJSBridge
 import PappuSelection
 
 /// Runs an extension's action: its `before` step, its executor, and its `after` step (§8.4, §8.6,
@@ -100,6 +101,8 @@ public struct ExtensionRunner: Sendable {
         case result(String)
         /// `popclip-appear`: the bar comes back with its actions.
         case reappear
+        /// A script's `showFailure` (JS-4): the X, though the action ran.
+        case failure
     }
 
     /// Something a run asks of the user once it is over, beyond its tick or its X.
@@ -146,6 +149,7 @@ public struct ExtensionRunner: Sendable {
     private let appleScripts: any AppleScriptRunning
     private let services: any ServiceRunning
     private let javaScript: any JavaScriptRunning
+    private let system: any HostServices
 
     public init(
         manager: InvocationManager,
@@ -158,7 +162,8 @@ public struct ExtensionRunner: Sendable {
         shell: any ShellScriptRunning,
         appleScripts: any AppleScriptRunning,
         services: any ServiceRunning,
-        javaScript: any JavaScriptRunning = NoJavaScript()
+        javaScript: any JavaScriptRunning = NoJavaScript(),
+        system: any HostServices = NoHostServices()
     ) {
         self.manager = manager
         self.editor = editor
@@ -171,6 +176,7 @@ public struct ExtensionRunner: Sendable {
         self.appleScripts = appleScripts
         self.services = services
         self.javaScript = javaScript
+        self.system = system
     }
 
     /// Runs the action and ends its invocation, on the same terms as `BuiltinRunner.run`: finished
@@ -199,7 +205,7 @@ public struct ExtensionRunner: Sendable {
     }
 
     /// What one run has gathered on its way through the stages.
-    private struct Run {
+    struct Run {
         let request: Request
         var result: String?
         var display: Display = .status
@@ -243,8 +249,30 @@ public struct ExtensionRunner: Sendable {
             let job = ShellScriptJob(action: action, directory: request.action.directory, variables: Self.variables(for: request))
             return await runScript(request, into: &run) { await shell.start(job) }
         case .javaScript(let action):
-            guard let job = Self.javaScriptJob(action, request) else { return .notPerformed }
-            return await runScript(request, into: &run) { await javaScript.start(job) }
+            // One dispatcher for the run's host calls, with the grants it was approved with (SEC-7b).
+            let host = HostAPIDispatcher(
+                run: HostAPIDispatcher.Run(
+                    invocation: request.invocation,
+                    gates: request.approval.gates,
+                    context: request.context,
+                    target: request.target,
+                    text: request.match.fullText
+                ),
+                effects: HostAPIDispatcher.Effects(
+                    manager: manager,
+                    mutator: mutator,
+                    editor: editor,
+                    presser: presser,
+                    clipboard: clipboard,
+                    urls: urls,
+                    services: services,
+                    system: system
+                )
+            )
+            guard let job = Self.javaScriptJob(action, request, host: host) else { return .notPerformed }
+            let outcome = await runScript(request, into: &run) { await javaScript.start(job) }
+            Self.apply(host.requests, to: &run)
+            return outcome
         case .builtin:
             // Built-ins are `BuiltinRunner`'s; a request that gets here came from somewhere that
             // skipped the resolver.
@@ -332,7 +360,7 @@ public struct ExtensionRunner: Sendable {
 
     /// What the helper is asked to run, TypeScript included (the helper transpiles it). Nil for an
     /// action with no package or no approved bytes to load — a built-in, which is never JavaScript.
-    static func javaScriptJob(_ action: JavaScriptAction, _ request: Request) -> JavaScriptRunRequest? {
+    static func javaScriptJob(_ action: JavaScriptAction, _ request: Request, host: HostAPIDispatcher? = nil) -> JavaScriptRunRequest? {
         guard let owner = request.approval.owner,
               let digest = request.approval.digest,
               let directory = request.action.directory
@@ -343,10 +371,65 @@ public struct ExtensionRunner: Sendable {
             extensionName: request.action.extensionName.description,
             directory: directory,
             action: action,
-            text: request.match.fullText,
-            matchedText: request.match.value,
-            options: request.options
+            input: input(for: request),
+            context: context(for: request),
+            modifiers: JSModifiers(
+                shift: request.modifiers.contains(.shift),
+                control: request.modifiers.contains(.control),
+                option: request.modifiers.contains(.option),
+                command: request.modifiers.contains(.command)
+            ),
+            options: request.options,
+            booleanOptions: request.action.booleanOptions.sorted(),
+            host: host
         )
+    }
+
+    /// `popclip.input` (JS-3). HTML, XHTML, Markdown and RTF are FLT-4's capture, which is not built
+    /// yet, and are empty, as PopClip leaves them for an app that offers none.
+    static func input(for request: Request) -> JSInput {
+        let match = request.match
+        func detected(_ kind: Detection.Kind) -> [JSRangedString] {
+            (request.selection?.detections(kind) ?? []).map {
+                JSRangedString(value: $0.value, location: $0.span.location, length: $0.span.length)
+            }
+        }
+        return JSInput(
+            text: match.fullText,
+            matchedText: match.value,
+            regexResult: match.regexCaptures,
+            isURL: request.selection?.isSingleURL ?? false,
+            data: JSDetected(urls: detected(.url), nonHTTPURLs: detected(.nonHTTPURL), emails: detected(.email), paths: detected(.path))
+        )
+    }
+
+    /// `popclip.context` (JS-3).
+    static func context(for request: Request) -> JSSelectionContext {
+        let context = request.context
+        return JSSelectionContext(
+            hasFormatting: context.hasFormatting,
+            canPaste: context.canPaste,
+            canCopy: context.canCopy,
+            canCut: context.canCut,
+            browserURL: context.browser?.url?.absoluteString ?? "",
+            browserTitle: context.browser?.title ?? "",
+            appName: context.app.name ?? "",
+            appIdentifier: context.app.bundleID ?? ""
+        )
+    }
+
+    /// What a script's host calls asked of the bar (JS-4), for when the run ends. An `after` step that
+    /// shows something of its own still has the last word.
+    static func apply(_ requests: HostRequests, to run: inout Run) {
+        if requests.settings { run.attention = .settings }
+        switch requests.display {
+        case .success?: run.display = .status
+        case .failure?: run.display = .failure
+        case .copied?: run.display = .copied
+        case .text(let text)?: run.display = .result(text)
+        case .appear?: run.display = .reappear
+        case nil: break
+        }
     }
 
     private func openURL(_ action: URLAction, _ request: Request) async -> Outcome {
@@ -512,6 +595,8 @@ extension ActionManifest {
     /// need it, which is the direction `InvocationRequest.mayMutate` asks callers to err in.
     public var mayMutateTheDestination: Bool {
         if case .keyPress = executor { return true }
+        // A script can paste and press keys through the host API (JS-4), whatever its steps say.
+        if case .javaScript = executor { return true }
         return [before, after].contains { step in
             switch step {
             case .cut, .paste, .pastePlain, .pasteResult, .previewResult: true

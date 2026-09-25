@@ -258,11 +258,22 @@ public actor ClipboardBroker {
         for invocation: InvocationID,
         into target: TargetApp
     ) async -> ClipboardPasteResult {
+        await paste(content: [.text(text)], for: invocation, into: target)
+    }
+
+    /// The same paste, holding several representations of one value at once — plain text, HTML, RTF —
+    /// for a script's `pasteContent` (JS-4). Everything above about the hold and the restore is true of
+    /// it unchanged; the record counts the plain text's characters, or none.
+    public func paste(
+        content: [PasteboardRepresentation],
+        for invocation: InvocationID,
+        into target: TargetApp
+    ) async -> ClipboardPasteResult {
         var record = ClipboardPasteRecord(
             transaction: ids.next(),
             invocation: invocation,
             target: target,
-            characters: text.count
+            characters: Self.characters(in: content)
         )
         guard !isOpen else { return finish(&record, .skipped(.brokerBusy)) }
 
@@ -287,7 +298,7 @@ public actor ClipboardBroker {
         // destroyed by it. It cannot be closed, only noticed (ACT-10f).
         let cleared = pasteboard.clear()
         if cleared != snapshot.changeCount + 1 { record.note(.destroyedANewerWrite) }
-        let ours = pasteboard.write([[.text(text)] + Self.markers])
+        let ours = pasteboard.write([content + Self.markers])
         let putUp = scheduling.now
 
         guard pasting.postPaste() else {
@@ -382,11 +393,21 @@ public actor ClipboardBroker {
         for invocation: InvocationID,
         into target: TargetApp
     ) -> ClipboardWriteResult {
+        write(content: [.text(text)], for: invocation, into: target)
+    }
+
+    /// The same write, of several representations of one value — a script's `copyContent` or
+    /// `pasteboard.content` (JS-4, JS-7).
+    public func write(
+        content: [PasteboardRepresentation],
+        for invocation: InvocationID,
+        into target: TargetApp
+    ) -> ClipboardWriteResult {
         var record = ClipboardWriteRecord(
             transaction: ids.next(),
             invocation: invocation,
             target: target,
-            characters: text.count
+            characters: Self.characters(in: content)
         )
         guard !isOpen else { return finish(&record, .skipped(.brokerBusy)) }
 
@@ -394,8 +415,34 @@ public actor ClipboardBroker {
         let before = pasteboard.changeCount
         let cleared = pasteboard.clear()
         if cleared != before + 1 { record.note(.destroyedANewerWrite) }
-        _ = pasteboard.write([[.text(text)]])
+        _ = pasteboard.write([content])
         return finish(&record, .written, from: started)
+    }
+
+    /// What is on the user's clipboard, as each of `types` the first item has: a script's
+    /// `pasteboard.content` (JS-7). On the same terms as `plainText()` — nil when reading would prompt,
+    /// when a transaction is open, or when the read did not come back in time — and one item only, as
+    /// PopClip reads it.
+    public func content(types: [String]) async -> [String: Data]? {
+        guard !isOpen, pasteboard.accessBehavior.readsWithoutAPrompt else { return nil }
+        let box = Mutex<[String: Data]?>(nil)
+        let pasteboard = pasteboard
+        let finished = await scheduling.run(within: timing.textWait) {
+            let listed = Set(pasteboard.itemTypes().first ?? [])
+            var found: [String: Data] = [:]
+            for type in types where listed.contains(type) {
+                if let data = pasteboard.data(item: 0, type: type) { found[type] = data }
+            }
+            box.withLock { $0 = found }
+        }
+        guard finished else { return nil }
+        return box.withLock { $0 }
+    }
+
+    /// How long the plain text among `content` is, for a record that counts and never keeps.
+    private static func characters(in content: [PasteboardRepresentation]) -> Int {
+        guard let plain = content.first(where: { $0.type == PasteboardRepresentation.plainText }) else { return 0 }
+        return String(data: plain.data, encoding: .utf8)?.count ?? 0
     }
 
     private func finish(

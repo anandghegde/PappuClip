@@ -1,9 +1,10 @@
 import Compression
 import Foundation
 import PappuCore
+import PappuJSBridge
 
 /// Everything one JavaScript action is run with (§8.8).
-public struct JavaScriptRunRequest: Sendable, Equatable {
+public struct JavaScriptRunRequest: Sendable {
     /// The installed extension, as its local identity's text: which world in the helper this runs in.
     public var owner: String
     /// The approved bytes' digest. A world built from other bytes is not used (SEC-8c).
@@ -13,12 +14,45 @@ public struct JavaScriptRunRequest: Sendable, Equatable {
     /// The package folder, whose script files the helper is sent.
     public var directory: URL
     public var action: JavaScriptAction
-    /// `popclip.input.text`: the whole selection.
-    public var text: String
-    /// `popclip.input.matchedText`.
-    public var matchedText: String
+    /// `popclip.input` (JS-3).
+    public var input: JSInput
+    /// `popclip.context` (JS-3).
+    public var context: JSSelectionContext
+    /// `popclip.modifiers` (JS-3).
+    public var modifiers: JSModifiers
     public var options: [String: String]
+    /// The options that are booleans, which a script reads as `true` and `false`.
+    public var booleanOptions: [String]
+    /// Where the script's host calls go (architecture §10.4). Nil refuses every one.
+    public var host: HostAPIDispatcher?
 
+    public init(
+        owner: String,
+        generation: String,
+        extensionName: String,
+        directory: URL,
+        action: JavaScriptAction,
+        input: JSInput,
+        context: JSSelectionContext = JSSelectionContext(),
+        modifiers: JSModifiers = JSModifiers(),
+        options: [String: String] = [:],
+        booleanOptions: [String] = [],
+        host: HostAPIDispatcher? = nil
+    ) {
+        self.owner = owner
+        self.generation = generation
+        self.extensionName = extensionName
+        self.directory = directory
+        self.action = action
+        self.input = input
+        self.context = context
+        self.modifiers = modifiers
+        self.options = options
+        self.booleanOptions = booleanOptions
+        self.host = host
+    }
+
+    /// A run with the text alone, and nothing else about where it came from.
     public init(
         owner: String,
         generation: String,
@@ -29,15 +63,21 @@ public struct JavaScriptRunRequest: Sendable, Equatable {
         matchedText: String,
         options: [String: String] = [:]
     ) {
-        self.owner = owner
-        self.generation = generation
-        self.extensionName = extensionName
-        self.directory = directory
-        self.action = action
-        self.text = text
-        self.matchedText = matchedText
-        self.options = options
+        self.init(
+            owner: owner,
+            generation: generation,
+            extensionName: extensionName,
+            directory: directory,
+            action: action,
+            input: JSInput(text: text, matchedText: matchedText),
+            options: options
+        )
     }
+
+    /// `popclip.input.text`: the whole selection.
+    public var text: String { input.text }
+    /// `popclip.input.matchedText`.
+    public var matchedText: String { input.matchedText }
 }
 
 /// Runs JavaScript actions, which in the app means asking the JavaScript helper (architecture §10).

@@ -87,12 +87,15 @@ import Testing
         #expect(CapabilityAnalyzer.effective(Self.manifest([], entitlements: [.script])).gated == [.script])
     }
 
-    /// SEC-7c: JavaScript this build cannot scan is disclosed as the broader thing.
+    /// SEC-7c: JavaScript this build cannot scan is disclosed as the broader thing, and with it the host
+    /// methods that reach past the text (SEC-7b), which it does not need to run.
     @Test func unscannedJavaScriptIsUnbounded() {
         let js = ActionExecutor.javaScript(JavaScriptAction(source: .inline("return 1")))
-        #expect(CapabilityAnalyzer.effective(Self.manifest([js])).gated == [.unboundedCode])
+        let manifest = Self.manifest([js])
+        #expect(CapabilityAnalyzer.effective(manifest).gated == [.syntheticInput, .unboundedCode])
+        #expect(CapabilityAnalyzer.gates(of: manifest.actions[0], in: manifest) == [.unboundedCode])
         let module = Self.manifest([], module: .file("main.js"))
-        #expect(CapabilityAnalyzer.effective(module).gated == [.unboundedCode])
+        #expect(CapabilityAnalyzer.effective(module).gated == [.syntheticInput, .unboundedCode])
         #expect(CapabilityAnalyzer.effective(Self.manifest([], module: .detection(false))).gated.isEmpty)
     }
 

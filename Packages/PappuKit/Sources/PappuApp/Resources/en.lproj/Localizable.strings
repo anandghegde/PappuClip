@@ -108,3 +108,6 @@
 
 /* SEC-1d: the extension is suspended until the app restarts. */
 "console.kind.suspended" = "Crashed too often and will not run until PappuClip restarts";
+
+/* SEC-7b: beside a host call an extension made that was refused, and why. */
+"console.kind.refused" = "Not allowed";

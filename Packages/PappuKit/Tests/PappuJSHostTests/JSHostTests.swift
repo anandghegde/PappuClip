@@ -450,6 +450,150 @@ import Testing
     }
 }
 
+/// The host API from the helper's side (JS-3, JS-4, JS-6, JS-7, architecture §10.2): what a script's
+/// calls send to the app, what comes back, and what the helper works out without asking.
+@Suite struct JSHostAPITests {
+    /// The app, as far as the helper can tell: it keeps each call and answers as the test says, in line,
+    /// or never.
+    final class App: Sendable {
+        private let received = Mutex<[JSHostCall]>([])
+        private let answering: @Sendable (JSHostCall) -> JSHostAnswer?
+
+        init(_ answering: @escaping @Sendable (JSHostCall) -> JSHostAnswer? = { _ in .done }) {
+            self.answering = answering
+        }
+
+        var calls: [JSHostCall] { received.withLock { $0 } }
+
+        func handle(_ call: JSHostCall, _ reply: @escaping @Sendable (JSHostAnswer) -> Void) {
+            received.withLock { $0.append(call) }
+            if let answer = answering(call) { reply(answer) }
+        }
+    }
+
+    /// A helper whose app is `app`.
+    struct Harness: Sendable {
+        let app: App
+        let host: JSHost
+
+        init(_ answering: @escaping @Sendable (JSHostCall) -> JSHostAnswer? = { _ in .done }) {
+            let app = App(answering)
+            self.app = app
+            host = JSHost(qos: .utility, call: { call, reply in app.handle(call, reply) }) { _, _ in }
+        }
+
+        func ask(_ request: JSHostRequest) async -> JSHostReply {
+            await withCheckedContinuation { continuation in
+                host.handle(request) { continuation.resume(returning: $0) }
+            }
+        }
+
+        func run(_ script: String, id: UInt64 = 1, input: JSInput = JSInput(text: "hello", matchedText: "hello")) async -> JSHostReply {
+            _ = await ask(.load(JSLoad(extensionName: "a", generation: "1", files: [:])))
+            return await ask(.invoke(JSInvoke(invocation: id, extensionName: "a", generation: "1", entry: .inline(script), input: input)))
+        }
+    }
+
+    /// The world fills in whose call it is; the script says only what it wants.
+    @Test func aCallCarriesItsInvocationAndItsWorld() async {
+        let tests = Harness()
+        #expect(await tests.run("await popclip.pasteText('x', { restore: true }); return 'ok'", id: 42) == .returned("ok"))
+        #expect(tests.app.calls == [JSHostCall(invocation: 42, extensionName: "a", method: "pasteText", arguments: #"{"text":"x","restore":true}"#)])
+    }
+
+    @Test func aRefusalRejectsThePromise() async {
+        let tests = Harness { _ in .refused("Not for you.") }
+        #expect(await tests.run("try { await popclip.copyText('x') } catch (e) { return e.message }") == .returned("Not for you."))
+    }
+
+    /// An un-awaited call at the end of a script is done before its run is over.
+    @Test func aRunEndsOnlyOnceItsCallsAreAnswered() async {
+        let tests = Harness()
+        #expect(await tests.run("popclip.copyText('x'); popclip.showSuccess(); return 'ok'") == .returned("ok"))
+        #expect(tests.app.calls.map(\.method) == ["copyText", "showSuccess"])
+    }
+
+    @Test func aSynchronousCallIsAnsweredInLine() async {
+        let tests = Harness { call in
+            call.method == "pasteboard.read" ? .value(#"{"public.utf8-plain-text":"clip"}"#) : .done
+        }
+        #expect(await tests.run("const t = pasteboard.text; pasteboard.text = t + '!'; return t") == .returned("clip"))
+        #expect(tests.app.calls.map(\.method) == ["pasteboard.read", "pasteboard.write"])
+    }
+
+    /// A script waiting in a synchronous call holds its world's queue; a drop ends the wait from outside
+    /// it rather than waiting `blockingLimit` for the app.
+    @Test func aDropEndsAWaitingCall() async {
+        let tests = Harness { _ in nil }
+        _ = await tests.ask(.load(JSLoad(extensionName: "a", generation: "1", files: [:])))
+        let start = ContinuousClock.now
+        async let invoked = tests.ask(.invoke(JSInvoke(
+            invocation: 7, extensionName: "a", generation: "1", entry: .inline("return pasteboard.text"), input: JSInput(text: "", matchedText: "")
+        )))
+        for _ in 0..<500 where tests.app.calls.isEmpty { try? await Task.sleep(for: .milliseconds(2)) }
+        #expect(tests.app.calls.map(\.method) == ["pasteboard.read"])
+        #expect(await tests.ask(.drop(invocation: 7)) == .dropped)
+        #expect(await invoked == .dropped)
+        #expect(start.duration(to: .now) < .seconds(5))
+    }
+
+    /// JS-6: the digests are CommonCrypto's and CryptoKit's, checked against the standard vectors.
+    @Test func hashesAndHMACsAreTheStandardOnes() async {
+        let script = """
+        const hex = (bytes) => Buffer.from(bytes).toString('hex');
+        const abc = Buffer.from('abc');
+        const fox = Buffer.from('The quick brown fox jumps over the lazy dog');
+        const key = Buffer.from('key');
+        return [
+          hex(util.hash(abc, 'md5')), hex(util.hash(abc, 'sha1')), hex(util.hash(abc, 'sha224')),
+          hex(util.hash(abc, 'sha256')), hex(util.hash(abc, 'sha512')).slice(0, 16),
+          hex(util.hmac(fox, key, 'md5')), hex(util.hmac(fox, key, 'sha1')), hex(util.hmac(fox, key, 'sha224')),
+          hex(util.hmac(fox, key, 'sha256')),
+        ].join(' ');
+        """
+        let expected = [
+            "900150983cd24fb0d6963f7d28e17f72", "a9993e364706816aba3e25717850c26c9cd0d89d",
+            "23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7",
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "ddaf35a193617aba",
+            "80070713463e7749b90c2dc24911e275", "de7c9b85b8b78aa6bc8a7a36f70a90701c9db4d9",
+            "88ff8b54675d39b8f72322e65ff945c52d96379988ada25639747e69",
+            "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8",
+        ].joined(separator: " ")
+        #expect(await Harness().run(script) == .returned(expected))
+    }
+
+    @Test func randomValuesComeFromTheSystem() async {
+        let script = """
+        const a = util.randomUuid(), b = util.randomUuid();
+        const bytes = util.getRandomValues(new Uint8Array(32));
+        return [a !== b, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(a), bytes.some((x) => x !== 0)].join();
+        """
+        #expect(await Harness().run(script) == .returned("true,true,true"))
+    }
+
+    @Test func theLocaleAndTimeZoneAreTheSystems() async {
+        let locale = ExtensionVM.localeInfo()
+        let zone = ExtensionVM.timeZoneInfo()
+        let script = "return [util.localeInfo.localeIdentifier, util.localeInfo.currencyCode, util.timeZoneInfo.identifier].join('|')"
+        let expected = [locale["localeIdentifier"] ?? "", locale["currencyCode"] ?? "", zone["identifier"] as? String ?? ""].joined(separator: "|")
+        #expect(await Harness().run(script) == .returned(expected))
+    }
+
+    /// JS-3: the input as the app sends it, under PopClip's names.
+    @Test func theInputIsPopClipsShape() async {
+        let input = JSInput(
+            text: "mail a@b.test",
+            matchedText: "a@b.test",
+            regexResult: ["a@b.test", nil],
+            isURL: false,
+            data: JSDetected(emails: [JSRangedString(value: "a@b.test", location: 5, length: 8)])
+        )
+        let script = "const i = popclip.input; return JSON.stringify([i.matchedText, i.regexResult.length, i.regexResult[1] === undefined, i.data.emails, i.data.emails.ranges, i.content, i.isUrl])"
+        let expected = #"["a@b.test",2,true,["a@b.test"],[{"location":5,"length":8}],{"public.utf8-plain-text":"mail a@b.test"},false]"#
+        #expect(await Harness().run(script, input: input) == .returned(expected))
+    }
+}
+
 @Suite struct ModulePathTests {
     @Test func normalises() {
         #expect(ModulePath.normalize("a/./b/../c.js") == "a/c.js")

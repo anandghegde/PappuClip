@@ -1380,7 +1380,21 @@ requirements:
       - PappuCoreTests/servicesAndShortcutsAreNamed
       - PappuCoreTests/appleScriptTellTargetsAreKnownDestinations
       - PappuCoreTests/aScriptFileIsReadForItsTargets
-  SEC-7b: { priority: P1, milestone: M3, tests: [] }
+  SEC-7b:
+    priority: P1
+    milestone: M3
+    note: >-
+      HostAPIDispatcher checks each call in order: the run is live, the phase allows it, the method exists,
+      the grants cover it (pressKeys, performService and share need synthetic input, disclosed for every
+      JavaScript extension and not needed to run one), its arguments, then a MutationPermit. Refusals go
+      to the Debug Console by method and reason only. The reachable-method scan is week 4.
+    tests:
+      - PappuRuntimeTests/aCallOutsideTheGrantsFailsAndIsLoggedWithoutContent
+      - PappuRuntimeTests/aCallOutsideTheGrantsIsRefusedAndDoesNothing
+      - PappuRuntimeTests/populationMayAskForNothing
+      - PappuRuntimeTests/anUnknownMethodOrTheWrongArgumentsAreRefused
+      - PappuRuntimeTests/eachMethodSaysWhatItNeeds
+      - PappuCoreTests/unscannedJavaScriptIsUnbounded
   SEC-7c:
     priority: P0
     milestone: M2
@@ -1558,8 +1572,8 @@ requirements:
       M3 week 2: `print`, timers, `sleep`, `window`, `pappuclip` beside `popclip`, `require`, `module`,
       `exports`, `define` and `defineExtension` in every script, and from Resources/JavaScript the
       environment's `Buffer` (with base64url), `URL`, `URLSearchParams`, `structuredClone`, `atob`, `btoa`,
-      `TextEncoder` and `Blob`. `util`, `pasteboard`, `RichString` and `$` arrive with the host API (week 3)
-      and `XMLHttpRequest` with the network (week 4).
+      `TextEncoder` and `Blob`. Week 3 added `util`, `pasteboard` and `RichString`; `$` arrives with
+      external scripts and `XMLHttpRequest` with the network (week 4).
     tests:
       - PappuJSHostTests/theEnvironmentSectionOfTheConformanceSuitePasses
       - PappuJSHostTests/thereIsNoFetchProcessDOMOrFileSystem
@@ -1567,11 +1581,75 @@ requirements:
       - PappuJSHostTests/aTimerDoesNotOutliveItsWorld
       - PappuJSHostTests/aTimerCallbackThatThrowsIsWrittenDownAndNothingElse
       - PappuJSHostTests/twoExtensionsDoNotShareALibrary
-  JS-3: { priority: P1, milestone: M3, tests: [] }
-  JS-4: { priority: P1, milestone: M3, tests: [] }
+  JS-3:
+    priority: P1
+    milestone: M3
+    note: >-
+      Each invocation's own frozen `popclip`, built from JSON the runner fills in: input with regexResult,
+      detections and their UTF-16 ranges, content and isUrl; context and modifiers under PopClip's names;
+      options with booleans as booleans and an `authsecret` that throws "Not signed in". HTML, XHTML,
+      Markdown and RTF are empty until FLT-4's capture.
+    tests:
+      - PappuJSHostTests/theInputIsPopClipsShape
+      - PappuJSHostTests/optionsAndInputAreReadOnly
+      - PappuRuntimeTests/popclipDescribesTheSelectionAndWhereItCameFrom
+  JS-4:
+    priority: P1
+    milestone: M3
+    note: >-
+      Every method is a host call checked by HostAPIDispatcher. Paste, performCommand and pressKeys verify
+      the destination first; show*, appear and showSettings are what the bar shows when the run ends; a run
+      settles only once its calls are answered. Not yet: Large Type (showText's large style is shown
+      compact), preview's click to paste (M4), performCommand's plain transform for cut and copy, and a
+      share that waits for its own window to close. openUrl refuses file: addresses.
+    tests:
+      - PappuJSHostTests/aCallCarriesItsInvocationAndItsWorld
+      - PappuJSHostTests/aRefusalRejectsThePromise
+      - PappuJSHostTests/aRunEndsOnlyOnceItsCallsAreAnswered
+      - PappuRuntimeTests/pasteTextPastesOverTheVerifiedSelection
+      - PappuRuntimeTests/pasteTextCopiesWherePasteWasNotAvailable
+      - PappuRuntimeTests/aDestinationThatMovedGetsNothing
+      - PappuRuntimeTests/pasteContentHoldsEveryTextType
+      - PappuRuntimeTests/copyTextAndCopyContentKeepWhatTheyAreGiven
+      - PappuRuntimeTests/performCommandCutsPastesAndCopies
+      - PappuRuntimeTests/whatIsShownIsAskedOfTheBarAndTheLastWins
+      - PappuRuntimeTests/keysAreReadAsAKeyPressActionReadsThem
+      - PappuRuntimeTests/aServiceRunsInTheRunnerWithThePlainText
+      - PappuRuntimeTests/openUrlOpensInTheBrowserTheTextCameFrom
+      - PappuRuntimeTests/openTemplateUrlIsAURLActionsExpansion
+      - PappuRuntimeTests/pasteTextPastesThroughTheWholePath
+      - PappuRuntimeTests/whatTheScriptShowsIsWhatTheBarShows
   JS-5: { priority: P1, milestone: M3, tests: [] }
-  JS-6: { priority: P1, milestone: M3, tests: [] }
-  JS-7: { priority: P1, milestone: M3, tests: [] }
+  JS-6:
+    priority: P1
+    milestone: M3
+    note: >-
+      In the helper: Base64, query strings, clarify, random values and UUIDs from SecRandomCopyBytes,
+      hash and hmac from CryptoKit and CommonCrypto, the locale and time zone, htmlToMarkdown (turndown)
+      and cleanHtml (sanitize-html). Through the app: the dictionary and the spell checker. `localize`
+      answers the English.
+    tests:
+      - PappuJSHostTests/hashesAndHMACsAreTheStandardOnes
+      - PappuJSHostTests/randomValuesComeFromTheSystem
+      - PappuJSHostTests/theLocaleAndTimeZoneAreTheSystems
+      - PappuRuntimeTests/theSystemAnswersThroughItsSeam
+      - PappuRuntimeTests/everyCorpusModuleIsDescribedOrWaitsForAKnownReason
+  JS-7:
+    priority: P1
+    milestone: M3
+    note: >-
+      `pasteboard.text` and `.content` are synchronous host calls through ClipboardBroker. RichString is
+      converted by AppKit in the app, from RTF as it is, from HTML reduced to formatting by SafeHTML, and
+      from Markdown by MarkdownHTML, so nothing a script writes makes WebKit fetch anything.
+    tests:
+      - PappuJSHostTests/aSynchronousCallIsAnsweredInLine
+      - PappuRuntimeTests/thePasteboardIsReadAndWrittenAsText
+      - PappuCoreTests/whatCanLoadOrRunIsGoneAndItsTextKept
+      - PappuCoreTests/aLinkKeepsOnlyASafeAddress
+      - PappuCoreTests/markupThatIsNotATagIsText
+      - PappuCoreTests/headingsParagraphsAndInlineMarkup
+      - PappuCoreTests/linksImagesAndEscaping
+      - PappuCoreTests/itsHTMLIsAlreadySafe
   JS-8: { priority: P1, milestone: M3, tests: [] }
   JS-9:
     priority: P1
@@ -1624,8 +1702,7 @@ requirements:
       The helper describes an approved module (defineExtension, default or named exports, CommonJS; LZFSE
       files decompressed) as data with its code marked, ManifestBuilder reads that with a config's rules,
       and each action calls its export as code(input, options, context). Population functions (JS-13) and
-      auth (§8.10) are week 5; modules that call util while loading wait for week 3, and one with a
-      submenu waits for M4.
+      auth (§8.10) are week 5, and one module with a submenu waits for M4.
     tests:
       - PappuCoreTests/eachDescribedActionRunsTheCodeAtItsExport
       - PappuCoreTests/theModulesKeysAreDefaultsOverTheConfigs
@@ -1662,7 +1739,17 @@ requirements:
       - PappuJSHostTests/theEnvironmentSectionOfTheConformanceSuitePasses
       - PappuRuntimeTests/aTypeScriptActionRunsFromThePackage
       - PappuRuntimeTests/aTypeScriptActionIsOffered
-  JS-15: { priority: P1, milestone: M3, tests: [] }
+  JS-15:
+    priority: P1
+    milestone: M3
+    note: >-
+      The spinner and its cancellation were M2's. Week 3 adds the host-call half: a cancelled run's calls
+      are refused at the dispatcher's first check, a drop ends a call the script is waiting in, and a
+      cancelled run's world is replaced before its extension runs again.
+    tests:
+      - PappuRuntimeTests/aPromiseThatResolvesAfterCancelHasNoEffect
+      - PappuRuntimeTests/aCallAfterCancellationHasNoEffect
+      - PappuJSHostTests/aDropEndsAWaitingCall
   JS-16: { priority: P1, milestone: M3, tests: [] }
   JS-17: { priority: P1, milestone: M3, tests: [] }
   JS-18: { priority: P1, milestone: M3, tests: [] }

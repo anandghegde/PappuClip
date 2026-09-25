@@ -160,7 +160,8 @@ public final class AppAssembly: SelectionInstalling {
             // AppleScripts and Services both run in PappuClipRunner.xpc, over one session.
             appleScripts: scripts,
             services: scripts,
-            javaScript: javaScript
+            javaScript: javaScript,
+            system: SystemHostServices()
         )
 
         let builtinCatalog = resources.catalog

@@ -1,6 +1,10 @@
+import CommonCrypto
+import CryptoKit
 import Foundation
 import JavaScriptCore
 import PappuJSBridge
+import Security
+import Synchronization
 
 /// One extension's JavaScript world (SEC-1b, architecture §10.1).
 ///
@@ -13,13 +17,21 @@ import PappuJSBridge
 ///
 /// **What it can reach** is the language, the environment's globals (JS-2: `URL`, `Buffer`, timers,
 /// `sleep` and the rest), `print` and `console`, `require` over the files it was loaded with and the
-/// bundled libraries (JS-9, JS-10), and a frozen `popclip` describing the invocation (JS-3). There is
-/// no `fetch`, no DOM, no `process`, no file system: JavaScriptCore has none of them, and the helper's
-/// sandbox would refuse them if it did (SEC-1a).
+/// bundled libraries (JS-9, JS-10), a frozen `popclip` describing the invocation (JS-3), and the host
+/// API (JS-4, JS-6, JS-7). There is no `fetch`, no DOM, no `process`, no file system: JavaScriptCore
+/// has none of them, and the helper's sandbox would refuse them if it did (SEC-1a).
 ///
-/// Everything but `init` runs on `queue`. The host puts it there, and timers fire there.
+/// **The host API is the app's.** Every `popclip` method, `pasteboard`, `RichString` and the dictionary
+/// and spelling lookups become a `JSHostCall` to the app, which decides (architecture §10.4); this side
+/// only says whose it is. What is pure — Base64, hashing, random values, query strings, the locale —
+/// is worked out here and never crosses (§10.2).
+///
+/// Everything but `init`, `interrupt` and `interruptAll` runs on `queue`. The host puts it there, and
+/// timers and host answers arrive there.
 final class ExtensionVM: @unchecked Sendable {
     typealias Reply = @Sendable (JSHostReply) -> Void
+    /// Sends a host call to the app, and gives its answer back once — on any queue.
+    typealias HostCaller = @Sendable (JSHostCall, @escaping @Sendable (JSHostAnswer) -> Void) -> Void
 
     let name: String
     let generation: String
@@ -27,7 +39,12 @@ final class ExtensionVM: @unchecked Sendable {
 
     private let files: [String: String]
     private let log: @Sendable (String) -> Void
+    private let host: HostCaller
     private let transpiler: Transpiler
+    /// Synchronous host calls in flight, which a `drop` may have to end from outside `queue`.
+    private let waiting = BlockingCalls()
+    /// Invocations a `drop` has reached from outside `queue`: whatever they settle to is `dropped`.
+    private let dropping = Mutex<Set<UInt64>>([])
     private var context: JSContext?
     /// The prelude's `run` and `fire`.
     private var runner: JSValue?
@@ -41,10 +58,19 @@ final class ExtensionVM: @unchecked Sendable {
     /// The longest a timer waits, as in a browser: about 24.8 days.
     static let longestDelay: Double = 2_147_483_647
 
+    /// The longest a synchronous host call — `pasteboard.text`, a dictionary lookup — waits for the app.
+    /// The world's queue is held while it waits, so it is bounded; an answer that has not come by then is
+    /// not coming, and the script hears so.
+    static let blockingLimit: Duration = .seconds(10)
+
+    /// The most random bytes one call asks for: Web Crypto's limit, which `getRandomValues` keeps.
+    static let randomLimit = 65_536
+
     init(
         load: JSLoad,
         transpiler: Transpiler = .shared,
         qos: DispatchQoS = .userInitiated,
+        host: @escaping HostCaller = { _, answer in answer(.refused("There is no app to ask.")) },
         log: @escaping @Sendable (String) -> Void
     ) {
         name = load.extensionName
@@ -55,6 +81,7 @@ final class ExtensionVM: @unchecked Sendable {
         }
         self.files = files
         self.transpiler = transpiler
+        self.host = host
         self.log = log
         queue = DispatchQueue(label: "app.pappuclip.jshost.vm", qos: qos)
     }
@@ -107,6 +134,27 @@ final class ExtensionVM: @unchecked Sendable {
         let schedule: @convention(block) (Double, Double) -> Void = { [weak self] id, milliseconds in
             self?.schedule(timer: id, after: milliseconds)
         }
+        // Host calls: answered later through the prelude's `answer`, or waited for here.
+        let call: @convention(block) (Double, Double, String, String) -> Void = { [weak self] invocation, id, method, arguments in
+            self?.ask(invocation, call: id, method: method, arguments: arguments)
+        }
+        let callSync: @convention(block) (Double, String, String) -> [String: String] = { [weak self] invocation, method, arguments in
+            guard let self else { return Self.parts(of: .refused("The extension was unloaded.")) }
+            return Self.parts(of: self.askAndWait(invocation, method: method, arguments: arguments))
+        }
+        // Pure utilities (JS-6), here so they never cross.
+        let random: @convention(block) (Int) -> String = { count in
+            Self.randomBytes(min(max(count, 0), Self.randomLimit)).base64EncodedString()
+        }
+        let digest: @convention(block) (String, String, JSValue) -> Any = { algorithm, data, key in
+            let secret = key.isString ? Data(base64Encoded: key.toString()) : nil
+            guard let bytes = Data(base64Encoded: data),
+                  let result = Self.digest(algorithm, bytes, key: key.isString ? secret ?? Data() : nil)
+            else { return NSNull() }
+            return result.base64EncodedString()
+        }
+        let locale: @convention(block) () -> [String: String] = { Self.localeInfo() }
+        let timeZone: @convention(block) () -> [String: Any] = { Self.timeZoneInfo() }
         native.setObject(log, forKeyedSubscript: "log" as NSString)
         native.setObject(resolve, forKeyedSubscript: "resolve" as NSString)
         native.setObject(source, forKeyedSubscript: "source" as NSString)
@@ -114,6 +162,12 @@ final class ExtensionVM: @unchecked Sendable {
         native.setObject(library, forKeyedSubscript: "library" as NSString)
         native.setObject(transpile, forKeyedSubscript: "transpile" as NSString)
         native.setObject(schedule, forKeyedSubscript: "schedule" as NSString)
+        native.setObject(call, forKeyedSubscript: "call" as NSString)
+        native.setObject(callSync, forKeyedSubscript: "callSync" as NSString)
+        native.setObject(random, forKeyedSubscript: "random" as NSString)
+        native.setObject(digest, forKeyedSubscript: "digest" as NSString)
+        native.setObject(locale, forKeyedSubscript: "locale" as NSString)
+        native.setObject(timeZone, forKeyedSubscript: "timeZone" as NSString)
 
         let prelude = context.evaluateScript(Self.prelude, withSourceURL: URL(string: "pappuclip:prelude"))
         runner = prelude?.call(withArguments: [context.globalObject as Any, native])
@@ -137,6 +191,18 @@ final class ExtensionVM: @unchecked Sendable {
         for reply in owed.values { reply(.dropped) }
         runner = nil
         context = nil
+    }
+
+    /// Ends the synchronous host calls `invocation` is waiting in, so that a `drop` queued behind one is
+    /// not held for `blockingLimit`. Safe from any queue.
+    func interrupt(_ invocation: UInt64) {
+        dropping.withLock { _ = $0.insert(invocation) }
+        waiting.interrupt { $0 == invocation }
+    }
+
+    /// Ends every synchronous host call, before the world is replaced or unloaded. Safe from any queue.
+    func interruptAll() {
+        waiting.interrupt { _ in true }
     }
 
     // MARK: Timers (JS-2)
@@ -163,10 +229,7 @@ final class ExtensionVM: @unchecked Sendable {
     /// in what the module exported, loading the module first if this world has not yet.
     func invoke(_ invocation: JSInvoke, reply: @escaping Reply) {
         guard let context, let runner else { return reply(.notLoaded) }
-        let state: [String: Any] = [
-            "input": ["text": invocation.input.text, "matchedText": invocation.input.matchedText],
-            "options": invocation.options,
-        ]
+        guard let state = Self.state(of: invocation) else { return reply(.threw("The action's input could not be read.")) }
         if let export = invocation.export {
             guard let module = moduleEntry(invocation.entry) else {
                 return reply(.threw("Cannot find the module \(invocation.entry.path ?? "")."))
@@ -199,11 +262,38 @@ final class ExtensionVM: @unchecked Sendable {
         ])
     }
 
+    /// What `popclip` is made from for one invocation (JS-3), as JSON for the prelude to parse: the one
+    /// shape both sides agree on, and no bridging of optionals and booleans by the runtime to get wrong.
+    private struct InvocationState: Encodable {
+        var invocation: UInt64
+        var input: JSInput
+        var context: JSSelectionContext
+        var modifiers: JSModifiers
+        var options: [String: String]
+        var booleanOptions: [String]
+    }
+
+    static func state(of invocation: JSInvoke) -> String? {
+        let state = InvocationState(
+            invocation: invocation.invocation,
+            input: invocation.input,
+            context: invocation.context,
+            modifiers: invocation.modifiers,
+            options: invocation.options,
+            booleanOptions: invocation.booleanOptions
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.withoutEscapingSlashes]
+        guard let data = try? encoder.encode(state) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
     /// The block the prelude settles an invocation through, with its reply owed until then.
     private func settler(for id: UInt64, reply: @escaping Reply) -> @convention(block) (String, JSValue) -> Void {
         pending[id] = reply
         return { [weak self] kind, value in
             guard let self, let reply = self.pending.removeValue(forKey: id) else { return }
+            if self.dropping.withLock({ $0.remove(id) != nil }) { return reply(.dropped) }
             switch kind {
             case "returned": reply(.returned(value.isString ? value.toString() : nil))
             default: reply(.threw(value.isString ? value.toString() : "An error was thrown."))
@@ -242,9 +332,120 @@ final class ExtensionVM: @unchecked Sendable {
         }
     }
 
+    // MARK: Host calls (JS-4, JS-6, JS-7, architecture §10.4)
+
+    /// An asynchronous call: sent now, answered on `queue` through the prelude's `answer`, whenever the
+    /// app answers. The extension's name is this world's, whatever the script did.
+    private func ask(_ invocation: Double, call id: Double, method: String, arguments: String) {
+        guard let invocation = UInt64(exactly: invocation) else { return deliver(id, .refused("No such action.")) }
+        host(JSHostCall(invocation: invocation, extensionName: name, method: method, arguments: arguments)) { [weak self] answer in
+            guard let self else { return }
+            self.queue.async { self.deliver(id, answer) }
+        }
+    }
+
+    private func deliver(_ id: Double, _ answer: JSHostAnswer) {
+        guard let runner else { return }
+        let parts = Self.parts(of: answer)
+        runner.invokeMethod("answer", withArguments: [id, parts["kind"] ?? "", parts["value"] ?? ""])
+    }
+
+    /// A synchronous call, for an API a script reads as a value (`pasteboard.text`). The world's queue
+    /// waits here, for at most `blockingLimit`, or until a `drop` interrupts it.
+    private func askAndWait(_ invocation: Double, method: String, arguments: String) -> JSHostAnswer {
+        guard let invocation = UInt64(exactly: invocation) else { return .refused("No such action.") }
+        let wait = waiting.open(for: invocation)
+        defer { waiting.close(wait) }
+        host(JSHostCall(invocation: invocation, extensionName: name, method: method, arguments: arguments)) { answer in
+            wait.fulfil(answer)
+        }
+        return wait.answer(within: Self.blockingLimit) ?? .failed("PappuClip did not answer \(method) in time.")
+    }
+
+    /// An answer as the prelude takes it: `kind` is `done`, `value`, or anything else for an error.
+    static func parts(of answer: JSHostAnswer) -> [String: String] {
+        switch answer {
+        case .done: ["kind": "done", "value": ""]
+        case .value(let json): ["kind": "value", "value": json]
+        case .refused(let message): ["kind": "refused", "value": message]
+        case .failed(let message): ["kind": "failed", "value": message]
+        }
+    }
+
+    // MARK: Pure utilities (JS-6)
+
+    static func randomBytes(_ count: Int) -> Data {
+        var bytes = [UInt8](repeating: 0, count: count)
+        guard count > 0, SecRandomCopyBytes(kSecRandomDefault, count, &bytes) == errSecSuccess else { return Data(count: count) }
+        return Data(bytes)
+    }
+
+    /// `util.hash` and, with a key, `util.hmac`. CryptoKit has no SHA-224, so that one and every HMAC are
+    /// CommonCrypto's. Nil for an algorithm that is not one of the six.
+    static func digest(_ algorithm: String, _ data: Data, key: Data?) -> Data? {
+        if let key {
+            let (hmac, length): (Int, Int32) = switch algorithm {
+            case "md5": (kCCHmacAlgMD5, CC_MD5_DIGEST_LENGTH)
+            case "sha1": (kCCHmacAlgSHA1, CC_SHA1_DIGEST_LENGTH)
+            case "sha224": (kCCHmacAlgSHA224, CC_SHA224_DIGEST_LENGTH)
+            case "sha256": (kCCHmacAlgSHA256, CC_SHA256_DIGEST_LENGTH)
+            case "sha384": (kCCHmacAlgSHA384, CC_SHA384_DIGEST_LENGTH)
+            case "sha512": (kCCHmacAlgSHA512, CC_SHA512_DIGEST_LENGTH)
+            default: (-1, 0)
+            }
+            guard hmac >= 0 else { return nil }
+            var output = [UInt8](repeating: 0, count: Int(length))
+            key.withUnsafeBytes { key in
+                data.withUnsafeBytes { data in
+                    CCHmac(CCHmacAlgorithm(hmac), key.baseAddress, key.count, data.baseAddress, data.count, &output)
+                }
+            }
+            return Data(output)
+        }
+        switch algorithm {
+        case "md5": return Data(Insecure.MD5.hash(data: data))
+        case "sha1": return Data(Insecure.SHA1.hash(data: data))
+        case "sha224":
+            var output = [UInt8](repeating: 0, count: Int(CC_SHA224_DIGEST_LENGTH))
+            data.withUnsafeBytes { data in _ = CC_SHA224(data.baseAddress, CC_LONG(data.count), &output) }
+            return Data(output)
+        case "sha256": return Data(SHA256.hash(data: data))
+        case "sha384": return Data(SHA384.hash(data: data))
+        case "sha512": return Data(SHA512.hash(data: data))
+        default: return nil
+        }
+    }
+
+    /// `util.localeInfo`, as the user set it, read each time. A value the locale does not define is "".
+    static func localeInfo() -> [String: String] {
+        let locale = Locale.autoupdatingCurrent
+        return [
+            "localeIdentifier": locale.identifier,
+            "regionCode": locale.region?.identifier ?? "",
+            "languageCode": locale.language.languageCode?.identifier ?? "",
+            "decimalSeparator": locale.decimalSeparator ?? "",
+            "groupingSeparator": locale.groupingSeparator ?? "",
+            "currencyCode": locale.currency?.identifier ?? "",
+            "currencySymbol": locale.currencySymbol ?? "",
+        ]
+    }
+
+    /// `util.timeZoneInfo`, read each time: the zone can change under a running app.
+    static func timeZoneInfo() -> [String: Any] {
+        NSTimeZone.resetSystemTimeZone()
+        let zone = TimeZone.current
+        return [
+            "identifier": zone.identifier,
+            "abbreviation": zone.abbreviation() ?? "",
+            "secondsOffset": zone.secondsFromGMT(),
+            "daylightSaving": zone.isDaylightSavingTime(),
+        ]
+    }
+
     /// Stops waiting for an invocation, and answers it `dropped`. Whatever its script does afterwards
     /// settles into nothing.
     func drop(_ invocation: UInt64) {
+        dropping.withLock { _ = $0.remove(invocation) }
         pending.removeValue(forKey: invocation)?(.dropped)
     }
 
@@ -294,6 +495,16 @@ final class ExtensionVM: @unchecked Sendable {
     /// **Timers** are kept here and timed by the host, on the world's queue. A callback that throws is
     /// written to the Debug Console and nothing else happens. A repeating timer waits at least 4 ms, and
     /// no more than 10,000 may wait at once.
+    ///
+    /// **The host API** (JS-3, JS-4, JS-6, JS-7). Each invocation gets its own frozen `popclip`, built
+    /// from the app's JSON: `input` with its detections and their ranges, `context` and `modifiers` under
+    /// PopClip's names, `options` with booleans as booleans, and methods that are host calls carrying that
+    /// invocation's number. Arguments are checked for shape here, so a mistake throws where it was made.
+    /// `pasteboard`, `RichString` and the dictionary and spelling lookups in `util` are synchronous host
+    /// calls for the invocation whose code is running, and throw outside one — while a module loads, or
+    /// in a timer after its action ended. The rest of `util` is worked out here. External scripts (JS-5)
+    /// reject until week 4. An invocation settles only once every call it made has been answered, so a
+    /// script that ends with an un-awaited `copyText` has its copy made before its run is over.
     static let prelude = #"""
     (function (global, native) {
       'use strict';
@@ -305,6 +516,9 @@ final class ExtensionVM: @unchecked Sendable {
       const isArray = Array.isArray;
       const Timers = Map;
       const PromiseConstructor = Promise;
+      const stringify = JSON.stringify;
+      const parse = JSON.parse;
+      const keys = Object.keys;
       const packageModules = Object.create(null);
       const libraryModules = Object.create(null);
 
@@ -664,16 +878,559 @@ final class ExtensionVM: @unchecked Sendable {
         throw new Error('The module has no action at ' + path + '.');
       }
 
-      // `popclip` and `pappuclip` for the invocation about to run (JS-3, as much as this build has).
-      function enter(state) {
-        const popclip = freeze({
-          input: freeze(state.input),
-          options: freeze(state.options),
-          context: freeze(state.context || {}),
+      // Host calls (architecture §10.2, §10.4). Everything a script asks of the app goes through these two:
+      // an asynchronous call is answered later, on the world's queue, through `answer`; a synchronous one
+      // (`pasteboard.text`, a dictionary lookup) waits in the host for its answer. Either way it carries the
+      // invocation it was made for, which the app checks is still running before anything else, and the app
+      // decides. `current` is the invocation whose code is running, for the globals that are not one
+      // invocation's own (`pasteboard`, `util`, `RichString`): set as it starts and cleared as it settles, so
+      // a timer that fires after its action ended reaches nothing.
+      //
+      // An invocation does not settle while a call it made is unanswered. A script may end with
+      // `popclip.copyText(result)` and not await it, as PopClip allows; its run must not be over, and the
+      // call refused, before the app has done it.
+
+      const calls = new Timers();
+      const unanswered = new Timers();
+      let lastCall = 0;
+      let current = null;
+
+      function counted(invocation, change) {
+        const entry = unanswered.get(invocation) || { count: 0, then: [] };
+        entry.count += change;
+        if (entry.count > 0) {
+          unanswered.set(invocation, entry);
+          return;
+        }
+        unanswered.delete(invocation);
+        for (const then of entry.then) then();
+      }
+
+      function whenAnswered(invocation, then) {
+        const entry = unanswered.get(invocation);
+        if (entry === undefined) then();
+        else entry.then.push(then);
+      }
+
+      function outOfAction(what) {
+        return new Error(what + ' is available only while an action runs.');
+      }
+
+      function settled(kind, value) {
+        if (kind === 'done') return undefined;
+        if (kind === 'value') return parse(value);
+        throw new Error(value);
+      }
+
+      function callHost(invocation, method, args) {
+        return new PromiseConstructor(function (resolve, reject) {
+          if (invocation === null) {
+            reject(outOfAction(method));
+            return;
+          }
+          lastCall += 1;
+          calls.set(lastCall, { resolve: resolve, reject: reject, invocation: invocation });
+          counted(invocation, 1);
+          native.call(invocation, lastCall, method, stringify(args));
         });
+      }
+
+      function callHostNow(invocation, method, args) {
+        if (invocation === null) throw outOfAction(method);
+        const answer = native.callSync(invocation, method, stringify(args));
+        return settled(answer.kind, answer.value);
+      }
+
+      function answer(id, kind, value) {
+        const call = calls.get(id);
+        if (call === undefined) return;
+        calls.delete(id);
+        let result;
+        let failure = null;
+        try {
+          result = settled(kind, value);
+        } catch (error) {
+          failure = error;
+        }
+        if (failure === null) call.resolve(result);
+        else call.reject(failure);
+        counted(call.invocation, -1);
+      }
+
+      // Arguments, checked here for shape so that a mistake throws where it was made; the app checks them
+      // again, for meaning, and for whether they are allowed.
+
+      const plainType = 'public.utf8-plain-text';
+      const Buffer = environment.buffer.Buffer;
+      const URLClass = global.URL;
+
+      function flag(options, name, fallback) {
+        if (options === undefined || options === null || options[name] === undefined) return fallback;
+        return Boolean(options[name]);
+      }
+
+      function choice(options, name, allowed, fallback) {
+        if (options === undefined || options === null || options[name] === undefined) return fallback;
+        const value = String(options[name]);
+        if (allowed.indexOf(value) < 0) throw new TypeError(name + ' must be ' + allowed.join(' or ') + '.');
+        return value;
+      }
+
+      function optionalText(options, name) {
+        if (options === undefined || options === null || options[name] === undefined || options[name] === null) return null;
+        return String(options[name]);
+      }
+
+      // A content object (PasteboardContent): pasteboard types to strings. Other values are left out.
+      function contentOf(content) {
+        if (content === null || typeof content !== 'object') throw new TypeError('The content must be an object of pasteboard types.');
+        const kept = {};
+        for (const type of keys(content)) {
+          if (typeof content[type] === 'string') kept[type] = content[type];
+        }
+        if (keys(kept).length === 0) throw new TypeError('The content has no text in it.');
+        return kept;
+      }
+
+      // A URL as `openUrl` takes it: a string as it is, or a URL whose `+` become `%20` (PopClip's rule).
+      function urlOf(url) {
+        if (typeof url === 'string') return url;
+        if (url instanceof URLClass) return url.href.replace(/\+/g, '%20');
+        throw new TypeError('The URL must be a string or a URL.');
+      }
+
+      function keyStep(key, modifiers) {
+        const mask = modifiers === undefined || modifiers === null ? 0 : Number(modifiers) >>> 0;
+        if (typeof key === 'number') {
+          if (!(key >= 0 && key <= 0x7f && key === Math.floor(key))) throw new RangeError('A key code is from 0 to 0x7F.');
+          return { keyCode: key, modifiers: mask };
+        }
+        if (typeof key === 'string' && key.trim() !== '') return { combo: key, modifiers: mask };
+        throw new TypeError('A key is a string, such as "command b", or a key code.');
+      }
+
+      function keySteps(sequence) {
+        if (!isArray(sequence)) throw new TypeError('The sequence must be an array.');
+        return sequence.map(function (entry) {
+          const wait = typeof entry === 'string' ? /^\s*wait\s+([0-9]+)\s*$/i.exec(entry) : null;
+          if (wait === null) return keyStep(entry, 0);
+          const milliseconds = Number(wait[1]);
+          if (milliseconds > 5000) throw new RangeError('A wait is at most 5000 ms.');
+          return { wait: milliseconds };
+        });
+      }
+
+      function keyTarget(options) {
+        return choice(options, 'target', ['session', 'app', 'hid'], null);
+      }
+
+      // RichString (JS-7): formatted text, made from RTF, HTML or Markdown. The app converts it, because
+      // what does that is AppKit's, which the helper does not have; it is asked once per string.
+
+      const richSources = new WeakMap();
+
+      function RichString(source, options) {
+        if (!(this instanceof RichString)) throw new TypeError("RichString must be called with 'new'.");
+        const format = choice(options, 'format', ['rtf', 'html', 'markdown'], 'rtf');
+        richSources.set(this, { source: String(source), format: format, converted: null });
+      }
+
+      function rich(value) {
+        const state = richSources.get(value);
+        if (state === undefined) throw new TypeError('Not a RichString.');
+        return state;
+      }
+
+      function converted(value) {
+        const state = rich(value);
+        if (state.converted === null) {
+          state.converted = callHostNow(current, 'richText.convert', { source: state.source, format: state.format });
+        }
+        return state.converted;
+      }
+
+      defineProperty(RichString.prototype, 'rtf', { get: function () { return converted(this).rtf; }, configurable: true });
+      defineProperty(RichString.prototype, 'html', { get: function () { return converted(this).html; }, configurable: true });
+      install('RichString', RichString);
+
+      // A share item: a string is text, a RichString rich text, a URL or `{ url }` an address.
+      function shareItem(item) {
+        if (typeof item === 'string') return { text: item };
+        if (item instanceof RichString) {
+          const state = rich(item);
+          return { rich: { source: state.source, format: state.format } };
+        }
+        if (item instanceof URLClass) return { url: urlOf(item) };
+        if (item !== null && typeof item === 'object' && typeof item.url === 'string') return { url: item.url };
+        throw new TypeError('A share item is a string, a RichString, a URL or { url }.');
+      }
+
+      // pasteboard (JS-7)
+
+      const pasteboard = {};
+      defineProperty(pasteboard, 'text', {
+        get: function () {
+          const content = callHostNow(current, 'pasteboard.read', {});
+          return typeof content[plainType] === 'string' ? content[plainType] : '';
+        },
+        set: function (value) {
+          const content = {};
+          content[plainType] = String(value);
+          callHostNow(current, 'pasteboard.write', { content: content });
+        },
+        enumerable: true,
+      });
+      defineProperty(pasteboard, 'content', {
+        get: function () { return freeze(callHostNow(current, 'pasteboard.read', {})); },
+        set: function (value) { callHostNow(current, 'pasteboard.write', { content: contentOf(value) }); },
+        enumerable: true,
+      });
+      install('pasteboard', freeze(pasteboard));
+
+      // util (JS-6). What is pure is worked out here and never crosses (§10.2); the dictionary and the spell
+      // checker are the system's, and are asked through the app.
+
+      function bytesOf(data, name) {
+        if (typeof data === 'string') return Buffer.from(data, 'utf8');
+        if (ArrayBuffer.isView(data)) return Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+        if (data instanceof ArrayBuffer) return Buffer.from(data);
+        throw new TypeError(name + ' must be a string or bytes.');
+      }
+
+      function base64Encode(data, options) {
+        let encoded = bytesOf(data, 'The data').toString('base64');
+        if (flag(options, 'urlSafe', false)) encoded = encoded.replace(/\+/g, '-').replace(/\//g, '_');
+        if (flag(options, 'trimmed', false)) encoded = encoded.replace(/=+$/, '');
+        return encoded;
+      }
+
+      // Standard or URL-safe, padded or not; anything outside the alphabet, such as line breaks, is ignored.
+      function base64Decode(string, options) {
+        const cleaned = String(string).replace(/-/g, '+').replace(/_/g, '/').replace(/[^A-Za-z0-9+/]/g, '');
+        const decoded = Buffer.from(cleaned, 'base64');
+        if (flag(options, 'bytes', false)) return new Uint8Array(decoded);
+        const text = decoded.toString('utf8');
+        if (!Buffer.from(text, 'utf8').equals(decoded)) throw new Error('The decoded data is not text.');
+        return text;
+      }
+
+      function rot13(text) {
+        return text.replace(/[A-Za-z]/g, function (letter) {
+          const base = letter <= 'Z' ? 65 : 97;
+          return String.fromCharCode((letter.charCodeAt(0) - base + 13) % 26 + base);
+        });
+      }
+
+      const digestAlgorithms = ['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512'];
+
+      function digest(algorithm, data, key) {
+        const name = String(algorithm).toLowerCase();
+        if (digestAlgorithms.indexOf(name) < 0) throw new TypeError('The algorithm must be one of ' + digestAlgorithms.join(', ') + '.');
+        const result = native.digest(name, bytesOf(data, 'The data').toString('base64'), key === null ? null : bytesOf(key, 'The key').toString('base64'));
+        return new Uint8Array(Buffer.from(result, 'base64'));
+      }
+
+      function randomBytes(count) {
+        return Buffer.from(native.random(count), 'base64');
+      }
+
+      const integerArrays = ['Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'BigInt64Array', 'BigUint64Array'];
+
+      function spellingLanguage(options) {
+        if (options === undefined || options === null || typeof options.language !== 'string') throw new TypeError('A language is required.');
+        return options.language;
+      }
+
+      const util = {
+        // Titles of PopClip's own actions, in the user's language. The helper has no translations, and
+        // the English is what it answers; the bar still shows it.
+        localize: function localize(string) { return String(string); },
+        hasDictionaryDefinition: function hasDictionaryDefinition(text) {
+          return callHostNow(current, 'dictionary.define', { text: String(text) }) !== null;
+        },
+        getDictionaryDefinition: function getDictionaryDefinition(text) {
+          const definition = callHostNow(current, 'dictionary.define', { text: String(text) });
+          return definition === null ? undefined : definition;
+        },
+        getSpellingLanguages: function getSpellingLanguages() { return callHostNow(current, 'spelling.languages', {}); },
+        getPreferredSpellingLanguages: function getPreferredSpellingLanguages() { return callHostNow(current, 'spelling.preferred', {}); },
+        checkSpelling: function checkSpelling(text, options) {
+          return callHostNow(current, 'spelling.check', { text: String(text), language: spellingLanguage(options) });
+        },
+        getSpellingGuesses: function getSpellingGuesses(text, options) {
+          const limit = options && options.limit !== undefined ? Math.max(0, Math.floor(Number(options.limit))) : null;
+          return callHostNow(current, 'spelling.guesses', { text: String(text), language: spellingLanguage(options), limit: limit });
+        },
+        htmlToMarkdown: function htmlToMarkdown(html, options) {
+          const Turndown = loadLibrary('turndown');
+          const settings = { headingStyle: 'atx' };
+          if (options !== null && typeof options === 'object') for (const key of keys(options)) settings[key] = options[key];
+          return new Turndown(settings).turndown(String(html));
+        },
+        cleanHtml: function cleanHtml(html) { return loadLibrary('sanitize-html')(String(html)); },
+        base64Encode: base64Encode,
+        base64Decode: base64Decode,
+        buildQuery: function buildQuery(params) {
+          if (params === null || typeof params !== 'object') throw new TypeError('The parameters must be an object.');
+          return keys(params).filter(function (key) { return params[key] !== undefined && params[key] !== null; })
+            .map(function (key) { return encodeURIComponent(key) + '=' + encodeURIComponent(String(params[key])); }).join('&');
+        },
+        parseQuery: function parseQuery(query) {
+          const result = {};
+          for (const pair of String(query).replace(/^\?/, '').split('&')) {
+            if (pair === '') continue;
+            const at = pair.indexOf('=');
+            const name = at < 0 ? pair : pair.slice(0, at);
+            const value = at < 0 ? '' : pair.slice(at + 1);
+            try {
+              result[decodeURIComponent(name)] = decodeURIComponent(value);
+            } catch (error) {
+              result[name] = value;
+            }
+          }
+          return result;
+        },
+        // ROT13, then Base64, then JSON: how PopClip's extensions keep client identifiers out of plain sight.
+        clarify: function clarify(obscured) { return parse(base64Decode(rot13(String(obscured)))); },
+        sleep: global.sleep,
+        getRandomValues: function getRandomValues(array) {
+          if (!ArrayBuffer.isView(array) || integerArrays.indexOf(Object.prototype.toString.call(array).slice(8, -1)) < 0) {
+            throw new TypeError('getRandomValues takes an integer typed array.');
+          }
+          if (array.byteLength > 65536) throw new RangeError('getRandomValues fills at most 65536 bytes.');
+          new Uint8Array(array.buffer, array.byteOffset, array.byteLength).set(randomBytes(array.byteLength));
+          return array;
+        },
+        randomUniform: function randomUniform(max) {
+          const bound = Number(max) >>> 0;
+          if (bound === 0xffffffff) return randomBytes(4).readUInt32LE(0);
+          const range = bound + 1;
+          const limit = Math.floor(0x100000000 / range) * range;
+          for (;;) {
+            const value = randomBytes(4).readUInt32LE(0);
+            if (value < limit) return value % range;
+          }
+        },
+        randomUuid: function randomUuid() {
+          const bytes = randomBytes(16);
+          bytes[6] = (bytes[6] & 0x0f) | 0x40;
+          bytes[8] = (bytes[8] & 0x3f) | 0x80;
+          const hex = bytes.toString('hex');
+          return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
+        },
+        hash: function hash(data, algorithm) { return digest(algorithm, data, null); },
+        hmac: function hmac(data, key, algorithm) { return digest(algorithm, data, key); },
+        constant: freeze({
+          MODIFIER_SHIFT: 131072,
+          MODIFIER_CONTROL: 262144,
+          MODIFIER_OPTION: 524288,
+          MODIFIER_COMMAND: 1048576,
+          KEY_RETURN: 0x24,
+          KEY_TAB: 0x30,
+          KEY_SPACE: 0x31,
+          KEY_DELETE: 0x33,
+          KEY_ESCAPE: 0x35,
+          KEY_LEFTARROW: 0x7b,
+          KEY_RIGHTARROW: 0x7c,
+          KEY_DOWNARROW: 0x7d,
+          KEY_UPARROW: 0x7e,
+        }),
+      };
+      // Read afresh on each access, as PopClip's are.
+      defineProperty(util, 'localeInfo', { get: function () { return freeze(native.locale()); }, enumerable: true });
+      defineProperty(util, 'timeZoneInfo', { get: function () { return freeze(native.timeZone()); }, enumerable: true });
+      install('util', freeze(util));
+
+      // popclip (JS-3, JS-4)
+
+      function ranged(items) {
+        const values = items.map(function (item) { return item.value; });
+        values.ranges = freeze(items.map(function (item) { return freeze({ location: item.location, length: item.length }); }));
+        return freeze(values);
+      }
+
+      function inputOf(input) {
+        const regex = input.regexResult;
+        return freeze({
+          text: input.text,
+          matchedText: input.matchedText,
+          regexResult: regex === undefined || regex === null ? undefined
+            : freeze(regex.map(function (group) { return group === null ? undefined : group; })),
+          html: input.html,
+          xhtml: input.xhtml,
+          markdown: input.markdown,
+          rtf: input.rtf,
+          content: freeze(Object.assign({}, input.content)),
+          isUrl: input.isURL === true,
+          data: freeze({
+            urls: ranged(input.data.urls),
+            nonHttpUrls: ranged(input.data.nonHTTPURLs),
+            emails: ranged(input.data.emails),
+            paths: ranged(input.data.paths),
+          }),
+        });
+      }
+
+      function contextOf(context) {
+        return freeze({
+          hasFormatting: context.hasFormatting,
+          canPaste: context.canPaste,
+          canCopy: context.canCopy,
+          canCut: context.canCut,
+          browserUrl: context.browserURL,
+          browserTitle: context.browserTitle,
+          appName: context.appName,
+          appIdentifier: context.appIdentifier,
+        });
+      }
+
+      // Booleans read as booleans. `authsecret`, until `auth` has stored one, throws "Not signed in", which
+      // is the prefix that sends the user to the extension's settings (JS-11).
+      function optionsOf(values, booleans) {
+        const options = {};
+        for (const key of keys(values)) options[key] = booleans.indexOf(key) >= 0 ? values[key] === '1' : values[key];
+        if (typeof options.authsecret !== 'string' || options.authsecret === '') {
+          delete options.authsecret;
+          defineProperty(options, 'authsecret', { get: function () { throw new Error('Not signed in'); } });
+        }
+        return freeze(options);
+      }
+
+      // What is left for a later week: external scripts are JS-5, and they reject rather than being absent,
+      // so a script that reaches for one says why it stopped.
+      function notYet(name) {
+        return function () {
+          return PromiseConstructor.reject(new Error('popclip.' + name + ' is not available in this version of PappuClip.'));
+        };
+      }
+
+      function popclipFor(state) {
+        const invocation = state.invocation;
+        function ask(method, args) { return callHost(invocation, method, args); }
+        // For the methods that answer nothing: a refusal is the app's to report, and it does (SEC-7b).
+        function tell(method, args) { ask(method, args).then(undefined, function () {}); }
+        const modifiers = freeze({
+          shift: state.modifiers.shift,
+          control: state.modifiers.control,
+          option: state.modifiers.option,
+          command: state.modifiers.command,
+        });
+        return freeze({
+          modifiers: modifiers,
+          input: inputOf(state.input),
+          context: contextOf(state.context),
+          options: optionsOf(state.options, state.booleanOptions),
+          pasteText: function pasteText(text, options) {
+            return ask('pasteText', { text: String(text), restore: flag(options, 'restore', false) });
+          },
+          pasteContent: function pasteContent(content, options) {
+            return ask('pasteContent', { content: contentOf(content), restore: flag(options, 'restore', false) });
+          },
+          copyText: function copyText(text, options) {
+            return ask('copyText', { text: String(text), notify: flag(options, 'notify', true) });
+          },
+          copyContent: function copyContent(content, options) {
+            return ask('copyContent', { content: contentOf(content), notify: flag(options, 'notify', true) });
+          },
+          performCommand: function performCommand(command, options) {
+            const name = String(command);
+            if (['cut', 'copy', 'paste'].indexOf(name) < 0) throw new TypeError('The command must be cut, copy or paste.');
+            return ask('performCommand', { command: name, plain: choice(options, 'transform', ['none', 'plain'], 'none') === 'plain' });
+          },
+          showText: function showText(text, options) {
+            tell('showText', {
+              text: String(text),
+              style: choice(options, 'style', ['compact', 'large'], 'compact'),
+              preview: flag(options, 'preview', false),
+            });
+          },
+          showSuccess: function showSuccess() { tell('showSuccess', {}); },
+          showFailure: function showFailure() { tell('showFailure', {}); },
+          showSettings: function showSettings() { tell('showSettings', {}); },
+          signInRequiredError: function signInRequiredError(message) {
+            return new Error('Not signed in' + (message === undefined ? '' : ': ' + String(message)));
+          },
+          settingsRequiredError: function settingsRequiredError(message) {
+            return new Error('Settings error' + (message === undefined ? '' : ': ' + String(message)));
+          },
+          appear: function appear() { tell('appear', {}); },
+          pressKey: function pressKey(key, modifiers, options) {
+            return ask('pressKeys', { steps: [keyStep(key, modifiers)], target: keyTarget(options) });
+          },
+          pressKeys: function pressKeys(sequence, options) {
+            return ask('pressKeys', { steps: keySteps(sequence), target: keyTarget(options) });
+          },
+          runAppleScript: notYet('runAppleScript'),
+          runAppleScriptFile: notYet('runAppleScriptFile'),
+          runShortcut: notYet('runShortcut'),
+          runShellScript: notYet('runShellScript'),
+          runShellScriptFile: notYet('runShellScriptFile'),
+          performService: function performService(name, input) {
+            if (typeof name !== 'string' || name === '') throw new TypeError('The service name is required.');
+            let content;
+            if (typeof input === 'string') {
+              content = {};
+              content[plainType] = input;
+            } else {
+              content = contentOf(input);
+            }
+            return ask('performService', { name: name, content: content });
+          },
+          revealFile: function revealFile(path) {
+            if (typeof path !== 'string' || path === '') throw new TypeError('The path is required.');
+            callHostNow(invocation, 'revealFile', { path: path });
+          },
+          openUrl: function openUrl(url, options) {
+            return ask('openUrl', {
+              url: urlOf(url),
+              app: optionalText(options, 'app'),
+              activate: flag(options, 'activate', true),
+              backgroundTab: flag(options, 'backgroundTab', false),
+            });
+          },
+          openTemplateUrl: function openTemplateUrl(template, query, options) {
+            const values = {};
+            const given = options && options.options;
+            if (given !== null && typeof given === 'object') for (const key of keys(given)) values[key] = String(given[key]);
+            return ask('openTemplateUrl', {
+              template: String(template),
+              query: String(query),
+              clean: flag(options, 'clean', false),
+              plus: flag(options, 'plus', false),
+              verbatim: options && options.verbatim !== undefined ? Boolean(options.verbatim) : modifiers.option,
+              copy: options && options.copy !== undefined ? Boolean(options.copy) : null,
+              options: values,
+              app: optionalText(options, 'app'),
+              activate: flag(options, 'activate', true),
+              backgroundTab: flag(options, 'backgroundTab', false),
+            });
+          },
+          share: function share(service, items) {
+            if (typeof service !== 'string' || service === '') throw new TypeError('The service name is required.');
+            if (!isArray(items)) throw new TypeError('The items must be an array.');
+            return ask('share', { service: service, items: items.map(shareItem) });
+          },
+        });
+      }
+
+      // `popclip` and `pappuclip` for the invocation about to run. The state is the app's JSON.
+      function enter(state) {
+        const popclip = popclipFor(state);
         defineProperty(global, 'popclip', { value: popclip, writable: false, configurable: true });
         defineProperty(global, 'pappuclip', { value: popclip, writable: false, configurable: true });
+        current = state.invocation;
         return popclip;
+      }
+
+      // The settle the host gave, once every call the invocation made has been answered, which also lets go
+      // of `current`.
+      function leaving(invocation, settle) {
+        return function (kind, value) {
+          whenAnswered(invocation, function () {
+            if (current === invocation) current = null;
+            settle(kind, value);
+          });
+        };
       }
 
       function settleWith(promise, settle) {
@@ -685,8 +1442,11 @@ final class ExtensionVM: @unchecked Sendable {
 
       return freeze({
         fire: fire,
+        answer: answer,
 
-        run: function (source, url, base, state, settle, typeScript) {
+        run: function (source, url, base, stateJSON, reply, typeScript) {
+          const state = parse(stateJSON);
+          const settle = leaving(state.invocation, reply);
           let script;
           try {
             // An action's own file follows the rule `require` does: TypeScript, `.mjs`, and `.js` with
@@ -694,7 +1454,7 @@ final class ExtensionVM: @unchecked Sendable {
             const text = typeScript ? transpile(source, 'typescript', url) : base === '' ? source : commonJS(base, source);
             script = compile(text, url, scriptParameters, 'async ');
           } catch (error) {
-            settle('threw', describe(error));
+            reply('threw', describe(error));
             return;
           }
           enter(state);
@@ -722,7 +1482,9 @@ final class ExtensionVM: @unchecked Sendable {
 
         // JS-12: run a module's action, the function at `path`, as PopClip calls it:
         // `code(input, options, context)`, with the action object as `this` when it has one.
-        runExport: function (source, isFile, typeScript, path, state, settle) {
+        runExport: function (source, isFile, typeScript, path, stateJSON, reply) {
+          const state = parse(stateJSON);
+          const settle = leaving(state.invocation, reply);
           let promise;
           try {
             const action = exportedAction(extensionOf(loadModule(source, isFile, typeScript)), path);
@@ -740,4 +1502,56 @@ final class ExtensionVM: @unchecked Sendable {
       });
     })
     """#
+}
+
+/// Synchronous host calls in flight in one world (architecture §10.2's blocking form).
+///
+/// The world's queue waits in `answer(within:)`, so whatever ends a wait early has to reach it from
+/// somewhere else: the app's answer, from the transport's queue, or `interrupt`, from the host's, for a
+/// `drop` or a world that is going away.
+final class BlockingCalls: Sendable {
+    final class Wait: @unchecked Sendable {
+        let invocation: UInt64
+        private let given = Mutex<JSHostAnswer?>(nil)
+        private let signal = DispatchSemaphore(value: 0)
+
+        init(invocation: UInt64) {
+            self.invocation = invocation
+        }
+
+        /// The first answer wins; any later one is ignored.
+        func fulfil(_ answer: JSHostAnswer) {
+            let first = given.withLock { given -> Bool in
+                guard given == nil else { return false }
+                given = answer
+                return true
+            }
+            if first { signal.signal() }
+        }
+
+        /// Nil when nothing came within `limit`.
+        func answer(within limit: Duration) -> JSHostAnswer? {
+            let milliseconds = Int(limit / .milliseconds(1))
+            _ = signal.wait(timeout: .now() + .milliseconds(milliseconds))
+            return given.withLock { $0 }
+        }
+    }
+
+    private let waits = Mutex<[ObjectIdentifier: Wait]>([:])
+
+    func open(for invocation: UInt64) -> Wait {
+        let wait = Wait(invocation: invocation)
+        waits.withLock { $0[ObjectIdentifier(wait)] = wait }
+        return wait
+    }
+
+    func close(_ wait: Wait) {
+        waits.withLock { _ = $0.removeValue(forKey: ObjectIdentifier(wait)) }
+    }
+
+    /// Answers each open wait `which` picks as refused: its action is being dropped, or its world is.
+    func interrupt(_ which: (UInt64) -> Bool) {
+        let all = waits.withLock { Array($0.values) }
+        for wait in all where which(wait.invocation) { wait.fulfil(.refused("The action was stopped.")) }
+    }
 }
