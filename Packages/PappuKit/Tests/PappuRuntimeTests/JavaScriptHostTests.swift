@@ -27,7 +27,8 @@ private struct JavaScriptScene {
 
     init() throws {
         let clock = ManualTimeSource()
-        let probe = FakeDestinationProbe(settled())
+        // The field still holds what was selected when the action was clicked.
+        let probe = FakeDestinationProbe(settled(text: "secret text"))
         let manager = InvocationManager(
             verifier: DestinationVerifier(
                 gate: PrivacyGate(PrivacyRules()),

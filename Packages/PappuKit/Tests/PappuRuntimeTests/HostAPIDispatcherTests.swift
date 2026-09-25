@@ -248,7 +248,7 @@ private func call(_ method: String, _ arguments: String = "{}") -> JSHostCall {
     /// RUN-2c: a destination that cannot be verified gets nothing, and nor does the clipboard.
     @Test func aDestinationThatMovedGetsNothing() async {
         let scene = HostScene(probe: FakeDestinationProbe(DestinationEvidence(isFrontmost: false)), frontmost: terminal)
-        let host = await scene.dispatcher()
+        let host = await scene.dispatcher(gates: [.unboundedCode, .syntheticInput])
         guard case .failed = await host.perform(call("pasteText", #"{"text":"new","restore":false}"#)) else {
             Issue.record("the paste was not refused")
             return

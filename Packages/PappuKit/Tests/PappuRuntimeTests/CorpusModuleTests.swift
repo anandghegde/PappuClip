@@ -24,6 +24,14 @@ import Testing
             .appending(path: "Tests/corpus")
     }
 
+    /// Parsing eighty packages is seconds of blocking work. Done in line it would hold one of the few
+    /// threads the whole suite's tasks share, and every test with a clock in it would feel it.
+    static func offThePool<T: Sendable>(_ work: @escaping @Sendable () -> T) async -> T {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async { continuation.resume(returning: work()) }
+        }
+    }
+
     @Test func everyCorpusModuleIsDescribedOrWaitsForAKnownReason() async throws {
         var packages: [URL] = []
         for folder in ["source", "contrib"] {
@@ -36,7 +44,9 @@ import Testing
         var described: [String: ExtensionManifest] = [:]
         var failed: [String: String] = [:]
         for package in packages {
-            guard let loaded = try? ExtensionLoader.loadPackage(at: package), let module = loaded.manifest.moduleSource else { continue }
+            guard let manifest = await Self.offThePool({ try? ExtensionLoader.loadPackage(at: package).manifest }),
+                  let module = manifest.moduleSource
+            else { continue }
             modules += 1
             let name = package.deletingPathExtension().lastPathComponent
             let request = ModuleDescribeRequest(
@@ -49,10 +59,13 @@ import Testing
             // A helper of its own for each, let go afterwards, so that eighty worlds are not held at once.
             switch await JSHostClient(transport: InProcessJSHost()).describe(request) {
             case .success(let exports):
-                do {
-                    described[name] = try ExtensionLoader.loadPackage(at: package, settings: .init(moduleExports: exports)).manifest
-                } catch {
-                    failed[name] = "its exports did not build: \(error)"
+                let built = await Self.offThePool {
+                    Result { try ExtensionLoader.loadPackage(at: package, settings: .init(moduleExports: exports)).manifest }
+                        .mapError { ModuleDescribeFailure("its exports did not build: \($0)") }
+                }
+                switch built {
+                case .success(let manifest): described[name] = manifest
+                case .failure(let failure): failed[name] = failure.message
                 }
             case .failure(let failure):
                 failed[name] = failure.message

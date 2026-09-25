@@ -279,7 +279,7 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, Sendable {
         let current = state.withLock { $0.connection === connection ? $0.loaded[owner] : nil }
         if current == generation { return true }
         let files: [String: String]
-        switch PackageSources.read(directory) {
+        switch await PackageSources.reading(directory) {
         case .success(let read): files = read
         case .failure:
             // No text: the window says the package could not be read, in its own words.

@@ -165,6 +165,14 @@ enum PackageSources {
         case tooLarge
     }
 
+    /// `read`, on a thread of its own. Reading and decompressing a package is megabytes of blocking
+    /// work, and a task that did it in line would hold one of the few threads every other task shares.
+    static func reading(_ directory: URL) async -> Result<[String: String], Failure> {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async { continuation.resume(returning: read(directory)) }
+        }
+    }
+
     static func read(_ directory: URL) -> Result<[String: String], Failure> {
         let root = directory.resolvingSymlinksInPath().standardizedFileURL
         let prefix = root.path.hasSuffix("/") ? root.path : root.path + "/"
