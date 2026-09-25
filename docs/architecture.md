@@ -960,11 +960,67 @@ The week 1 limits of 1 MB a file and 8 MB a package were too tight for real exte
 
 `CorpusModuleTests` runs all 84 through the real client and builder. It names the 10 that cannot load yet, with their reasons, and fails when that list is wrong in either direction. Six `Config.js` files in the corpus look like modules by name but are single action scripts, and the parser's detection already runs them as scripts. Four of those need `popclip.openUrl`, which is week 3.
 
+Since week 3 built `util`, those 9 describe too: all 84 do in `jsc`, and `CorpusModuleTests` now names only OpenAIPrompt.
+
 **Known gaps:**
 - Population functions (JS-13) and `auth` (§8.10) are week 5.
-- `popclip.context` is empty and there are no `popclip` methods until week 3, so most module actions can only return text for `after`.
 - Described exports are not persisted.
 - The action list (ALM, M4) does not yet get items for module actions: nothing reads the list yet.
+
+#### The host API as built (M3 week 3, first part)
+
+Scripts can now act. Every `popclip` method, `pasteboard`, `RichString`, and the dictionary and spelling lookups in `util` are host calls: the helper asks, and the app decides (§10.2, §10.4). HTML and RTF capture (FLT-4), load errors in the bar (BAR-13) and the Missing App alert (EXM-10) are the rest of the week, still to build.
+
+**The wire.** `JSHostCall` goes from the helper to the app on the session that loaded the extension, and expects a `JSHostAnswer`: `done`, a JSON `value`, `refused` or `failed`. A call names the method and carries its arguments as one JSON object. The invocation number and extension name are filled in by the world the script runs in, so a script cannot speak for another extension's run. The app answers with `handoffReply`, from wherever its dispatcher finishes, so a call that waits holds up nothing else. `JSInvoke` now carries all of `popclip.input` (`regexResult`, the detections with their UTF-16 ranges, `content`, `isUrl`), `context`, `modifiers`, and which options are booleans.
+
+**In the helper.** Each invocation gets its own frozen `popclip`, built from JSON the app sends. Its methods check their arguments' shape, so a mistake throws where it was made, and each call names that invocation.
+- `showText`, `showSuccess` and the other methods that answer nothing are sent and not awaited. A refusal of one is reported by the app, not thrown.
+- **An invocation settles only once every call it made has been answered.** A script may end with an un-awaited `popclip.copyText(result)`, as PopClip allows. Its run must not end, and the copy be refused, before the app has made it.
+- `pasteboard`, `RichString` and the lookups read as values, so they are synchronous calls. The world's queue waits for the answer for at most 10 s, and a `drop` ends the wait from outside that queue. They are for the invocation whose code is running, and throw outside one: while a module loads, or in a timer after its action ended.
+- The rest of `util` never crosses. Base64, query strings, `clarify`, random values (`SecRandomCopyBytes`), `hash` and `hmac` (CryptoKit, and CommonCrypto for SHA-224 and every HMAC), the locale and time zone, `htmlToMarkdown` (turndown) and `cleanHtml` (sanitize-html). `localize` answers the English: the helper has no translations.
+- External scripts (JS-5) reject with a message until week 4, rather than being missing.
+
+**`HostAPIDispatcher`** is made for each JavaScript run by `ExtensionRunner`, with the approval's grants, and `JSHostClient` hands it each call for that run. It checks, in this order, before any effect:
+1. The invocation is still running (RUN-3b). A cancelled run's calls all stop here, which is JS-15's "a promise that resolves after cancel has no effect".
+2. The phase allows calls. A population function may make none (JS-13), which week 5 will need.
+3. The method exists.
+4. The grants cover it (SEC-7b). `pressKeys`, `performService` and `share` need the synthetic-input grant.
+5. Its arguments decode.
+6. For `pasteText`, `pasteContent`, `performCommand` and `pressKeys`, a `MutationPermit` from a fresh verification (RUN-2a).
+
+A refusal rejects the script's promise. The client writes it to the Debug Console as "Not allowed", with the method and the reason. No reason carries what the script passed.
+
+**What each method does:**
+- **`pasteText` and `pasteContent`** go through `TextMutator`, as `paste-result` does. Where Paste was not available when the action was clicked, they copy instead, as in PopClip. Unless `restore`, the value is left on the clipboard afterwards. `ClipboardBroker` and `TextMutator` now take several representations, so `pasteContent` holds HTML and RTF beside the plain text.
+- **`copyText` and `copyContent`** are kept writes. `notify` shows "Copied".
+- **`performCommand`**: cut and paste are the app's ⌘X and ⌘V. Copy keeps the selection PappuClip read, as the `copy` step does. Paste with the plain transform is ⇧ Paste.
+- **`pressKey` and `pressKeys`** go through `KeyPresser`. Every combo is read first, and one it cannot read refuses the whole sequence.
+- **`performService`** runs in the Runner with the plain text.
+- **`openUrl`** opens a web address in the browser the text came from, as URL actions do. It refuses `file:` addresses, because opening a file runs it. `openTemplateUrl` is a URL action's expansion.
+- **`share`** hands the items to the named `NSSharingService`.
+- **`showText`, `showSuccess`, `showFailure`, `appear` and `showSettings`** are kept by the dispatcher. `ExtensionRunner` shows them when the run ends; an `after` step that shows something of its own has the last word.
+
+**Synthetic input is disclosed, not required.** Every extension with JavaScript now lists "Can type and press keys in the current app" as a gated capability, off by default, beside `unbounded-code`. It is checked when a script calls one of the three methods, not when the action runs. So declining it leaves the rest of the extension working, and an extension approved before this build is asked again only if it presses keys (SEC-7d).
+
+**A cancelled run's world is not used again.** Only the run's answer is dropped, and its script may still be running in the helper. The global `popclip` would then be the next invocation's, and the old script could act through it. So a cancel forgets that the extension is loaded, and its next run loads a fresh world. The old world's timers and answers then reach nothing.
+
+**`RichString`** is converted in the app, because what converts it is AppKit's. AppKit reads HTML with WebKit, and WebKit fetches what a page refers to. So nothing a script writes reaches it unchanged:
+- RTF is read as it is.
+- HTML first goes through `SafeHTML`, an allowlist of formatting tags with no attributes but a link's `http`, `https` or `mailto` address.
+- Markdown is made into HTML by `MarkdownHTML`, which escapes the text and makes an image its alt text, so its output is already what `SafeHTML` keeps.
+
+Both are in `PappuCore`, for FLT-4's sanitising to use.
+
+**This differs from §15,** which puts `HostAPIDispatcher` in `PappuJSBridge`. It needs the invocation manager, the clipboard and the destination, which are `PappuRuntime`'s, and the bridge depends on nothing but `PappuCore`. So it is in `PappuRuntime`, with `SystemHostServices` (the Finder, sharing, Dictionary Services, the spell checker and AppKit's rich text) behind a `HostServices` seam.
+
+**Known gaps:**
+- `popclip.input.html`, `xhtml`, `markdown` and `rtf` are empty, and `content` holds only plain text, until FLT-4's capture.
+- `showText`'s `large` style is shown in the bar like `compact`: there is no Large Type window. Its `preview` click-to-paste is BAR-17's (M4).
+- `performCommand`'s plain transform applies to paste only; for cut and copy it is ignored.
+- `share` answers once the service has the items, not when its own window closes.
+- `performService` passes plain text only.
+- `util.localize` does not translate.
+- The reachable-method scan that would let an extension that never presses keys skip the synthetic-input question is week 4 (EXM-5f).
 
 ---
 

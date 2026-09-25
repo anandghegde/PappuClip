@@ -4,13 +4,16 @@ This page covers what M3 needs from a person. The tests do not cover it.
 
 The helper's isolation and lifecycle are tested in-process (`PappuJSHostTests`), and the client's crash handling is tested against a helper that can be made to crash (`PappuRuntimeTests`). `PappuClip --check-js-host` runs the same things against the real, sandboxed `PappuClipJSHost.xpc`. What is left here is the sandbox as the system enforces it, and the Debug Console as a person reads it.
 
-**Status: weeks 1 and 2; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
+**Status: weeks 1 to 3; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
 
 Fixtures:
 - **J**: a JavaScript snippet, `#popclip` / `name: Shout JS` / `javascript: print(popclip.input.text); return popclip.input.text.toUpperCase()`, with `after: paste-result`.
 - **L**: a JavaScript snippet, `#popclip` / `name: Spin` / `javascript: while (true) {}`.
 - **M**: a module snippet, `// #popclip` / `// name: Mod` / `// after: paste-result` followed by `export default { actions: [{ title: 'Reverse', code: (input) => [...input.text].reverse().join('') }] }`.
 - **T**: a TypeScript code snippet, `// #popclip` / `// name: Title TS` / `// after: paste-result` followed by `import { titleCase } from 'case-anything'` and `return titleCase(popclip.input.text) as string`.
+- **H**: a JavaScript snippet, `#popclip` / `name: Host` / `javascript: await popclip.pasteText(util.base64Encode(popclip.input.text)); popclip.showSuccess()`.
+- **K**: a JavaScript snippet, `#popclip` / `name: Bold Key` / `javascript: await popclip.pressKey('command b')`.
+- **R**: a JavaScript snippet, `#popclip` / `name: Rich` / `javascript: popclip.copyContent({ 'public.rtf':new RichString('# Big\n\n**bold** and [a link](https://example.com)', { format:'markdown' }).rtf })` (no space after either colon, so the line stays one YAML value).
 
 ## The helper (SEC-1a, SEC-1b, SEC-1d)
 
@@ -49,3 +52,13 @@ Fixtures:
 | 16 | Install M and approve it, then select `hello` in TextEdit | Within a second or so of approving, a Reverse button; pressing it replaces the word with `olleh` | |
 | 17 | Quit PappuClip, start it again, select `hello` | Reverse is there again once the helper has described the module (it starts at launch for this) | |
 | 18 | Install M again with `code:` taken out of its action | No Reverse button; the Debug Console has nothing about it, and Extension Info still lists the extension | |
+
+## The host API (JS-3, JS-4, JS-6, JS-7, SEC-7b)
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| 19 | Install H, select `hello` in TextEdit and press Host | The word becomes `aGVsbG8=`, the bar shows a tick, and ⌘Z puts `hello` back in one step | |
+| 20 | Install K, approving it without "Can type and press keys", select a word in TextEdit and press Bold Key | The X; the word is not bold; the Debug Console has "Not allowed" with `pressKeys:` and the reason, and not the word | |
+| 21 | In Extension Info, turn "Can type and press keys" on for K and press Bold Key again | The word becomes bold | |
+| 22 | Install R, press Rich on any selection, and paste into a new TextEdit document | A large heading "Big", then **bold** and a link; Little Snitch or `nettop` shows no connection from PappuClip | |
+| 23 | Install L again, press Spin and then Escape; within a second press Host on a new selection | Host works on its own selection; nothing from Spin's run is pasted or copied later | |

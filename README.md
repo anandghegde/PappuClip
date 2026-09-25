@@ -12,8 +12,10 @@ nothing anyone should rely on:
   loads also installs into the store. Its manual checklist has not been run.
 - M3 has a sandboxed JavaScript helper with one isolated world per extension, and PopClip's language environment:
   timers, `Buffer`, `URL` and the rest, the 19 bundled libraries, `require`, and TypeScript. JavaScript and
-  TypeScript actions run, and so do module extensions' actions, once the extension is approved. The `popclip`
-  methods, `util`, `pasteboard`, population functions and network access are still to come.
+  TypeScript actions run, and so do module extensions' actions, once the extension is approved. Scripts can use
+  the `popclip` methods, `util`, `pasteboard` and `RichString`, each call checked by the app against what the
+  extension was granted. HTML and RTF capture, external scripts, population functions and network access are
+  still to come.
 
 The M0 spikes still need a Mac with a person at it ([what is left](docs/spikes/RUNBOOK.md)), and `SpikeLab` is the
 throwaway app that runs them.
