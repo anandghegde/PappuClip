@@ -14,6 +14,9 @@ Fixtures:
 - **H**: a JavaScript snippet, `#popclip` / `name: Host` / `javascript: await popclip.pasteText(util.base64Encode(popclip.input.text)); popclip.showSuccess()`.
 - **K**: a JavaScript snippet, `#popclip` / `name: Bold Key` / `javascript: await popclip.pressKey('command b')`.
 - **R**: a JavaScript snippet, `#popclip` / `name: Rich` / `javascript: popclip.copyContent({ 'public.rtf':new RichString('# Big\n\n**bold** and [a link](https://example.com)', { format:'markdown' }).rtf })` (no space after either colon, so the line stays one YAML value).
+- **S**: a JavaScript snippet, `#popclip` / `name: Styled` / `capture html: true` / `javascript: popclip.showText(popclip.input.markdown)`.
+- **A**: a snippet, `#popclip` / `name: Needs App` / `app: {name: Nowhere, link: "https://example.com/", checkInstalled: true, bundleIdentifiers: [com.example.nowhere]}` / `url: https://example.com/?q=***`.
+- **B**: a snippet, `#popclip` / `name: Broken` / `interpreter: nosuchshell` / `shell script: echo hi`.
 
 ## The helper (SEC-1a, SEC-1b, SEC-1d)
 
@@ -62,3 +65,12 @@ Fixtures:
 | 21 | In Extension Info, turn "Can type and press keys" on for K and press Bold Key again | The word becomes bold | |
 | 22 | Install R, press Rich on any selection, and paste into a new TextEdit document | A large heading "Big", then **bold** and a link; Little Snitch or `nettop` shows no connection from PappuClip | |
 | 23 | Install L again, press Spin and then Escape; within a second press Host on a new selection | Host works on its own selection; nothing from Spin's run is pasted or copied later | |
+
+## Capture, messages and missing apps (FLT-4, BAR-13, EXM-10)
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| 24 | Install S. In TextEdit, type `one two three`, make `two` bold with ⌘B, select the line and press Styled | The bar shows `one **two** three` | |
+| 25 | Select the same words in Safari's address field and press Styled | The bar shows `one two three`, with no `**` | |
+| 26 | Install A, select any word and press Needs App | An alert, "“Nowhere” is not installed", with Open Website and OK; no search page opens. Open Website opens `https://example.com/` | |
+| 27 | Install B, approving it, select any word and press Broken | Grey text in the bar, "“Broken” could not start. The Debug Console says why.", which stays until you click elsewhere; the Debug Console has a line saying why | |

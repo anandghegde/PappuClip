@@ -161,7 +161,8 @@ public final class AppAssembly: SelectionInstalling {
             appleScripts: scripts,
             services: scripts,
             javaScript: javaScript,
-            system: SystemHostServices()
+            system: SystemHostServices(),
+            installed: SystemInstalledApps()
         )
 
         let builtinCatalog = resources.catalog

@@ -69,6 +69,17 @@ private func resolve(
         }
     }
 
+    /// BAR-13: a message is read out as it stands, holds still, and is not the buttons, so a press on
+    /// the bar while it shows runs nothing.
+    @Test func aMessageIsSaidAndOffersNothingToPress() {
+        let moving = BarAppearance.resolve(SystemAppearanceSettings(), preference: .system)
+        let message = BarFeedbackState.message("\u{201C}Shout\u{201D} could not start.")
+        #expect(message.announcement == "\u{201C}Shout\u{201D} could not start.")
+        #expect(message.motion(under: moving) == .none)
+        #expect(!message.showsButtons)
+        #expect(!message.isCancellable)
+    }
+
     @Test func aStateChangedToItselfIsNotAnnouncedTwice() {
         var feedback = BarFeedback()
 

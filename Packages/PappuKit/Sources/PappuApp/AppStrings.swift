@@ -162,6 +162,45 @@ public enum AppStrings {
         localized("automation.alert.dismiss", "Not Now")
     }
 
+    // MARK: In the bar (BAR-13)
+
+    public static func couldNotStart(_ name: String) -> String {
+        String(
+            localized: "bar.message.couldNotStart",
+            defaultValue: "\u{201C}\(name)\u{201D} could not start. The Debug Console says why.",
+            bundle: .module,
+            comment: "%@ is the extension's name."
+        )
+    }
+
+    // MARK: A missing app (EXM-10)
+
+    public static func missingAppTitle(_ app: String) -> String {
+        String(
+            localized: "missingApp.alert.title",
+            defaultValue: "\u{201C}\(app)\u{201D} is not installed",
+            bundle: .module,
+            comment: "%@ is the app's name, as the extension gives it."
+        )
+    }
+
+    public static func missingAppBody(action: String, app: String) -> String {
+        String(
+            localized: "missingApp.alert.body",
+            defaultValue: "\u{201C}\(action)\u{201D} works with \(app), which is not on this Mac.",
+            bundle: .module,
+            comment: "The first %@ is the action's name; the second is the app's."
+        )
+    }
+
+    public static var missingAppWebsite: String {
+        localized("missingApp.alert.website", "Open Website")
+    }
+
+    public static var missingAppDismiss: String {
+        localized("missingApp.alert.dismiss", "OK")
+    }
+
     /// The module's own bundle, so that the test which walks `all` can look every key up from outside.
     public static var bundle: Bundle { .module }
 
@@ -193,6 +232,11 @@ public enum AppStrings {
         "automation.alert.body",
         "automation.alert.open",
         "automation.alert.dismiss",
+        "bar.message.couldNotStart",
+        "missingApp.alert.title",
+        "missingApp.alert.body",
+        "missingApp.alert.website",
+        "missingApp.alert.dismiss",
         "console.window.title",
         "console.empty",
         "console.clear",

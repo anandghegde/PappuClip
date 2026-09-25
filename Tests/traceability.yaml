@@ -743,7 +743,20 @@ requirements:
       - PappuSurfacesTests/goingBackToTheButtonsPutsTheirPlacementBack
       - PappuSurfacesTests/aPressWhileAResultIsShownRunsNothing
       - PappuAppTests/aResultReplacesTheButtonsAndStays
-  BAR-13: { priority: P1, milestone: M3, tests: [] }
+  BAR-13:
+    priority: P1
+    milestone: M3
+    note: >-
+      The half that is an extension's: an action whose code or script could not be started at all (a
+      package that would not read, a helper that would not load it, a missing script or interpreter)
+      puts "“Name” could not start" in the bar, in the secondary colour, and the bar stays until it is
+      dismissed; the Debug Console says which. A script that ran and failed is still the X. **Not yet:
+      "App is excluded"** for the shortcut in an excluded, paused or secure-input app, which needs the
+      coordinator to show a bar it currently declines to show.
+    tests:
+      - PappuRuntimeTests/aScriptThatCannotStartIsAProblemTheBarNames
+      - PappuAppTests/aScriptThatCannotStartSaysSoInTheBar
+      - PappuSurfacesTests/aMessageIsSaidAndOffersNothingToPress
   BAR-14:
     priority: P0
     milestone: M1
@@ -849,7 +862,34 @@ requirements:
       - PappuAnalysisTests/anItemWithAnExtraModifierIsNotTheOne
       - PappuAnalysisTests/anItemThatIsDisabledIsReportedAsDisabled
       - PappuAnalysisTests/theItemsAreFoundOnceAndOnlyTheirEnabledStateIsReadAfterwards
-  FLT-4: { priority: P1, milestone: M3, tests: [] }
+  FLT-4:
+    priority: P1
+    milestone: M3
+    note: >-
+      Captured only when an action the resolver put on the bar asks (`captureHtml`, `captureRtf`), as
+      the selection with how it looks: `AXAttributedStringForRange` read with a full-text permit of its
+      own, kept only if its text is exactly the selection, and otherwise the plain text — FLT-4's last
+      step. HTML, RTF and Markdown are all written from those runs (bold, italic, underline,
+      strikethrough, size, paragraphs), by hand and escaped as written, so the HTML is already what
+      `SafeHTML` keeps and the sanitised and raw forms are the same. Shell scripts and AppleScripts get
+      `HTML`, `RAW_HTML` and `MARKDOWN`; JavaScript gets `popclip.input.html`, `xhtml`, `markdown`, `rtf`
+      and the same under their types in `content`. **Not yet:** the clipboard path's HTML and RTF
+      flavours (an app with no attributed string gets its plain text in each form), and links, colour
+      and lists, which the attributed string carries and these runs leave behind.
+    tests:
+      - PappuCoreTests/aBoldWordInEachForm
+      - PappuCoreTests/paragraphsAndEscaping
+      - PappuCoreTests/theHTMLIsAlreadySafe
+      - PappuCoreTests/markdownEmphasisSitsInsideTheSpaces
+      - PappuCoreTests/rtfEscapesBracesAndUnicode
+      - PappuCoreTests/boldAndItalicComeFromTheFontsName
+      - PappuCoreTests/plainTextIsStyledTextWithNoStyle
+      - PappuAnalysisTests/theStyledSelectionIsReadForTheRangeItWasSelectedAt
+      - PappuAnalysisTests/textThatIsNotTheSelectionIsNotKept
+      - PappuRuntimeTests/aShellScriptThatAskedForHTMLIsGivenIt
+      - PappuRuntimeTests/anActionThatAskedForHTMLAndRTFReadsThem
+      - PappuAppTests/anActionThatAsksForHTMLIsGivenTheSelectionsStyle
+      - PappuAppTests/noActionAskingMeansNoStyleIsRead
   FLT-5:
     priority: P0
     milestone: M2
@@ -1062,7 +1102,19 @@ requirements:
       - PappuExtensionsTests/deletingTheLastActionUninstalls
       - PappuExtensionsTests/deletedBuiltinsStayDeletedUntilRestored
       - PappuExtensionsTests/aBuiltinCannotBeUninstalled
-  EXM-10: { priority: P1, milestone: M3, tests: [] }
+  EXM-10:
+    priority: P1
+    milestone: M3
+    note: >-
+      Checked by bundle identifier through Launch Services before any stage runs, for each `app` marked
+      `checkInstalled`; one that names no identifier cannot be checked and is taken to be there. The
+      action does not run, and an alert names the app with an Open Website button when its link is an
+      http or https page. The alert itself is on docs/checklists/m3-manual.md.
+    tests:
+      - PappuRuntimeTests/aMissingAppStopsTheActionAndOffersItsWebsite
+      - PappuRuntimeTests/anInstalledAppOrOneNotCheckedLetsItRun
+      - PappuRuntimeTests/onlyAWebPageIsOfferedAsTheLink
+      - manual:docs/checklists/m3-manual.md
   EXM-11: { priority: P1, milestone: M3, tests: [] }
   EXM-12: { priority: P1, milestone: M5, tests: [], note: "The staged-package shape is built in M2; update activation lands in M5." }
   EXM-13: { priority: P1, milestone: M5, tests: [] }
@@ -1588,7 +1640,7 @@ requirements:
       Each invocation's own frozen `popclip`, built from JSON the runner fills in: input with regexResult,
       detections and their UTF-16 ranges, content and isUrl; context and modifiers under PopClip's names;
       options with booleans as booleans and an `authsecret` that throws "Not signed in". HTML, XHTML,
-      Markdown and RTF are empty until FLT-4's capture.
+      Markdown and RTF are FLT-4's, filled for an action that asked for them.
     tests:
       - PappuJSHostTests/theInputIsPopClipsShape
       - PappuJSHostTests/optionsAndInputAreReadOnly

@@ -77,6 +77,8 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
         var resolution: ActionResolver.Resolution
         /// EXM-2: the selection is an extension, and this is what the bar said about it.
         var offer: SnippetOffer?
+        /// FLT-4: the selection with how it looks, read only because an action on this bar asked.
+        var captured: StyledText?
     }
 
     private let catalog: @Sendable () -> ActionCatalog
@@ -194,17 +196,40 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
         // First, not last: the bar drops whatever does not fit, and the one thing this selection is
         // plainly for should not be what falls off the end.
         let offer = installer == nil ? nil : SnippetOffer.evaluate(text, locale: locale())
+        let captured = await capture(for: resolution, presentation, selection: selection, context: context)
 
         prepared = Prepared(
             attempt: presentation.attempt,
             selection: selection,
             context: context,
             resolution: resolution,
-            offer: offer
+            offer: offer,
+            captured: captured
         )
         var content = BarContent(actions: resolution.actions.map(\.action), locale: locale())
         if let offer { content.items.insert(BarItem(offer), at: 0) }
         return content
+    }
+
+    /// FLT-4: HTML and RTF are captured only when an action on this bar asks for them. The styled text
+    /// is read through Accessibility, with a permit of its own because the context's was spent, where
+    /// the control offers it; anything else falls back to the plain text, which is FLT-4's last step.
+    private func capture(
+        for resolution: ActionResolver.Resolution,
+        _ presentation: AttemptPresentation,
+        selection: AnalyzedSelection,
+        context: SelectionContext
+    ) async -> StyledText? {
+        let asked = resolution.actions.contains { $0.action.manifest.captureHTML || $0.action.manifest.captureRTF }
+        guard asked, !selection.text.isEmpty else { return nil }
+        if context.hasFormatting, let range = presentation.range {
+            let decision = gate.evaluate(route: presentation.route, target: presentation.target, secureInput: secureInput())
+            if let permit = decision.permit() {
+                let styled = await probe.styledText(permit, range: range, expecting: selection.text)
+                if let styled { return styled }
+            }
+        }
+        return StyledText(plain: selection.text)
     }
 
     // MARK: BarActionInvoking
@@ -267,10 +292,11 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
                     target: presentation.target,
                     modifiers: click.modifiers,
                     options: runtimeOptions(resolved.action),
-                    selection: prepared.selection
+                    selection: prepared.selection,
+                    captured: prepared.captured
                 )
             )
-            ending = Self.ending(for: report, stayVisible: resolved.action.manifest.stayVisible)
+            ending = Self.ending(for: report, stayVisible: resolved.action.manifest.stayVisible, name: resolved.action.extensionName.text(for: locale()))
             request = report.attention
         }
         if running == invocation { running = nil }
@@ -349,7 +375,10 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
     ///
     /// The outcomes read as the built-ins' do. What `after` adds is the display: its own word for a
     /// copy, the text for a result, and for `popclip-appear` the buttons back where they were.
-    static func ending(for report: ExtensionRunner.Report, stayVisible: Bool) -> Ending {
+    ///
+    /// BAR-13: an action whose code or script could not even start says so in the bar, by its extension's
+    /// name, and stays until it is dismissed; the Debug Console has why.
+    static func ending(for report: ExtensionRunner.Report, stayVisible: Bool, name: String = "") -> Ending {
         switch report.outcome {
         case .done:
             switch report.display {
@@ -362,6 +391,7 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
         case .notRunning:
             return Ending(state: .idle, then: .dismiss)
         case .blocked, .notPerformed, .nothingToDo:
+            if report.problem == .didNotStart { return Ending(state: .message(AppStrings.couldNotStart(name)), then: .stay) }
             return Ending(state: .failed, then: .dismiss)
         }
     }

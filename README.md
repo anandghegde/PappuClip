@@ -14,8 +14,8 @@ nothing anyone should rely on:
   timers, `Buffer`, `URL` and the rest, the 19 bundled libraries, `require`, and TypeScript. JavaScript and
   TypeScript actions run, and so do module extensions' actions, once the extension is approved. Scripts can use
   the `popclip` methods, `util`, `pasteboard` and `RichString`, each call checked by the app against what the
-  extension was granted. HTML and RTF capture, external scripts, population functions and network access are
-  still to come.
+  extension was granted. An action that asks for HTML or RTF gets the selection's styling where the app gives
+  it through Accessibility. External scripts, population functions and network access are still to come.
 
 The M0 spikes still need a Mac with a person at it ([what is left](docs/spikes/RUNBOOK.md)), and `SpikeLab` is the
 throwaway app that runs them.

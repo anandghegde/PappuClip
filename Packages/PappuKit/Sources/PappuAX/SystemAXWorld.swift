@@ -120,6 +120,8 @@ public struct SystemAXWorld: AXWorld {
             return .number(number)
         case CFURLGetTypeID():
             return .url(value as! URL)
+        case CFAttributedStringGetTypeID():
+            return .runs(runs(of: value as! NSAttributedString))
         case CFArrayGetTypeID():
             // A heterogeneous array is not one we know how to carry, so it is unsupported rather than
             // silently the elements it happened to contain.
@@ -144,6 +146,24 @@ public struct SystemAXWorld: AXWorld {
         default:
             return nil
         }
+    }
+
+    /// An attributed string as the Accessibility API writes one: its attributes are AX's own (`AXFont`
+    /// holding a name and a size, `AXUnderline`, `AXStrikethrough`), not AppKit's.
+    private static func runs(of attributed: NSAttributedString) -> [AXTextRun] {
+        var runs: [AXTextRun] = []
+        let text = attributed.string as NSString
+        attributed.enumerateAttributes(in: NSRange(location: 0, length: attributed.length)) { attributes, range, _ in
+            var run = AXTextRun(text: text.substring(with: range))
+            if let font = attributes[NSAttributedString.Key("AXFont")] as? [String: Any] {
+                run.fontName = font["AXFontName"] as? String
+                run.fontSize = (font["AXFontSize"] as? NSNumber)?.doubleValue
+            }
+            run.underline = ((attributes[NSAttributedString.Key("AXUnderline")] as? NSNumber)?.intValue ?? 0) != 0
+            run.strikethrough = (attributes[NSAttributedString.Key("AXStrikethrough")] as? NSNumber)?.boolValue ?? false
+            runs.append(run)
+        }
+        return runs
     }
 
     /// Nil for a handle from another world, which is a programming error rather than a state the app

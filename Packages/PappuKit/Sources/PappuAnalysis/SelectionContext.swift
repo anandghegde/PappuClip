@@ -107,7 +107,7 @@ public struct SelectionContext: Sendable, Equatable, Hashable, Codable {
     /// FLT-6: false for read-only text, whatever the menu says.
     public var canPaste: Bool
     /// Whether the control can describe its text with attributes — `AXAttributedStringForRange` — which
-    /// is what FLT-4's HTML and RTF capture will need in M3, and what a formatting action is offered on.
+    /// is what FLT-4's HTML and RTF capture reads, and what a formatting action is offered on.
     public var hasFormatting: Bool
     public var browser: BrowserPage?
     /// What the Edit menu said, before FLT-6 was applied to it. Kept for the inspector.

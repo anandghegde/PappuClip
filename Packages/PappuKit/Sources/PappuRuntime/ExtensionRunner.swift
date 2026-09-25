@@ -55,6 +55,9 @@ public struct ExtensionRunner: Sendable {
         /// What analysis found in the selection: §8.7's `URLS`, `EMAILS` and `PATHS`. Nil gives a
         /// script empty ones.
         public var selection: AnalyzedSelection?
+        /// FLT-4: the selection with how it looks, captured because an action on the bar asked. Nil
+        /// makes an action that asks for HTML or RTF have them from the plain text.
+        public var captured: StyledText?
 
         public init(
             invocation: InvocationID,
@@ -65,7 +68,8 @@ public struct ExtensionRunner: Sendable {
             target: TargetApp,
             modifiers: PointerEvent.Modifiers = [],
             options: [String: String] = [:],
-            selection: AnalyzedSelection? = nil
+            selection: AnalyzedSelection? = nil,
+            captured: StyledText? = nil
         ) {
             self.invocation = invocation
             self.action = action
@@ -76,6 +80,7 @@ public struct ExtensionRunner: Sendable {
             self.modifiers = modifiers
             self.options = options
             self.selection = selection
+            self.captured = captured
         }
 
         /// §8.4 URL: ⇧ opens in the background.
@@ -112,6 +117,17 @@ public struct ExtensionRunner: Sendable {
         /// ONB-5: an AppleScript was not allowed to control the app it talks to. The user is sent to
         /// Privacy & Security → Automation, where the permission is.
         case automationPermission
+        /// EXM-10: the extension needs an app that is not installed. The user is offered its website.
+        case missingApp(name: String, link: URL?)
+    }
+
+    /// Why a run did not get as far as running, when the bar should say so in words (BAR-13). A code;
+    /// the words are the bar's.
+    public enum Problem: Sendable, Equatable {
+        /// The action's code or script could not be started: its package would not read, the helper
+        /// would not load it, its extension is suspended, or its script or interpreter is missing. The
+        /// Debug Console says which.
+        case didNotStart
     }
 
     /// §8.6: "truncated to 160 characters".
@@ -130,6 +146,7 @@ public struct ExtensionRunner: Sendable {
         public let returnedText: Bool
         public let keyPress: KeyPressReport?
         public let attention: Attention?
+        public let problem: Problem?
 
         public var ran: Bool { outcome == .done }
         public var block: DestinationBlock? {
@@ -150,6 +167,7 @@ public struct ExtensionRunner: Sendable {
     private let services: any ServiceRunning
     private let javaScript: any JavaScriptRunning
     private let system: any HostServices
+    private let installed: any InstalledAppChecking
 
     public init(
         manager: InvocationManager,
@@ -163,7 +181,8 @@ public struct ExtensionRunner: Sendable {
         appleScripts: any AppleScriptRunning,
         services: any ServiceRunning,
         javaScript: any JavaScriptRunning = NoJavaScript(),
-        system: any HostServices = NoHostServices()
+        system: any HostServices = NoHostServices(),
+        installed: any InstalledAppChecking = EveryAppInstalled()
     ) {
         self.manager = manager
         self.editor = editor
@@ -177,6 +196,7 @@ public struct ExtensionRunner: Sendable {
         self.services = services
         self.javaScript = javaScript
         self.system = system
+        self.installed = installed
     }
 
     /// Runs the action and ends its invocation, on the same terms as `BuiltinRunner.run`: finished
@@ -188,6 +208,13 @@ public struct ExtensionRunner: Sendable {
         // The approval came with the request, but a request is a value anyone can assemble from pieces;
         // this is where "the approval is for *this* action" is checked, once, before any stage runs.
         guard request.approval.covers(request.action) else { return await finish(run, .notRunning, at: .before) }
+
+        // EXM-10: an app the extension says it needs, and checks for, is not here. Nothing runs, and the
+        // user is offered the app's website instead.
+        if let missing = Self.missingApp(of: request.action, installed: installed) {
+            run.attention = .missingApp(name: missing.name, link: missing.link.flatMap(Self.website))
+            return await finish(run, .notPerformed, at: .before)
+        }
 
         if let before = manifest.before {
             let outcome = await edit(before, request)
@@ -211,6 +238,7 @@ public struct ExtensionRunner: Sendable {
         var display: Display = .status
         var keyPress: KeyPressReport?
         var attention: Attention?
+        var problem: Problem?
     }
 
     // MARK: Executors
@@ -269,7 +297,10 @@ public struct ExtensionRunner: Sendable {
                     system: system
                 )
             )
-            guard let job = Self.javaScriptJob(action, request, host: host) else { return .notPerformed }
+            guard let job = Self.javaScriptJob(action, request, host: host) else {
+                run.problem = .didNotStart
+                return .notPerformed
+            }
             let outcome = await runScript(request, into: &run) { await javaScript.start(job) }
             Self.apply(host.requests, to: &run)
             return outcome
@@ -286,7 +317,10 @@ public struct ExtensionRunner: Sendable {
         into run: inout Run,
         start: () async -> (any ScriptRun)?
     ) async -> Outcome {
-        guard let started = await start() else { return .notPerformed }
+        guard let started = await start() else {
+            run.problem = .didNotStart
+            return .notPerformed
+        }
         // Registered before the wait, so that Escape reaches a script that hangs (RUN-3d).
         guard await manager.attach(started, to: request.invocation) else {
             _ = await started.cancel()
@@ -318,9 +352,15 @@ public struct ExtensionRunner: Sendable {
         if request.modifiers.contains(.option) { modifiers.insert(.option) }
         if request.modifiers.contains(.command) { modifiers.insert(.command) }
         let selection = request.selection
+        // FLT-4: an action that asked for HTML has it, sanitised and raw, and Markdown with it. The HTML
+        // is written from the captured runs and is already sanitised, so the two are the same.
+        let styled = request.action.manifest.captureHTML ? styledText(for: request) : nil
         return ScriptVariables(ScriptVariables.Inputs(
             text: request.match.value,
             fullText: request.match.fullText,
+            html: styled?.html ?? "",
+            rawHTML: styled?.html ?? "",
+            markdown: styled?.markdown ?? "",
             urls: selection?.urls ?? [],
             emails: selection?.emails ?? [],
             paths: selection?.paths ?? [],
@@ -385,22 +425,50 @@ public struct ExtensionRunner: Sendable {
         )
     }
 
-    /// `popclip.input` (JS-3). HTML, XHTML, Markdown and RTF are FLT-4's capture, which is not built
-    /// yet, and are empty, as PopClip leaves them for an app that offers none.
+    /// `popclip.input` (JS-3). HTML, XHTML and Markdown are there for an action that asked for HTML, and
+    /// RTF for one that asked for RTF (FLT-4), each also under its type in `content`. The XHTML is the
+    /// HTML, which is written well-formed.
     static func input(for request: Request) -> JSInput {
         let match = request.match
+        let manifest = request.action.manifest
         func detected(_ kind: Detection.Kind) -> [JSRangedString] {
             (request.selection?.detections(kind) ?? []).map {
                 JSRangedString(value: $0.value, location: $0.span.location, length: $0.span.length)
+            }
+        }
+        var content = [JSInput.plainTextType: match.fullText]
+        var html = "", markdown = "", rtf = ""
+        if manifest.captureHTML || manifest.captureRTF {
+            let styled = styledText(for: request)
+            if manifest.captureHTML {
+                html = styled.html
+                markdown = styled.markdown
+                content[JSInput.htmlType] = html
+            }
+            if manifest.captureRTF {
+                rtf = styled.rtf
+                content[JSInput.rtfType] = rtf
             }
         }
         return JSInput(
             text: match.fullText,
             matchedText: match.value,
             regexResult: match.regexCaptures,
+            html: html,
+            xhtml: html,
+            markdown: markdown,
+            rtf: rtf,
+            content: content,
             isURL: request.selection?.isSingleURL ?? false,
             data: JSDetected(urls: detected(.url), nonHTTPURLs: detected(.nonHTTPURL), emails: detected(.email), paths: detected(.path))
         )
+    }
+
+    /// FLT-4's chain as this build has it: the captured runs when they are the selection, else the plain
+    /// text. A capture of other text than the run's is never used.
+    static func styledText(for request: Request) -> StyledText {
+        if let captured = request.captured, captured.string == request.match.fullText { return captured }
+        return StyledText(plain: request.match.fullText)
     }
 
     /// `popclip.context` (JS-3).
@@ -416,6 +484,20 @@ public struct ExtensionRunner: Sendable {
             appName: context.app.name ?? "",
             appIdentifier: context.app.bundleID ?? ""
         )
+    }
+
+    /// EXM-10: the first app the action's extension checks for that has none of its bundle identifiers
+    /// installed. An app that names no identifier cannot be checked and is taken to be there.
+    static func missingApp(of action: CatalogAction, installed: any InstalledAppChecking) -> AppReference? {
+        action.apps.first { app in
+            app.checkInstalled && !app.bundleIdentifiers.isEmpty && !app.bundleIdentifiers.contains(where: installed.isInstalled)
+        }
+    }
+
+    /// A link the alert may open: a web page, nothing else.
+    public static func website(_ link: String) -> URL? {
+        guard let url = URL(string: link), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return nil }
+        return url
     }
 
     /// What a script's host calls asked of the bar (JS-4), for when the run ends. An `after` step that
@@ -579,7 +661,8 @@ public struct ExtensionRunner: Sendable {
             display: outcome == .done ? run.display : .status,
             returnedText: !(run.result ?? "").isEmpty,
             keyPress: run.keyPress,
-            attention: run.attention
+            attention: run.attention,
+            problem: run.problem
         )
     }
 }

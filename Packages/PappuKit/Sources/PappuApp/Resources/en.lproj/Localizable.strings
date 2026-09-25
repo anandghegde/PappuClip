@@ -67,6 +67,21 @@
 /* The Automation alert's headline (ONB-5). %@ is the action's name. */
 "automation.alert.title" = "\U201C%@\U201D was not allowed to control another app";
 
+/* In the bar, in place of its buttons, when an action's code or script could not start (BAR-13). %@ is the extension's name. */
+"bar.message.couldNotStart" = "\U201C%@\U201D could not start. The Debug Console says why.";
+
+/* The Missing App alert's headline (EXM-10). %@ is the app's name. */
+"missingApp.alert.title" = "\U201C%@\U201D is not installed";
+
+/* Why the action did not run (EXM-10). The first %1$@ is the action's name, the second %2$@ the app's. */
+"missingApp.alert.body" = "\U201C%1$@\U201D works with %2$@, which is not on this Mac.";
+
+/* Opens the missing app's website (EXM-10). */
+"missingApp.alert.website" = "Open Website";
+
+/* Closes the Missing App alert. */
+"missingApp.alert.dismiss" = "OK";
+
 /* Why the action did not run, and where the switch is (ONB-5). */
 "automation.alert.body" = "macOS asks once whether PappuClip may control each app, and remembers the answer. To let this action run, turn PappuClip on for that app under Privacy & Security \U2192 Automation.";
 

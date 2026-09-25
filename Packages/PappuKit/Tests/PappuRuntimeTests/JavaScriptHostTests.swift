@@ -105,7 +105,8 @@ private struct JavaScriptScene {
         _ invocation: InvocationID,
         gates: Set<GatedCapability> = [.unboundedCode],
         modifiers: PointerEvent.Modifiers = [],
-        selection: AnalyzedSelection? = nil
+        selection: AnalyzedSelection? = nil,
+        captured: StyledText? = nil
     ) -> ExtensionRunner.Request {
         ExtensionRunner.Request(
             invocation: invocation,
@@ -124,7 +125,8 @@ private struct JavaScriptScene {
             target: editor,
             modifiers: modifiers,
             options: ["flag": "1", "name": "value"],
-            selection: selection
+            selection: selection,
+            captured: captured
         )
     }
 
@@ -203,5 +205,27 @@ private struct JavaScriptScene {
         let returned = try #require(scene.console.entries.first(where: { $0.kind == .returned })?.text)
         let expected = #"[["https://secret"],[{"location":0,"length":6}],{"hasFormatting":true,"canPaste":true,"canCopy":true,"canCut":true,"browserUrl":"https://example.com/page","browserTitle":"Page","appName":"Editor","appIdentifier":"com.example.editor"},true,true,"value"]"#
         #expect(returned == expected)
+    }
+
+    /// FLT-4: an action that asked for HTML and RTF reads the selection in each form, and the same
+    /// under its type in `content`. One that did not ask has the plain text and nothing else.
+    @Test func anActionThatAskedForHTMLAndRTFReadsThem() async throws {
+        let scene = try JavaScriptScene()
+        let script = "return JSON.stringify([popclip.input.html, popclip.input.markdown, popclip.input.rtf.length > 0, Object.keys(popclip.input.content).sort()])"
+        let captured = StyledText(runs: [.init(text: "secret "), .init(text: "text", bold: true)])
+
+        var asking = try scene.action(script)
+        asking.manifest.captureHTML = true
+        asking.manifest.captureRTF = true
+        let invocation = await scene.begin(asking)
+        #expect(await scene.runner.run(scene.request(asking, invocation, captured: captured)).outcome == .done)
+        let returned = scene.console.entries.filter { $0.kind == .returned }.map(\.text)
+        #expect(returned.last == #"["<p>secret <b>text</b></p>","secret **text**",true,["public.html","public.rtf","public.utf8-plain-text"]]"#)
+
+        let plain = try scene.action(script)
+        let second = await scene.begin(plain)
+        #expect(await scene.runner.run(scene.request(plain, second, captured: captured)).outcome == .done)
+        let again = scene.console.entries.filter { $0.kind == .returned }.map(\.text)
+        #expect(again.last == #"["","",false,["public.utf8-plain-text"]]"#)
     }
 }

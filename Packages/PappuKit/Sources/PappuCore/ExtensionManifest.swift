@@ -31,8 +31,9 @@ public struct ActionManifest: Sendable, Equatable, Codable {
     public var wantsPrimaryDisplay: Bool
     /// Keep the bar up after the action runs (§8.3).
     public var stayVisible: Bool
-    /// Capture HTML and Markdown, or RTF, with the selection (FLT-4, M3). Until M3 captures them the
-    /// values an action reads are empty, which PopClip also gives an app that offers no HTML.
+    /// Capture HTML and Markdown, or RTF, with the selection (FLT-4). The bar reads the selection's
+    /// style through Accessibility only when an action on it asks; an app that gives no style gives the
+    /// plain text in each form, which is FLT-4's last fallback.
     public var captureHTML: Bool
     public var captureRTF: Bool
     /// Applies to `paste-result` (§8.3).

@@ -180,7 +180,8 @@ private struct Scene {
         shortcuts: FakeShortcuts = FakeShortcuts(),
         scripts: FakeScripts = FakeScripts(),
         sleep: (any InvocationSleeping)? = nil,
-        manager: InvocationManager? = nil
+        manager: InvocationManager? = nil,
+        installed: any InstalledAppChecking = EveryAppInstalled()
     ) {
         let clock = ManualTimeSource()
         let manager = manager ?? InvocationManager(
@@ -224,7 +225,8 @@ private struct Scene {
             shortcuts: shortcuts,
             shell: scripts,
             appleScripts: scripts,
-            services: scripts
+            services: scripts,
+            installed: installed
         )
     }
 
@@ -258,12 +260,15 @@ private struct Scene {
         options: [String: String] = [:],
         selection: AnalyzedSelection? = nil,
         directory: URL? = nil,
+        apps: [AppReference] = [],
+        captured: StyledText? = nil,
         // A snippet cannot name a file (FMT-3), so a file-based executor is put in afterwards.
         executor: ActionExecutor? = nil,
         whileBegun: @Sendable (InvocationID) async -> Void = { _ in }
     ) async throws -> (ExtensionRunner.Report, InvocationID) {
         var action = try Self.action(body)
         action.directory = directory
+        action.apps = apps
         if let executor { action.manifest.executor = executor }
         let invocation = await begin(action)
         await whileBegun(invocation)
@@ -283,7 +288,8 @@ private struct Scene {
             target: editor,
             modifiers: modifiers,
             options: options,
-            selection: selection
+            selection: selection,
+            captured: captured
         ))
         return (report, invocation)
     }
@@ -294,6 +300,50 @@ private struct Scene {
             items.first?.first { $0.type == PasteboardRepresentation.plainText }
                 .map { String(decoding: $0.data, as: UTF8.self) }
         }
+    }
+}
+
+// MARK: EXM-10
+
+/// Apps by bundle identifier, as the test says they are installed.
+struct InstalledOnly: InstalledAppChecking {
+    let identifiers: Set<String>
+
+    func isInstalled(_ bundleIdentifier: String) -> Bool { identifiers.contains(bundleIdentifier) }
+}
+
+@Suite struct ExtensionRunnerMissingAppTests {
+    static let iina = AppReference(name: "IINA", link: "https://iina.io/", checkInstalled: true, bundleIdentifiers: ["com.colliderli.iina"])
+
+    /// EXM-10: an app the extension checks for is not installed, so nothing runs and the user is offered
+    /// its website.
+    @Test func aMissingAppStopsTheActionAndOffersItsWebsite() async throws {
+        let scene = Scene(installed: InstalledOnly(identifiers: []))
+        let (report, _) = try await scene.run("url: https://x.test/***", apps: [Self.iina])
+        #expect(report.outcome == .notPerformed)
+        #expect(report.stage == .before)
+        #expect(report.attention == .missingApp(name: "IINA", link: URL(string: "https://iina.io/")))
+        #expect(scene.opener.urls.isEmpty)
+    }
+
+    @Test func anInstalledAppOrOneNotCheckedLetsItRun() async throws {
+        let installed = Scene(installed: InstalledOnly(identifiers: ["com.colliderli.iina"]))
+        #expect(try await installed.run("url: https://x.test/***", apps: [Self.iina]).0.outcome == .done)
+
+        var unchecked = Self.iina
+        unchecked.checkInstalled = false
+        let missing = Scene(installed: InstalledOnly(identifiers: []))
+        #expect(try await missing.run("url: https://x.test/***", apps: [unchecked]).0.outcome == .done)
+
+        // One with no bundle identifier cannot be checked, and is taken to be there.
+        let nameless = AppReference(name: "Mystery", checkInstalled: true)
+        #expect(try await missing.run("url: https://x.test/***", apps: [nameless]).0.outcome == .done)
+    }
+
+    @Test func onlyAWebPageIsOfferedAsTheLink() {
+        #expect(ExtensionRunner.website("https://iina.io/") == URL(string: "https://iina.io/"))
+        #expect(ExtensionRunner.website("file:///Applications/") == nil)
+        #expect(ExtensionRunner.website("javascript:alert(1)") == nil)
     }
 }
 
@@ -585,6 +635,27 @@ private struct Scene {
         #expect(variables.values["OPTION_APIKEY"] == "k")
     }
 
+    /// FLT-4: HTML, raw HTML and Markdown for a script whose action asked for HTML — the captured
+    /// style when it is the selection, the plain text when it is not — and nothing for one that did not.
+    @Test func aShellScriptThatAskedForHTMLIsGivenIt() async throws {
+        let captured = StyledText(runs: [.init(text: "a "), .init(text: "b<c", italic: true)])
+
+        let asking = Scene()
+        _ = try await asking.run("shellScript: env\ncaptureHtml: true", value: "a b<c", captured: captured)
+        let variables = try #require(Self.shellVariables(asking))
+        #expect(variables.values["HTML"] == "<p>a <i>b&lt;c</i></p>")
+        #expect(variables.values["RAW_HTML"] == "<p>a <i>b&lt;c</i></p>")
+        #expect(variables.values["MARKDOWN"] == "a *b<c*")
+
+        let moved = Scene()
+        _ = try await moved.run("shellScript: env\ncaptureHtml: true", value: "other", captured: captured)
+        #expect(try #require(Self.shellVariables(moved)).values["HTML"] == "<p>other</p>")
+
+        let notAsking = Scene()
+        _ = try await notAsking.run("shellScript: env", value: "a b<c", captured: captured)
+        #expect(try #require(Self.shellVariables(notAsking)).values["HTML"] == "")
+    }
+
     /// **Done when: exit code 2 opens settings.** The run fails, and says what it wants.
     @Test func needingSettingsFailsAndAsksForThem() async throws {
         let scene = Scene(scripts: FakeScripts(.needsSettings))
@@ -612,6 +683,15 @@ private struct Scene {
             #expect(report.attention == nil)
             #expect(await scene.manager.record(of: invocation)?.outcome == .failed)
         }
+    }
+
+    /// BAR-13: a script that could not even start says so, as a code the bar puts into words; one that
+    /// ran and failed is an ordinary failure.
+    @Test func aScriptThatCannotStartIsAProblemTheBarNames() async throws {
+        let unstarted = try await Scene(scripts: FakeScripts(starts: false)).run("shellScript: exit 1").0
+        #expect(unstarted.problem == .didNotStart)
+        let failed = try await Scene(scripts: FakeScripts(.failed)).run("shellScript: exit 1").0
+        #expect(failed.problem == nil)
     }
 
     /// §8.4 AppleScript: placeholders are filled in, escaped for the string they sit in.

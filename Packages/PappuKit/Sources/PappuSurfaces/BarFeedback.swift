@@ -9,6 +9,10 @@ public enum BarFeedbackState: Sendable, Equatable {
     /// BAR-12b: an action's answer, in place of the buttons. The runner has already cut it to 160
     /// characters; the view truncates it again to the width it was given.
     case result(String)
+    /// BAR-13: something the user should know about the action, in words, in place of the buttons: its
+    /// code would not load, say. Not an answer, so it is set in the secondary colour and offers nothing
+    /// to click.
+    case message(String)
     case succeeded
     case failed
 }
@@ -27,7 +31,7 @@ extension BarFeedbackState {
     /// stop, which is the shake.
     public func motion(under appearance: BarAppearance) -> BarMotion {
         switch self {
-        case .idle, .copied, .result, .succeeded: .none
+        case .idle, .copied, .result, .message, .succeeded: .none
         case .running: .spinner
         case .failed: appearance.motion == .still ? .none : .shake
         }
@@ -51,6 +55,7 @@ extension BarFeedbackState {
         case .copied: BarStrings.feedbackCopied
         // The answer itself, which is the only part of it that is not already on the screen as text.
         case .result(let text): BarStrings.feedbackResult(text)
+        case .message(let text): text
         case .succeeded: BarStrings.feedbackSucceeded
         case .failed: BarStrings.feedbackFailed
         }

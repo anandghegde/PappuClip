@@ -89,6 +89,33 @@ public final class ContextProbe {
         return context
     }
 
+    /// FLT-4: the selection with how it looks, for an action on the bar that asked for HTML or RTF.
+    ///
+    /// It reads `AXAttributedStringForRange`, which carries the selection itself, so it takes a
+    /// full-text permit and nothing less. What comes back is kept only if its text is exactly `text`,
+    /// the selection the bar was built from: an element whose selection moved, or that answers for a
+    /// different range than it was asked, gives nothing rather than the wrong words in the right style.
+    /// Nil whenever the app will not say; the caller falls back to the plain text.
+    public func styledText(
+        _ permit: consuming ReadPermit,
+        range: AXTextRange,
+        expecting text: String,
+        timeout: Duration? = nil
+    ) -> StyledText? {
+        guard permit.scope == .fullText else { return nil }
+        let application = world.application(pid: permit.target.pid)
+        world.setMessagingTimeout(seconds(timeout), on: application)
+        guard case .success(let value) = world.attribute(.focusedUIElement, of: application),
+              let focused = value.asElement
+        else { return nil }
+        world.setMessagingTimeout(seconds(timeout), on: focused)
+        guard case .success(.runs(let runs)) = world.value(.attributedStringForRange, for: range, of: focused) else { return nil }
+        let styled = StyledText(runs: runs.map {
+            StyledText.Run(text: $0.text, fontName: $0.fontName, size: $0.fontSize, underline: $0.underline, strikethrough: $0.strikethrough)
+        })
+        return styled.string == text ? styled : nil
+    }
+
     /// Drops what is remembered about a process, for one that has quit (RUN-2).
     public func forget(_ pid: pid_t) {
         menus.forget(pid)

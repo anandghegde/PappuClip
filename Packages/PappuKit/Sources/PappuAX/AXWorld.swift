@@ -106,6 +106,27 @@ public enum AXTreeSwitch: String, Sendable, Equatable, CaseIterable {
     case enhancedUserInterface = "AXEnhancedUserInterface"
 }
 
+/// One stretch of text that looks the same throughout, from `AXAttributedStringForRange` (FLT-4).
+///
+/// What the app said, reduced to what survives into HTML, RTF and Markdown: the font by name and size,
+/// and underline and strikethrough. Colour, links and paragraph styles are left behind.
+public struct AXTextRun: Sendable, Equatable {
+    public var text: String
+    /// The font's PostScript name, as the app gave it (`Helvetica-Bold`).
+    public var fontName: String?
+    public var fontSize: Double?
+    public var underline: Bool
+    public var strikethrough: Bool
+
+    public init(text: String, fontName: String? = nil, fontSize: Double? = nil, underline: Bool = false, strikethrough: Bool = false) {
+        self.text = text
+        self.fontName = fontName
+        self.fontSize = fontSize
+        self.underline = underline
+        self.strikethrough = strikethrough
+    }
+}
+
 /// A value an attribute came back with, decoded at the seam.
 public enum AXAttributeValue: Sendable {
     case element(AXElement)
@@ -118,6 +139,8 @@ public enum AXAttributeValue: Sendable {
     /// Screen coordinates with a top-left origin, which is the space the Accessibility API answers
     /// `AXBoundsForRange` in and the one `PappuSurfaces` places the bar in (`BarScreen`).
     case rect(CGRect)
+    /// `AXAttributedStringForRange`: the text with how it looks, as runs (FLT-4).
+    case runs([AXTextRun])
 
     public var asElement: AXElement? {
         if case .element(let element) = self { element } else { nil }
@@ -255,8 +278,8 @@ public protocol AXWorld: Sendable {
     /// Only `AXBoundsForRange` is asked for through here, and the reason it is not asked through
     /// `supports` first is arithmetic: two round trips to a wedged app cost twice one, and an app that
     /// does not offer the attribute answers `.unsupported` to the value call just as usefully as to the
-    /// names call. `AXAttributedStringForRange` is `carriesText` and would need a full-text permit
-    /// standing behind this call before anything may ask for it (FLT-4, M3).
+    /// names call. `AXAttributedStringForRange` is `carriesText`, and `ContextProbe.styledText` asks for
+    /// it only with a full-text permit, for an action on the bar that wants it (FLT-4).
     func value(
         _ attribute: AXParameterizedAttribute,
         for range: AXTextRange,

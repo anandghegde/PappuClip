@@ -363,6 +363,11 @@ final class BarFeedbackView: NSView {
             label.stringValue = Self.oneLine(text)
             label.textColor = .labelColor
             label.toolTip = text
+        case .message(let text):
+            label.isHidden = false
+            label.stringValue = Self.oneLine(text)
+            label.textColor = .secondaryLabelColor
+            label.toolTip = text
         case .succeeded:
             symbol.isHidden = false
             symbol.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: BarStrings.feedbackSucceeded)

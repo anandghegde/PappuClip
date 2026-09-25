@@ -323,7 +323,7 @@ public final class BarController: BarPresenting {
         guard var shown else { return }
         let placement: BarPlacement
         switch state {
-        case .result(let text):
+        case .result(let text), .message(let text):
             let width = min(measurer.width(ofResult: text, metrics: settings.metrics), settings.metrics.resultMaximumWidth)
             guard let fitted = BarLayout.place(
                 anchor: BarAnchor(shown.presentation),

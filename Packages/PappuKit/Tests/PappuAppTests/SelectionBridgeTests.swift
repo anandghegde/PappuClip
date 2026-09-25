@@ -58,6 +58,7 @@ private struct Scene {
     let keys: CountingKeyPresses
     let attention: RecordingAttention
     let installer: RecordingInstaller
+    let world: FakeAXWorld
 
     static func make(
         rules: PrivacyRules = PrivacyRules(),
@@ -69,10 +70,12 @@ private struct Scene {
         approvals: @escaping ActionResolver.Approvals = ExecutionApproval.bundled,
         runtimeOptions: @escaping @Sendable (CatalogAction) -> [String: String] = { _ in [:] },
         installs: Bool = true,
+        styled: [AXTextRun]? = nil,
         catalog: ActionCatalog
     ) async throws -> Scene {
         let focused = Node(role: editable ? "AXTextArea" : "AXStaticText")
         if editable { focused.allowWriting(.selectedText) }
+        if let styled { focused.setStyledText(styled) }
         let world = FakeAXWorld()
         world.setApplication(
             Node(role: "AXApplication", menuBar: menuBar(cut: editable, copy: true, paste: editable)),
@@ -172,7 +175,8 @@ private struct Scene {
             sleeper: sleeper,
             keys: keys,
             attention: attention,
-            installer: installer
+            installer: installer,
+            world: world
         )
     }
 }
@@ -394,6 +398,7 @@ private func presentation(
         shortcuts: AnsweringShortcuts = AnsweringShortcuts(),
         scripts: AnsweringScripts = AnsweringScripts(),
         runtimeOptions: @escaping @Sendable (CatalogAction) -> [String: String] = { _ in [:] },
+        styled: [AXTextRun]? = nil,
         _ bodies: [String: String]
     ) async throws -> Scene {
         try await Scene.make(
@@ -401,6 +406,7 @@ private func presentation(
             scripts: scripts,
             approvals: Self.approveAll,
             runtimeOptions: runtimeOptions,
+            styled: styled,
             catalog: catalog(bodies)
         )
     }
@@ -510,6 +516,50 @@ private func presentation(
 
         #expect(await scene.bar.states == [.failed])
         #expect(await scene.attention.presented.map(\.attention) == [.automationPermission])
+    }
+
+    /// BAR-13: a script that could not even be started says so in the bar, by its extension's name,
+    /// and the bar stays until it is dismissed.
+    @Test func aScriptThatCannotStartSaysSoInTheBar() async throws {
+        let scene = try await approvedScene(
+            scripts: AnsweringScripts(starts: false),
+            ["Shout": "shellScript: tr a-z A-Z\nafter: copy-result"]
+        )
+        try await press("Shout", in: scene)
+
+        #expect(await scene.bar.states == [.message("\u{201C}Shout\u{201D} could not start. The Debug Console says why.")])
+        #expect(await scene.bar.dismissals.isEmpty)
+    }
+
+    /// FLT-4: when an action on the bar asks for HTML, the selection's style is read through
+    /// Accessibility and the script is given it.
+    @Test func anActionThatAsksForHTMLIsGivenTheSelectionsStyle() async throws {
+        let scripts = AnsweringScripts()
+        let scene = try await approvedScene(
+            scripts: scripts,
+            styled: [AXTextRun(text: "some "), AXTextRun(text: "words", fontName: "Helvetica-Bold")],
+            ["Keep": "shellScript: cat\ncaptureHtml: true"]
+        )
+        try await press("Keep", in: scene)
+
+        let variables = try #require(scripts.shellJobs.all.first)
+        #expect(variables.values["HTML"] == "<p>some <b>words</b></p>")
+        #expect(variables.values["MARKDOWN"] == "some **words**")
+        #expect(scene.world.parameterizedValues.map { $0.0 } == [.attributedStringForRange])
+    }
+
+    /// FLT-4: nothing on the bar asked, so the selection's style is never read.
+    @Test func noActionAskingMeansNoStyleIsRead() async throws {
+        let scripts = AnsweringScripts()
+        let scene = try await approvedScene(
+            scripts: scripts,
+            styled: [AXTextRun(text: "some words", fontName: "Helvetica-Bold")],
+            ["Keep": "shellScript: cat"]
+        )
+        try await press("Keep", in: scene)
+
+        #expect(try #require(scripts.shellJobs.all.first).values["HTML"] == "")
+        #expect(scene.world.parameterizedValues.isEmpty)
     }
 
     @Test func aScriptThatSucceedsAsksNothing() async throws {

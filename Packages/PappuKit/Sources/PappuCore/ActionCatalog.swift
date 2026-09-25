@@ -55,6 +55,9 @@ public struct CatalogAction: Sendable, Equatable {
     public var gates: Set<GatedCapability> = []
     /// The extension's options that are booleans, which a script reads as `true` and `false` (JS-3).
     public var booleanOptions: Set<String> = []
+    /// The apps the extension says it works with (§8.3). One marked `checkInstalled` that is not
+    /// installed stops the action before it runs (EXM-10).
+    public var apps: [AppReference] = []
 
     public var executor: ActionExecutor { manifest.executor }
 
@@ -125,7 +128,8 @@ public struct ActionCatalog: Sendable, Equatable {
                         directory: entry.directory,
                         owner: entry.owner,
                         gates: CapabilityAnalyzer.gates(of: action, in: manifest),
-                        booleanOptions: Set(manifest.options.filter { $0.kind == .boolean }.compactMap(\.identifier))
+                        booleanOptions: Set(manifest.options.filter { $0.kind == .boolean }.compactMap(\.identifier)),
+                        apps: manifest.apps
                     )
                 )
             }

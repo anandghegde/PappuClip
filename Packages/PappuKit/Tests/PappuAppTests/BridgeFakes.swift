@@ -169,10 +169,23 @@ struct AnsweringShortcuts: ShortcutRunning {
 /// Shell scripts, AppleScripts and Services that all answer the same thing at once.
 struct AnsweringScripts: ShellScriptRunning, AppleScriptRunning, ServiceRunning {
     var answer: ScriptResult = .returned("the answer")
+    /// False for a runner that could not start anything at all (BAR-13).
+    var starts = true
+    /// What every shell script was handed, in order.
+    let shellJobs = ShellJobs()
 
-    func start(_ job: ShellScriptJob) async -> (any ScriptRun)? { Run(answer: answer) }
-    func start(_ job: AppleScriptRunRequest) async -> (any ScriptRun)? { Run(answer: answer) }
-    func start(service name: String, text: String) async -> (any ScriptRun)? { Run(answer: answer) }
+    func start(_ job: ShellScriptJob) async -> (any ScriptRun)? {
+        shellJobs.append(job.variables)
+        return starts ? Run(answer: answer) : nil
+    }
+    func start(_ job: AppleScriptRunRequest) async -> (any ScriptRun)? { starts ? Run(answer: answer) : nil }
+    func start(service name: String, text: String) async -> (any ScriptRun)? { starts ? Run(answer: answer) : nil }
+
+    final class ShellJobs: Sendable {
+        private let variables = Mutex<[ScriptVariables]>([])
+        func append(_ job: ScriptVariables) { variables.withLock { $0.append(job) } }
+        var all: [ScriptVariables] { variables.withLock { $0 } }
+    }
 
     struct Run: ScriptRun {
         let answer: ScriptResult

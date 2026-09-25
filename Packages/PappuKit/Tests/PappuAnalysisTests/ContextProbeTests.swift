@@ -214,6 +214,42 @@ private func contextProbe(_ world: FakeAXWorld) async -> ContextProbe {
         #expect(!context.hasFormatting)
     }
 
+    // MARK: The selection with how it looks (FLT-4)
+
+    @Test func theStyledSelectionIsReadForTheRangeItWasSelectedAt() async throws {
+        let field = Node(role: "AXTextArea")
+        field.setStyledText([
+            AXTextRun(text: "plain ", fontName: "Helvetica", fontSize: 12),
+            AXTextRun(text: "bold", fontName: "Helvetica-Bold", fontSize: 12, underline: true),
+        ])
+        let world = world(application(menu: menuBar()), focused: field)
+        let styled = await contextProbe(world).styledText(try permit(), range: AXTextRange(location: 4, length: 10), expecting: "plain bold")
+
+        #expect(styled == StyledText(runs: [
+            StyledText.Run(text: "plain ", size: 12),
+            StyledText.Run(text: "bold", bold: true, underline: true, size: 12),
+        ]))
+        #expect(world.timeouts == [readTimeout, readTimeout])
+    }
+
+    /// Other words in the right style would be worse than the plain text, which the caller falls back
+    /// to when this gives nothing.
+    @Test func textThatIsNotTheSelectionIsNotKept() async throws {
+        let field = Node(role: "AXTextArea")
+        field.setStyledText([AXTextRun(text: "something else", fontName: "Helvetica-Bold")])
+        let world = world(application(menu: menuBar()), focused: field)
+        let styled = await contextProbe(world).styledText(try permit(), range: AXTextRange(location: 0, length: 10), expecting: "plain bold")
+
+        #expect(styled == nil)
+    }
+
+    @Test func anAppThatGivesNoStyleGivesNothing() async throws {
+        let world = world(application(menu: menuBar()), focused: Node(role: "AXTextField"))
+        let styled = await contextProbe(world).styledText(try permit(), range: AXTextRange(location: 0, length: 4), expecting: "text")
+
+        #expect(styled == nil)
+    }
+
     // MARK: The browser page (FLT-3)
 
     @Test func aBrowsersPageAddressAndTitleAreRead() async throws {

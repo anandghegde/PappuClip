@@ -44,6 +44,7 @@ public final class FakeAXWorld: AXWorld, Sendable {
         private let bounds = Mutex<[AXTextRange: CGRect]>([:])
         private let faults = Mutex<[AXAttribute: AXFault]>([:])
         private let parameterizedValueFault = Mutex<AXFault?>(nil)
+        private let styled = Mutex<[AXTextRun]?>(nil)
         private let settableFault = Mutex<AXFault?>(nil)
         private let parameterizedFault = Mutex<AXFault?>(nil)
 
@@ -111,9 +112,21 @@ public final class FakeAXWorld: AXWorld, Sendable {
             for range: AXTextRange
         ) -> Result<AXAttributeValue, AXFault> {
             if let fault = parameterizedValueFault.withLock({ $0 }) { return .failure(fault) }
+            if attribute == .attributedStringForRange {
+                guard let runs = styled.withLock({ $0 }) else { return .failure(.unsupported) }
+                return .success(.runs(runs))
+            }
             guard attribute == .boundsForRange else { return .failure(.unsupported) }
             guard let rect = bounds.withLock({ $0[range] }) else { return .failure(.unsupported) }
             return .success(.rect(rect))
+        }
+
+        /// What `AXAttributedStringForRange` answers, whatever the range: the selection with how it
+        /// looks (FLT-4). Offers the attribute too.
+        @discardableResult
+        public func setStyledText(_ runs: [AXTextRun]) -> Node {
+            styled.withLock { $0 = runs }
+            return offer(.attributedStringForRange)
         }
 
         /// Marks the element as offering a parameterized attribute — `AXAttributedStringForRange` is

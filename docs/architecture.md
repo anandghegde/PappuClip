@@ -969,7 +969,7 @@ Since week 3 built `util`, those 9 describe too: all 84 do in `jsc`, and `Corpus
 
 #### The host API as built (M3 week 3, first part)
 
-Scripts can now act. Every `popclip` method, `pasteboard`, `RichString`, and the dictionary and spelling lookups in `util` are host calls: the helper asks, and the app decides (§10.2, §10.4). HTML and RTF capture (FLT-4), load errors in the bar (BAR-13) and the Missing App alert (EXM-10) are the rest of the week, still to build.
+Scripts can now act. Every `popclip` method, `pasteboard`, `RichString`, and the dictionary and spelling lookups in `util` are host calls: the helper asks, and the app decides (§10.2, §10.4). HTML and RTF capture (FLT-4), load errors in the bar (BAR-13) and the Missing App alert (EXM-10) are the rest of the week, below.
 
 **The wire.** `JSHostCall` goes from the helper to the app on the session that loaded the extension, and expects a `JSHostAnswer`: `done`, a JSON `value`, `refused` or `failed`. A call names the method and carries its arguments as one JSON object. The invocation number and extension name are filled in by the world the script runs in, so a script cannot speak for another extension's run. The app answers with `handoffReply`, from wherever its dispatcher finishes, so a call that waits holds up nothing else. `JSInvoke` now carries all of `popclip.input` (`regexResult`, the detections with their UTF-16 ranges, `content`, `isUrl`), `context`, `modifiers`, and which options are booleans.
 
@@ -1014,13 +1014,37 @@ Both are in `PappuCore`, for FLT-4's sanitising to use.
 **This differs from §15,** which puts `HostAPIDispatcher` in `PappuJSBridge`. It needs the invocation manager, the clipboard and the destination, which are `PappuRuntime`'s, and the bridge depends on nothing but `PappuCore`. So it is in `PappuRuntime`, with `SystemHostServices` (the Finder, sharing, Dictionary Services, the spell checker and AppKit's rich text) behind a `HostServices` seam.
 
 **Known gaps:**
-- `popclip.input.html`, `xhtml`, `markdown` and `rtf` are empty, and `content` holds only plain text, until FLT-4's capture.
 - `showText`'s `large` style is shown in the bar like `compact`: there is no Large Type window. Its `preview` click-to-paste is BAR-17's (M4).
 - `performCommand`'s plain transform applies to paste only; for cut and copy it is ignored.
 - `share` answers once the service has the items, not when its own window closes.
 - `performService` passes plain text only.
 - `util.localize` does not translate.
 - The reachable-method scan that would let an extension that never presses keys skip the synthetic-input question is week 4 (EXM-5f).
+
+#### Capture, messages and missing apps as built (M3 week 3, second part)
+
+**HTML, RTF and Markdown (FLT-4)** are read only when an action the resolver put on the bar asks, by `captureHtml` or `captureRtf`. `SelectionBridge` asks while it prepares the bar, after the context probe and before the bar is shown, so the click does not wait on it:
+- The gate is asked again for a full-text permit of its own, because the context probe spent its permit. The read happens only if the control said it has formatting (FLT-3's `hasFormatting`) and the reader gave the selection's range.
+- `ContextProbe.styledText` reads `AXAttributedStringForRange` for that range, under the read budget. What comes back is kept only if its text is exactly the selection. An element whose selection moved gives nothing, not the wrong words in the right style.
+- `SystemAXWorld` decodes the attributed string as Accessibility writes one (`AXFont` with a name and size, `AXUnderline`, `AXStrikethrough`) into `AXTextRun`s. `PappuAX` still imports nothing of ours, so the runs become `StyledText` in `PappuAnalysis`.
+- Otherwise the selection's plain text stands in, which is FLT-4's last step. The action still gets each form.
+
+`StyledText` (in `PappuCore`) keeps bold, italic, underline, strikethrough, size and paragraphs. Bold and italic are read from the font's PostScript name, as a font menu shows them. It writes the three forms by hand, with no AppKit and no WebKit:
+- **HTML** is `<p>` per line with `<b>`, `<i>`, `<u>` and `<s>`, and the text escaped as it is written. That is already what `SafeHTML` keeps, so the sanitised and raw forms are the same string.
+- **Markdown** is the same paragraphs a blank line apart, with emphasis inside the run's own spaces, and `\`, `*`, `_`, `` ` ``, `[` and `]` escaped. Underline has no Markdown and is left as text.
+- **RTF** is one Helvetica font table and a group per run, with anything outside ASCII as `\uN?`.
+
+Shell scripts and AppleScripts get `HTML`, `RAW_HTML` and `MARKDOWN` (§8.7). JavaScript gets `popclip.input.html`, `xhtml` (the HTML, which is written well-formed), `markdown` and `rtf`, each also under its pasteboard type in `content`. `ExtensionRunner` uses the capture only if its text is the run's full text, and otherwise writes the forms from the plain text.
+
+**Messages in the bar (BAR-13).** `BarFeedbackState.message` is words in place of the buttons, in the secondary colour. It is read out as it stands and offers nothing to press. `ExtensionRunner.Report.problem` is `didNotStart` when an action's code or script could not be started at all: a package that would not read, a helper that would not load it, a missing script or interpreter. The bridge then shows "“Name” could not start. The Debug Console says why." The bar stays until the user dismisses it, as a result does. A script that ran and failed is still the X.
+
+**Missing apps (EXM-10).** `CatalogAction` now carries the extension's `apps`. Before any stage runs, `ExtensionRunner` asks `InstalledAppChecking` about each one marked `checkInstalled`. `SystemInstalledApps` asks Launch Services by bundle identifier. An app none of whose identifiers is installed stops the action with nothing run, and `Attention.missingApp` carries its name and its link. `ScriptAttention` shows an alert naming it. The alert has an Open Website button only when the link is an `http` or `https` page. An app that names no bundle identifier cannot be checked and is taken to be there.
+
+**Known gaps:**
+- FLT-4's clipboard path is not built. An app with no attributed string, or one that will not answer for the range, gets its plain text in each form, where PopClip would copy and read the HTML and RTF flavours.
+- Links, colour, lists and fonts other than Helvetica are left behind; the runs keep only what is listed above.
+- The capture is decided by every action the resolver offered, not only those the bar had room to show.
+- BAR-13's "App is excluded" for the shortcut in an excluded, paused or secure-input app is not built. The coordinator declines to show a bar there, and showing one with only a message is its own change.
 
 ---
 
