@@ -199,7 +199,7 @@ private struct JavaScriptScene {
         """
         let report = try await scene.run(script.replacingOccurrences(of: "\n", with: " "), modifiers: [.option], selection: selection)
         #expect(report.outcome == .done)
-        let returned = try #require(scene.console.entries.first { $0.kind == .returned }?.text)
+        let returned = try #require(scene.console.entries.first(where: { $0.kind == .returned })?.text)
         let expected = #"[["https://secret"],[{"location":0,"length":6}],{"hasFormatting":true,"canPaste":true,"canCopy":true,"canCut":true,"browserUrl":"https://example.com/page","browserTitle":"Page","appName":"Editor","appIdentifier":"com.example.editor"},true,true,"value"]"#
         #expect(returned == expected)
     }

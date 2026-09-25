@@ -181,14 +181,19 @@ private func call(_ method: String, _ arguments: String = "{}") -> JSHostCall {
         let scene = HostScene()
         let host = await scene.dispatcher(gates: [.unboundedCode])
         let press = call("pressKeys", #"{"steps":[{"combo":"command b","modifiers":0}],"target":null}"#)
-        guard case .refused(let why) = await host.perform(press) else { return Issue.record("pressKeys was not refused") }
+        guard case .refused(let why) = await host.perform(press) else {
+            Issue.record("pressKeys was not refused")
+            return
+        }
         #expect(why.contains("synthetic-input"))
         #expect(scene.keys.combos.isEmpty)
         guard case .refused = await host.perform(call("performService", #"{"name":"S","content":{"public.utf8-plain-text":"x"}}"#)) else {
-            return Issue.record("performService was not refused")
+            Issue.record("performService was not refused")
+            return
         }
         guard case .refused = await host.perform(call("share", #"{"service":"s","items":[{"text":"x"}]}"#)) else {
-            return Issue.record("share was not refused")
+            Issue.record("share was not refused")
+            return
         }
         #expect(scene.scripts.calls.isEmpty)
         #expect(scene.system.calls.isEmpty)
@@ -245,10 +250,12 @@ private func call(_ method: String, _ arguments: String = "{}") -> JSHostCall {
         let scene = HostScene(probe: FakeDestinationProbe(DestinationEvidence(isFrontmost: false)), frontmost: terminal)
         let host = await scene.dispatcher()
         guard case .failed = await host.perform(call("pasteText", #"{"text":"new","restore":false}"#)) else {
-            return Issue.record("the paste was not refused")
+            Issue.record("the paste was not refused")
+            return
         }
         guard case .failed = await host.perform(call("pressKeys", #"{"steps":[{"keyCode":36,"modifiers":0}]}"#)) else {
-            return Issue.record("the key press was not refused")
+            Issue.record("the key press was not refused")
+            return
         }
         #expect(scene.pasteboard.brokerWrites.isEmpty)
         #expect(scene.pasteboard.pastePosts == 0)
@@ -362,7 +369,7 @@ private func call(_ method: String, _ arguments: String = "{}") -> JSHostCall {
         #expect(await host.perform(call("spelling.check", #"{"text":"teh","language":"en"}"#)) == .value("false"))
         #expect(await host.perform(call("spelling.guesses", #"{"text":"teh","language":"en","limit":1}"#)) == .value(#"["the"]"#))
         #expect(await host.perform(call("spelling.check", #"{"text":"x","language":"xx"}"#)) == .refused("The spell checker has no language xx."))
-        #expect(await host.perform(call("richText.convert", #"{"source":"# T","format":"markdown"}"#)) == .value(#"{"html":"<p># T</p>","rtf":"{\\rtf1 # T}"}"#))
+        #expect(await host.perform(call("richText.convert", ##"{"source":"# T","format":"markdown"}"##)) == .value(#"{"html":"<p># T</p>","rtf":"{\\rtf1 # T}"}"#))
         #expect(await host.perform(call("share", #"{"service":"com.apple.share.Messages","items":[{"text":"t"},{"url":"https://a.test/"},{"rich":{"source":"<b>x</b>","format":"html"}}]}"#)) == .done)
         #expect(await host.perform(call("share", #"{"service":"broken","items":[{"text":"t"}]}"#)) == .failed("It did not work."))
         #expect(await host.perform(call("revealFile", #"{"path":"/"}"#)) == .done)
