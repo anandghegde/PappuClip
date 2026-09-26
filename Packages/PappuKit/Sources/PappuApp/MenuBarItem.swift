@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import PappuExtensions
 
 /// The status item, and nothing else (PRD §7.5).
 ///
@@ -12,9 +13,11 @@ import Foundation
 /// clock nobody is watching: an hour's pause that ran out while the app sat idle has to read as running
 /// the moment the user looks (ACT-18). Building it costs a handful of strings.
 ///
-/// Hiding the icon and dragging snippets onto it are P1 (PRD §7.5) and are not here.
+/// An extension file dropped on the icon is handed to `drop`, which installs it as a double-click would
+/// (EXM-3). The icon's window takes the drag and sends it to its delegate, this, so the button keeps its
+/// own clicks. Hiding the icon is P1 (PRD §7.5) and is not here.
 @MainActor
-public final class MenuBarItem: NSObject, NSMenuDelegate {
+public final class MenuBarItem: NSObject, NSMenuDelegate, NSWindowDelegate {
     /// Provisional. A paperclip is legible at menu-bar size and says "this app is about the thing you
     /// have your hands on"; the designed icon is M6's. It is drawn as a template so that macOS tints it
     /// for light, dark and the highlighted menu.
@@ -22,15 +25,24 @@ public final class MenuBarItem: NSObject, NSMenuDelegate {
 
     private let menu: @MainActor () -> MenuBarMenu
     private let perform: @MainActor (MenuCommand) -> Void
+    private let drop: @MainActor ([URL]) -> Void
     private var item: NSStatusItem?
 
     public init(
         menu: @escaping @MainActor () -> MenuBarMenu,
-        perform: @escaping @MainActor (MenuCommand) -> Void
+        perform: @escaping @MainActor (MenuCommand) -> Void,
+        drop: @escaping @MainActor ([URL]) -> Void
     ) {
         self.menu = menu
         self.perform = perform
+        self.drop = drop
         super.init()
+    }
+
+    /// The dropped files that are extensions, by suffix, as the Finder would send them (EXM-1, EXM-3). A
+    /// drag with none is refused before it lands, so the icon does not offer to take a stray file.
+    public nonisolated static func extensionFiles(in urls: [URL]) -> [URL] {
+        urls.filter { ExtensionLibrary.Source.file($0) != nil }
     }
 
     public func install() {
@@ -45,6 +57,8 @@ public final class MenuBarItem: NSObject, NSMenuDelegate {
         let built = NSMenu()
         built.delegate = self
         item.menu = built
+        item.button?.window?.registerForDraggedTypes([.fileURL])
+        item.button?.window?.delegate = self
         self.item = item
     }
 
@@ -52,6 +66,24 @@ public final class MenuBarItem: NSObject, NSMenuDelegate {
         guard let item else { return }
         NSStatusBar.system.removeStatusItem(item)
         self.item = nil
+    }
+
+    // MARK: Dropping on the icon (EXM-3)
+
+    public func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        Self.extensionFiles(in: Self.fileURLs(sender)).isEmpty ? [] : .copy
+    }
+
+    public func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        let files = Self.extensionFiles(in: Self.fileURLs(sender))
+        guard !files.isEmpty else { return false }
+        drop(files)
+        return true
+    }
+
+    private static func fileURLs(_ sender: any NSDraggingInfo) -> [URL] {
+        let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
+        return sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL] ?? []
     }
 
     // MARK: NSMenuDelegate

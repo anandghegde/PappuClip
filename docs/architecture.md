@@ -623,6 +623,14 @@ Staging happens in `Staging/<uuid>` on the same volume. Activation is one `renam
 
 **Not yet wired:** the app still builds its catalog from the bundled built-ins alone. Three things wait on that integration: reading `placedActions()` into `ActionCatalog`, the Open handler for extension files, and the bar's Install Extension offer. `ActionKey.extensionIdentifier` is also not unique once two separate installs share an identifier, so that integration has to key catalog entries by instance rather than by identifier. *(Settled in week 5: `ExtensionHost` builds the catalog from the store, `AppAssembly.open` handles files, and the bar offers to install a selected snippet; see §9.6. Per-install keys remain a known gap there.)*
 
+#### Snippet files as code, and dropping on the icon (M3 week 2, EXM-3)
+
+`.js`, `.ts` and `.yaml` files are snippet files. `ExtensionLibrary.Source.file` reads them as `.snippetFile`, so each is snippet text: it needs a marker, and a file with none is refused as a snippet with none would be. The suffix says nothing about the language, which the header decides (FMT-2). What they install is recorded as a snippet with the `snippetFile` origin, as a `.popcliptxt` is.
+
+The app declares these suffixes as an **Alternate** handler in `Info.plist`, so they are in the Finder's Open With and the app never becomes their default. `ProductIdentity.FileExtension.codeSnippet` lists the same suffixes.
+
+**Dropping.** The status item's window is registered for file URLs and sends the drag to `MenuBarItem`, its delegate, so the button keeps its own clicks and menu. A drag that holds no extension file, by `Source.file`, is refused before it lands. The files that are extensions go to `AppAssembly.open`, the Finder's route, so each gets the one review (EXM-5). The drop itself is checked by hand (m3-manual rows 15a and 15b).
+
 ### 9.5 Executors
 
 | Type | Where it runs | Mechanism | Cancel |
@@ -921,7 +929,7 @@ The helper reads these as SwiftPM resources of `PappuJSHost` through `Bundle.mod
 
 **Known gaps:**
 - A module extension's actions were not read from what it exports (JS-12). The next section builds that.
-- EXM-3 (Open With and dropping on the menu bar icon) is not built.
+- EXM-3 was not built here. §9.4 has it, as built later in week 2.
 - JS-1's polyfills for built-ins newer than the engine are not added. On macOS 15 before 15.4 that leaves out the iterator helpers, which PopClip says are always there.
 - Six library majors are not yet confirmed against PopClip's documentation (`Resources/JavaScript/README.md`).
 

@@ -49,7 +49,8 @@ public actor ExtensionLibrary {
         case packageFolder(URL)
         /// A `.pappuextz` or `.popclipextz` archive, deleted after a successful install (EXM-1).
         case zippedPackage(URL)
-        /// A `.pappucliptxt` or `.popcliptxt` file.
+        /// A `.pappucliptxt` or `.popcliptxt` file, or a `.js`, `.ts` or `.yaml` one (EXM-3). Each is read
+        /// as snippet text, so a file with no marker is refused as one.
         case snippetFile(URL)
         /// Selected text, through the bar's Install Extension action (EXM-2).
         case selectedText(String)
@@ -60,6 +61,7 @@ public actor ExtensionLibrary {
             if ProductIdentity.FileExtension.package.contains(suffix) { return .packageFolder(url) }
             if ProductIdentity.FileExtension.zippedPackage.contains(suffix) { return .zippedPackage(url) }
             if ProductIdentity.FileExtension.snippet.contains(suffix) { return .snippetFile(url) }
+            if ProductIdentity.FileExtension.codeSnippet.contains(suffix) { return .snippetFile(url) }
             return nil
         }
 

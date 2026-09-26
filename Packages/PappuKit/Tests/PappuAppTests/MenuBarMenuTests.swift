@@ -130,4 +130,11 @@ import Testing
     @Test func thePauseStatusPutsTheTimeIntoTheSentence() {
         #expect(AppStrings.pausedUntil("1:23 PM").contains("1:23 PM"))
     }
+
+    /// EXM-3: the icon takes extension files and snippets saved as code or YAML, and nothing else.
+    @Test func theIconTakesOnlyExtensionFiles() {
+        let dropped = ["A.popclipextz", "B.pappucliptxt", "C.js", "D.ts", "E.yaml", "F.txt", "G.png", "H"]
+            .map { URL(filePath: "/tmp/\($0)") }
+        #expect(MenuBarItem.extensionFiles(in: dropped).map(\.lastPathComponent) == ["A.popclipextz", "B.pappucliptxt", "C.js", "D.ts", "E.yaml"])
+    }
 }

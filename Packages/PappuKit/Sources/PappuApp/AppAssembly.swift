@@ -253,6 +253,8 @@ public final class AppAssembly: SelectionInstalling {
         // over from an hour ago is worse than no menu (ACT-18).
         let consoleWindow = DebugConsoleWindow(console: console)
 
+        // The status item is made before the assembly is, so a drop reaches it through a weak reference.
+        weak var assemblyRef: AppAssembly?
         let statusItem = MenuBarItem(
             menu: { MenuBarMenu(rules: rules.rules, grant: onboarding.grant) },
             perform: { [rules] command in
@@ -274,6 +276,11 @@ public final class AppAssembly: SelectionInstalling {
                 case .quit:
                     NSApp.terminate(nil)
                 }
+            },
+            // EXM-3: a file dropped on the icon is opened as the Finder would open it.
+            drop: { urls in
+                guard let assembly = assemblyRef else { return }
+                Task { await assembly.open(urls) }
             }
         )
 
@@ -303,6 +310,7 @@ public final class AppAssembly: SelectionInstalling {
         self.consentWindow = ConsentWindow()
         self.onboardingWindow = onboardingWindow
         self.consoleWindow = consoleWindow
+        assemblyRef = self
     }
 
     /// Everything that begins talking to the system, in the order it may begin.

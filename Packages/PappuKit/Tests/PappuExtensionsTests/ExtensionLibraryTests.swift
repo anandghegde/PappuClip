@@ -68,6 +68,40 @@ import ZIPFoundation
         #expect(try await library.store.versions(of: identity).map(\.form) == [.snippet])
     }
 
+    // MARK: EXM-3: snippets under their language's suffix
+
+    @Test func codeAndYAMLSnippetFilesInstallAsSnippets() async throws {
+        let scratch = try Scratch()
+        let library = try ExtensionLibrary(paths: scratch.paths)
+        let files = [
+            try scratch.file("Shout.js", "// #popclip\n// name: Shout\n// language: javascript\npopclip.pasteText(popclip.input.text.toUpperCase())"),
+            try scratch.file("Ask.ts", "// #popclip\n// name: Ask\nconst text: string = popclip.input.text\npopclip.pasteText(`${text}?`)"),
+            try scratch.file("Search.yaml", snippet("Search")),
+        ]
+        for file in files {
+            let source = try #require(ExtensionLibrary.Source.file(file))
+            #expect(source == .snippetFile(file))
+            guard case .installed(let identity, _) = try await library.install(source, review: Reviews().reviewer) else {
+                Issue.record("\(file.lastPathComponent) not installed")
+                continue
+            }
+            let record = try #require(try await library.store.extension(identity))
+            let text = try String(contentsOf: file, encoding: .utf8)
+            #expect(record.provenance == .local(.snippetFile, .of(snippet: text)))
+            #expect(try await library.store.versions(of: identity).map(\.form) == [.snippet])
+        }
+    }
+
+    @Test func aCodeFileWithNoMarkerIsRefused() async throws {
+        let scratch = try Scratch()
+        let library = try ExtensionLibrary(paths: scratch.paths)
+        let file = try scratch.file("plain.js", "console.log('not an extension')")
+        await #expect(throws: ExtensionLibrary.InstallError.self) {
+            try await library.install(.snippetFile(file), review: Reviews().reviewer)
+        }
+        #expect(Scratch.tree(scratch.paths.staging).isEmpty)
+    }
+
     /// FMT-7.
     @Test func installedExtensionsLiveInApplicationSupport() {
         let paths = ExtensionLibrary.Paths.standard
@@ -79,6 +113,7 @@ import ZIPFoundation
         #expect(ExtensionLibrary.Source.file(URL(filePath: "/a/X.popclipext")) == .packageFolder(URL(filePath: "/a/X.popclipext")))
         #expect(ExtensionLibrary.Source.file(URL(filePath: "/a/X.PappuExtZ")) == .zippedPackage(URL(filePath: "/a/X.PappuExtZ")))
         #expect(ExtensionLibrary.Source.file(URL(filePath: "/a/X.popcliptxt")) == .snippetFile(URL(filePath: "/a/X.popcliptxt")))
+        #expect(ExtensionLibrary.Source.file(URL(filePath: "/a/X.ts")) == .snippetFile(URL(filePath: "/a/X.ts")))
         #expect(ExtensionLibrary.Source.file(URL(filePath: "/a/X.txt")) == nil)
     }
 

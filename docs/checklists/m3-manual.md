@@ -47,6 +47,8 @@ Fixtures:
 | 13 | `ls …/PappuClip.app/Contents/XPCServices/PappuClipJSHost.xpc/Contents/Resources/` | A `PappuKit_PappuJSHost.bundle` holding `JavaScript/environment.js`, `JavaScript/libraries/` and `JavaScript/THIRD-PARTY-NOTICES.txt` | |
 | 14 | Install T, select `hello big world` in TextEdit and press Title TS | The words are replaced by `Hello Big World` | |
 | 15 | Press Title TS a second time, then open the Debug Console | It worked again, and the console shows no error from loading `case-anything` | |
+| 15a | Save T as `Title.ts` in the Finder, then Control-click it → Open With (EXM-3) | PappuClip is listed but is not the default; choosing it shows the install review for "Title TS" | |
+| 15b | Drag `Title.ts`, then a `.txt` file, onto the menu bar icon | The first is taken and shows the same review; the icon does not take the second | |
 
 ## Module extensions (JS-12)
 
