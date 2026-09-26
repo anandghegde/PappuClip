@@ -990,6 +990,8 @@ Scripts can now act. Every `popclip` method, `pasteboard`, `RichString`, and the
 
 A refusal rejects the script's promise. The client writes it to the Debug Console as "Not allowed", with the method and the reason. No reason carries what the script passed.
 
+**Method groups.** Methods beyond `HostMethod` come in as a `HostCallHandling` group, so week 4's `httpRequest` is added without touching the dispatcher. A group names its methods, says which gated capability each needs, and performs a call once checks 1 to 4 have passed; its arguments and any argument-level rule (for the network, `networkHosts` and the https rule) are its own, and a `HostCallRefusal` it throws is logged like any other refusal. `ExtensionRunner` takes the groups as `hostCalls` and gives every JavaScript run's dispatcher the same ones, with the action in `Run.action` for rules that are the extension's. A group never gets a name `HostMethod` has, and when two name the same method the first has it.
+
 **What each method does:**
 - **`pasteText` and `pasteContent`** go through `TextMutator`, as `paste-result` does. Where Paste was not available when the action was clicked, they copy instead, as in PopClip. Unless `restore`, the value is left on the clipboard afterwards. `ClipboardBroker` and `TextMutator` now take several representations, so `pasteContent` holds HTML and RTF beside the plain text.
 - **`copyText` and `copyContent`** are kept writes. `notify` shows "Copied".

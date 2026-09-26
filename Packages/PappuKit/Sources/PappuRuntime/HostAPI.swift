@@ -131,6 +131,37 @@ public struct RichTextForms: Sendable, Equatable, Encodable {
     }
 }
 
+/// A group of host methods beyond `HostMethod`, served by the dispatcher behind the same checks
+/// (architecture §10.4). This is where later work adds methods without touching the dispatcher: week 4's
+/// `httpRequest` is a group whose calls need the `network` grant when the extension names no
+/// `networkHosts`, and which checks each request's host and the https rule itself, in `perform` (JS-8,
+/// SEC-6).
+///
+/// **What the dispatcher has already checked** when `perform` is called: the run is live, the phase allows
+/// calls, the method is this group's, and the run's grants hold `gate(for:)`. Arguments, and whatever
+/// argument-level rule the group has, are the group's. A `HostCallRefusal` it throws, or a
+/// `DecodingError`, is a refusal, which the client logs by method and reason; so a refusal's words must
+/// not carry what the script passed. Anything else it throws is `failed`.
+///
+/// **Names.** A group serves the names in `methods`, as the helper sends them. A name `HostMethod` has is
+/// never given to a group, and when two groups name the same method the first one has it.
+public protocol HostCallHandling: Sendable {
+    var methods: Set<String> { get }
+    /// The gated capability a call to `method` needs, beyond the approval to run at all. Nil for none.
+    func gate(for method: String, in run: HostAPIDispatcher.Run) -> GatedCapability?
+    func perform(_ method: String, arguments: Data, for run: HostAPIDispatcher.Run) async throws -> JSHostAnswer
+}
+
+/// Why a host call was refused, in words that may be shown and logged: the method and the rule, never
+/// what the script passed.
+public struct HostCallRefusal: Error, Sendable, Equatable {
+    public var message: String
+
+    public init(_ message: String) {
+        self.message = message
+    }
+}
+
 /// For a runner assembled without the system's services: nothing is found, and nothing is shared.
 public struct NoHostServices: HostServices {
     public init() {}
@@ -171,6 +202,9 @@ public final class HostAPIDispatcher: Sendable {
         public var target: TargetApp
         /// The whole selection, which `performCommand("copy")` copies.
         public var text: String
+        /// The action being run, for a `HostCallHandling` group whose rules are the extension's own. Nil
+        /// where a run is made without one, as in the dispatcher's tests.
+        public var action: CatalogAction?
 
         public init(
             invocation: InvocationID,
@@ -178,7 +212,8 @@ public final class HostAPIDispatcher: Sendable {
             gates: Set<GatedCapability>,
             context: SelectionContext,
             target: TargetApp,
-            text: String
+            text: String,
+            action: CatalogAction? = nil
         ) {
             self.invocation = invocation
             self.phase = phase
@@ -186,6 +221,7 @@ public final class HostAPIDispatcher: Sendable {
             self.context = context
             self.target = target
             self.text = text
+            self.action = action
         }
     }
 
@@ -199,6 +235,8 @@ public final class HostAPIDispatcher: Sendable {
         public var urls: any URLOpening
         public var services: any ServiceRunning
         public var system: any HostServices
+        /// The method groups beyond `HostMethod`, tried in order (`HostCallHandling`).
+        public var groups: [any HostCallHandling]
 
         public init(
             manager: InvocationManager,
@@ -208,7 +246,8 @@ public final class HostAPIDispatcher: Sendable {
             clipboard: any ClipboardKeeping,
             urls: any URLOpening,
             services: any ServiceRunning,
-            system: any HostServices
+            system: any HostServices,
+            groups: [any HostCallHandling] = []
         ) {
             self.manager = manager
             self.mutator = mutator
@@ -218,6 +257,7 @@ public final class HostAPIDispatcher: Sendable {
             self.urls = urls
             self.services = services
             self.system = system
+            self.groups = groups
         }
     }
 
@@ -241,24 +281,35 @@ public final class HostAPIDispatcher: Sendable {
         let manager = effects.manager
         guard await manager.accepts(run.invocation) else { return .refused("The action is no longer running.") }
         guard run.phase == .action else { return .refused("Nothing may be asked of PappuClip while the bar is being built.") }
-        guard let method = HostMethod(rawValue: call.method) else { return .refused("There is no host method \(call.method).") }
-        if let gate = method.gate, !run.gates.contains(gate) {
-            return .refused("\(method.rawValue) needs the \(gate.rawValue) permission, which this extension does not have.")
-        }
         let arguments = Data(call.arguments.utf8)
-        do {
-            return try await perform(method, arguments)
-        } catch is DecodingError {
-            return .refused("\(method.rawValue) was not given what it takes.")
-        } catch let refusal as Refusal {
-            return .refused(refusal.message)
-        } catch {
-            return .failed("\(method.rawValue) did not work.")
+        if let method = HostMethod(rawValue: call.method) {
+            if let gate = method.gate, !run.gates.contains(gate) { return Self.notGranted(call.method, gate) }
+            return await answer(call.method) { try await self.perform(method, arguments) }
         }
+        // A group's method, behind the same checks: the grant here, its arguments in the group.
+        guard let group = effects.groups.first(where: { $0.methods.contains(call.method) }) else {
+            return .refused("There is no host method \(call.method).")
+        }
+        if let gate = group.gate(for: call.method, in: run), !run.gates.contains(gate) { return Self.notGranted(call.method, gate) }
+        return await answer(call.method) { try await group.perform(call.method, arguments: arguments, for: self.run) }
     }
 
-    private struct Refusal: Error {
-        var message: String
+    private static func notGranted(_ method: String, _ gate: GatedCapability) -> JSHostAnswer {
+        .refused("\(method) needs the \(gate.rawValue) permission, which this extension does not have.")
+    }
+
+    /// What a method's work comes to: a refusal for arguments it does not take or a rule it breaks, and a
+    /// failure for anything else, in words that never carry what the script passed.
+    private func answer(_ method: String, _ work: () async throws -> JSHostAnswer) async -> JSHostAnswer {
+        do {
+            return try await work()
+        } catch is DecodingError {
+            return .refused("\(method) was not given what it takes.")
+        } catch let refusal as HostCallRefusal {
+            return .refused(refusal.message)
+        } catch {
+            return .failed("\(method) did not work.")
+        }
     }
 
     // MARK: The methods
@@ -309,7 +360,7 @@ public final class HostAPIDispatcher: Sendable {
             return await reveal(given)
         case .openUrl:
             let given = try decode(OpenURL.self, arguments)
-            guard let url = Self.openable(given.url) else { throw Refusal(message: "openUrl was not given an address it may open.") }
+            guard let url = Self.openable(given.url) else { throw HostCallRefusal("openUrl was not given an address it may open.") }
             return await open(url, app: given.app, activate: given.activate && !given.backgroundTab)
         case .openTemplateUrl:
             let given = try decode(OpenTemplate.self, arguments)
@@ -350,13 +401,13 @@ public final class HostAPIDispatcher: Sendable {
         case .spellingCheck:
             let given = try decode(Spelling.self, arguments)
             guard let correct = await effects.system.checkSpelling(given.text, language: given.language) else {
-                throw Refusal(message: "The spell checker has no language \(given.language).")
+                throw HostCallRefusal("The spell checker has no language \(given.language).")
             }
             return try value(correct)
         case .spellingGuesses:
             let given = try decode(Spelling.self, arguments)
             guard let guesses = await effects.system.spellingGuesses(for: given.text, language: given.language, limit: given.limit) else {
-                throw Refusal(message: "The spell checker has no language \(given.language).")
+                throw HostCallRefusal("The spell checker has no language \(given.language).")
             }
             return try value(guesses)
         }
@@ -574,7 +625,7 @@ public final class HostAPIDispatcher: Sendable {
     /// text types: anything else a script names is not something it can have made from text.
     private func representations(_ content: [String: String]) throws -> [PasteboardRepresentation] {
         let kept = Self.textTypes.compactMap { type in content[type].map { PasteboardRepresentation(type: type, data: Data($0.utf8)) } }
-        guard !kept.isEmpty else { throw Refusal(message: "The content has no plain text, HTML or RTF in it.") }
+        guard !kept.isEmpty else { throw HostCallRefusal("The content has no plain text, HTML or RTF in it.") }
         return kept
     }
 
