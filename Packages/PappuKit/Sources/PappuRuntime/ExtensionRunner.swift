@@ -168,6 +168,8 @@ public struct ExtensionRunner: Sendable {
     private let javaScript: any JavaScriptRunning
     private let system: any HostServices
     private let installed: any InstalledAppChecking
+    /// Host methods beyond `HostMethod`, which every JavaScript run's dispatcher also serves.
+    private let hostCalls: [any HostCallHandling]
 
     public init(
         manager: InvocationManager,
@@ -182,7 +184,8 @@ public struct ExtensionRunner: Sendable {
         services: any ServiceRunning,
         javaScript: any JavaScriptRunning = NoJavaScript(),
         system: any HostServices = NoHostServices(),
-        installed: any InstalledAppChecking = EveryAppInstalled()
+        installed: any InstalledAppChecking = EveryAppInstalled(),
+        hostCalls: [any HostCallHandling] = []
     ) {
         self.manager = manager
         self.editor = editor
@@ -197,6 +200,7 @@ public struct ExtensionRunner: Sendable {
         self.javaScript = javaScript
         self.system = system
         self.installed = installed
+        self.hostCalls = hostCalls
     }
 
     /// Runs the action and ends its invocation, on the same terms as `BuiltinRunner.run`: finished
@@ -284,7 +288,8 @@ public struct ExtensionRunner: Sendable {
                     gates: request.approval.gates,
                     context: request.context,
                     target: request.target,
-                    text: request.match.fullText
+                    text: request.match.fullText,
+                    action: request.action
                 ),
                 effects: HostAPIDispatcher.Effects(
                     manager: manager,
@@ -294,7 +299,8 @@ public struct ExtensionRunner: Sendable {
                     clipboard: clipboard,
                     urls: urls,
                     services: services,
-                    system: system
+                    system: system,
+                    groups: hostCalls
                 )
             )
             guard let job = Self.javaScriptJob(action, request, host: host) else {

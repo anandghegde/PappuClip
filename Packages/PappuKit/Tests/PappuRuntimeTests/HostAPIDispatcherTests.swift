@@ -143,6 +143,43 @@ private struct HostScene {
     }
 }
 
+/// A method group shaped like week 4's network one: `network` granted, then an argument-level rule.
+private final class FakeNetworkGroup: HostCallHandling {
+    let methods: Set<String>
+    private let asked = Mutex<[String]>([])
+
+    init(methods: Set<String> = ["httpRequest"]) {
+        self.methods = methods
+    }
+
+    var calls: [String] { asked.withLock { $0 } }
+
+    func gate(for method: String, in run: HostAPIDispatcher.Run) -> GatedCapability? { .network }
+
+    func perform(_ method: String, arguments: Data, for run: HostAPIDispatcher.Run) async throws -> JSHostAnswer {
+        struct Request: Decodable { var url: String }
+        let request = try JSONDecoder().decode(Request.self, from: arguments)
+        guard request.url.hasPrefix("https:") else { throw HostCallRefusal("\(method) takes https addresses only.") }
+        asked.withLock { $0.append(method) }
+        return .value(#"{"status":200}"#)
+    }
+}
+
+private extension HostAPIDispatcher.Effects {
+    func with(groups: [any HostCallHandling]) -> Self {
+        var effects = self
+        effects.groups = groups
+        return effects
+    }
+}
+
+private extension HostAPIDispatcher {
+    /// The same run, served with other effects.
+    func with(_ effects: Effects) -> HostAPIDispatcher {
+        HostAPIDispatcher(run: run, effects: effects)
+    }
+}
+
 private func call(_ method: String, _ arguments: String = "{}") -> JSHostCall {
     JSHostCall(invocation: 1, extensionName: "owner", method: method, arguments: arguments)
 }
@@ -209,6 +246,43 @@ private func call(_ method: String, _ arguments: String = "{}") -> JSHostCall {
         #expect(await host.perform(call("formatDisk")) == .refused("There is no host method formatDisk."))
         #expect(await host.perform(call("copyText", #"{"text":3}"#)) == .refused("copyText was not given what it takes."))
         #expect(await host.perform(call("copyText", "not json")) == .refused("copyText was not given what it takes."))
+    }
+
+    /// The seam week 4's `httpRequest` plugs into: a group's method passes the same checks, in the same
+    /// order, before the group sees it.
+    @Test func aGroupsMethodIsCheckedLikeAnyOther() async {
+        let scene = HostScene()
+        let group = FakeNetworkGroup()
+        let effects = scene.effects.with(groups: [group])
+        let request = call("httpRequest", #"{"url":"https://example.com/secret-text"}"#)
+
+        let ungranted = await scene.dispatcher(gates: [.unboundedCode]).with(effects)
+        #expect(await ungranted.perform(request) == .refused("httpRequest needs the network permission, which this extension does not have."))
+        let population = await scene.dispatcher(gates: [.unboundedCode, .network], phase: .population).with(effects)
+        guard case .refused = await population.perform(request) else {
+            Issue.record("a group's method was not refused during population")
+            return
+        }
+        let cancelled = await scene.dispatcher(gates: [.unboundedCode, .network]).with(effects)
+        await scene.manager.cancel(cancelled.run.invocation)
+        #expect(await cancelled.perform(request) == .refused("The action is no longer running."))
+        #expect(group.calls.isEmpty)
+
+        let granted = await scene.dispatcher(gates: [.unboundedCode, .network]).with(effects)
+        #expect(await granted.perform(request) == .value(#"{"status":200}"#))
+        #expect(group.calls == ["httpRequest"])
+        #expect(await granted.perform(call("httpRequest", #"{"url":"http://example.com"}"#)) == .refused("httpRequest takes https addresses only."))
+        #expect(await granted.perform(call("httpRequest", #"{"url":3}"#)) == .refused("httpRequest was not given what it takes."))
+    }
+
+    /// A group cannot take a built-in method's name, and a name nobody serves is still refused.
+    @Test func aGroupCannotTakeABuiltInMethod() async {
+        let scene = HostScene()
+        let group = FakeNetworkGroup(methods: ["copyText", "httpRequest"])
+        let host = await scene.dispatcher(gates: [.unboundedCode, .network]).with(scene.effects.with(groups: [group]))
+        #expect(await host.perform(call("copyText", #"{"text":"x","notify":false}"#)) == .done)
+        #expect(await host.perform(call("formatDisk")) == .refused("There is no host method formatDisk."))
+        #expect(group.calls.isEmpty)
     }
 
     @Test func eachMethodSaysWhatItNeeds() {

@@ -1439,10 +1439,13 @@ requirements:
       HostAPIDispatcher checks each call in order: the run is live, the phase allows it, the method exists,
       the grants cover it (pressKeys, performService and share need synthetic input, disclosed for every
       JavaScript extension and not needed to run one), its arguments, then a MutationPermit. Refusals go
-      to the Debug Console by method and reason only. The reachable-method scan is week 4.
+      to the Debug Console by method and reason only. Methods beyond HostMethod (week 4's httpRequest)
+      come in as HostCallHandling groups behind the same checks. The reachable-method scan is week 4.
     tests:
       - PappuRuntimeTests/aCallOutsideTheGrantsFailsAndIsLoggedWithoutContent
       - PappuRuntimeTests/aCallOutsideTheGrantsIsRefusedAndDoesNothing
+      - PappuRuntimeTests/aGroupsMethodIsCheckedLikeAnyOther
+      - PappuRuntimeTests/aGroupCannotTakeABuiltInMethod
       - PappuRuntimeTests/populationMayAskForNothing
       - PappuRuntimeTests/anUnknownMethodOrTheWrongArgumentsAreRefused
       - PappuRuntimeTests/eachMethodSaysWhatItNeeds
