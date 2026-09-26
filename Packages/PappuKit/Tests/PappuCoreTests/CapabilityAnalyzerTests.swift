@@ -99,6 +99,59 @@ import Testing
         #expect(CapabilityAnalyzer.effective(Self.manifest([], module: .detection(false))).gated.isEmpty)
     }
 
+    /// EXM-5f: JavaScript the scan bounds needs no `unbounded-code`, and is disclosed by what it calls.
+    /// Code that reads and pastes only is one listed sentence and no switch.
+    @Test func boundedJavaScriptIsWhatItCalls() {
+        let js = ActionExecutor.javaScript(JavaScriptAction(source: .inline("popclip.pasteText('x')")))
+        let manifest = Self.manifest([js])
+        let quiet = CodeScan(methods: [])
+        #expect(CapabilityAnalyzer.effective(manifest, scan: quiet) == CapabilitySet(listed: [.readsAndReplacesText]))
+        #expect(CapabilityAnalyzer.gates(of: manifest.actions[0], in: manifest, scan: quiet).isEmpty)
+
+        let presses = CodeScan(methods: ["pressKey"])
+        let set = CapabilityAnalyzer.effective(manifest, scan: presses)
+        #expect(set.gated == [.syntheticInput])
+        #expect(set.reachableMethods == ["pressKey"])
+        #expect(CapabilityAnalyzer.gates(of: manifest.actions[0], in: manifest, scan: presses).isEmpty)
+    }
+
+    /// EXM-5f: a method the entitlements give no way to use is not disclosed as reachable, and the
+    /// script ones bring the script gate with their entitlement.
+    @Test func whatIsReachableIsWhatTheEntitlementsLeave() {
+        let js = ActionExecutor.javaScript(JavaScriptAction(source: .inline("")))
+        let scan = CodeScan(methods: ["runShellScript", "XMLHttpRequest"])
+        #expect(CapabilityAnalyzer.effective(Self.manifest([js]), scan: scan).reachableMethods == [])
+        let entitled = Self.manifest([js], entitlements: [.script, .network], networkHosts: ["api.example.com"])
+        let set = CapabilityAnalyzer.effective(entitled, scan: scan)
+        #expect(set.reachableMethods == ["XMLHttpRequest", "runShellScript"])
+        #expect(set.gated == [.script])
+        #expect(set.listed == [.readsAndReplacesText, .sendsData(toHosts: ["api.example.com"])])
+    }
+
+    /// EXM-5f: code that aliases `popclip` cannot be bounded, so it is gated once, as `unbounded-code`,
+    /// and that gate carries every sensitive method the extension could reach.
+    @Test func aliasedPopclipIsGatedOnceWithItsMethods() {
+        let js = ActionExecutor.javaScript(JavaScriptAction(source: .inline("const p = popclip; p.runShellScript('x')")))
+        let manifest = Self.manifest([js], entitlements: [.script])
+        let scan = CodeScan(methods: [], unbounded: [.aliasedPopclip])
+        #expect(!scan.isBounded)
+        let set = CapabilityAnalyzer.effective(manifest, scan: scan)
+        #expect(set.gated.filter { $0 == .unboundedCode }.count == 1)
+        #expect(set.gated == [.script, .syntheticInput, .unboundedCode])
+        #expect(set.reachableMethods == [
+            "$", "performService", "pressKey", "pressKeys", "runAppleScript", "runAppleScriptFile",
+            "runShellScript", "runShellScriptFile", "runShortcut", "share",
+        ])
+        #expect(CapabilityAnalyzer.gates(of: manifest.actions[0], in: manifest, scan: scan) == [.script, .unboundedCode])
+    }
+
+    /// A module's code is judged by the scan too.
+    @Test func aBoundedModuleIsNotUnbounded() {
+        let module = Self.manifest([], module: .file("main.js"))
+        #expect(CapabilityAnalyzer.effective(module, scan: CodeScan()).gated.isEmpty)
+        #expect(CapabilityAnalyzer.effective(module, scan: CodeScan(unbounded: [.eval])).gated == [.syntheticInput, .unboundedCode])
+    }
+
     /// SEC-7d: each action answers for its own type, so an extension's URL action never needs the grant
     /// its shell action does, and the shell action always does.
     @Test func eachActionNeedsOnlyItsOwnGates() {

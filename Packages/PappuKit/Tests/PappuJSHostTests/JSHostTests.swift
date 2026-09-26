@@ -128,8 +128,9 @@ import Testing
     @Test func thereIsNoFetchProcessDOMOrFileSystem() async {
         let harness = Harness()
         await harness.load("a")
+        // `XMLHttpRequest` is there, as the app's `httpRequest` (JS-8); `fetch` is not.
         let script = "return [typeof fetch, typeof process, typeof document, typeof XMLHttpRequest].join()"
-        #expect(await harness.run("a", script) == .returned("undefined,undefined,undefined,undefined"))
+        #expect(await harness.run("a", script) == .returned("undefined,undefined,undefined,function"))
         // `window` is only the global object, for libraries that look for one (JS-2).
         #expect(await harness.run("a", "return String(window === globalThis)") == .returned("true"))
         #expect(await harness.run("a", "return typeof require('fs')") == .returned("undefined"))

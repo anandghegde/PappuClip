@@ -26,6 +26,44 @@ public enum JSHostRequest: Codable, Sendable, Equatable {
     case drop(invocation: UInt64)
     /// Forget an extension's world: its globals, its module cache, its virtual machine.
     case unload(extension: String)
+    /// EXM-5f: parse these sources and say which sensitive host methods they reach. Nothing is run, so
+    /// this is sent before an extension is approved, for the review sheet.
+    case scan(JSScan)
+}
+
+/// EXM-5f: an extension's JavaScript, to be read rather than run.
+public struct JSScan: Codable, Sendable, Equatable {
+    public struct Source: Codable, Sendable, Equatable {
+        /// A path relative to the package root, or a name for an action's inline script.
+        public var name: String
+        public var text: String
+        public var typeScript: Bool
+
+        public init(name: String, text: String, typeScript: Bool = false) {
+            self.name = name
+            self.text = text
+            self.typeScript = typeScript
+        }
+    }
+
+    public var sources: [Source]
+
+    public init(sources: [Source]) {
+        self.sources = sources
+    }
+}
+
+/// EXM-5f: what the scan found, in `CodeScan`'s terms, which this layer does not import.
+public struct JSScanReport: Codable, Sendable, Equatable {
+    /// The sensitive methods named.
+    public var methods: [String]
+    /// `CodeScan.Unbounded` raw values: why the reach cannot be bounded. Empty when it can.
+    public var unbounded: [String]
+
+    public init(methods: [String], unbounded: [String]) {
+        self.methods = methods
+        self.unbounded = unbounded
+    }
 }
 
 /// One extension's code, as the helper is allowed to see it.
@@ -331,6 +369,8 @@ public enum JSHostReply: Codable, Sendable, Equatable {
     case returned(String?)
     /// JS-12: what the module exported. A module that would not load or describe is `threw`.
     case described(JSModuleDescription)
+    /// EXM-5f: what a `scan` found.
+    case scanned(JSScanReport)
     /// The script threw, or its promise rejected. The message, for the Debug Console and for §8.8's
     /// "settings error" and "not signed in" prefixes.
     case threw(String)

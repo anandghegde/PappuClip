@@ -123,7 +123,8 @@ public final class AppAssembly: SelectionInstalling {
         // launch when an approved module extension needs describing (JS-12).
         let console = DebugConsole()
         let javaScript = JSHostClient(console: console)
-        let host = (try? ExtensionLibrary(paths: .standard)).map { library in
+        // The helper also reads each extension's JavaScript for what it can reach (EXM-5f).
+        let host = (try? ExtensionLibrary(paths: .standard, scanner: javaScript)).map { library in
             ExtensionHost(
                 library: library,
                 secrets: KeychainSecretStore(),
@@ -148,6 +149,7 @@ public final class AppAssembly: SelectionInstalling {
             engines: resources.engines
         )
         let scripts = RunnerClient()
+        let shortcutRunner = SystemShortcutRunner()
         let extensions = ExtensionRunner(
             manager: manager,
             editor: editor,
@@ -155,14 +157,20 @@ public final class AppAssembly: SelectionInstalling {
             presser: KeyPresser(poster: SystemSyntheticKeyPress(tag: tag), manager: manager),
             clipboard: broker,
             urls: SystemURLOpener(),
-            shortcuts: SystemShortcutRunner(),
+            shortcuts: shortcutRunner,
             shell: SystemShellScriptRunner(),
             // AppleScripts and Services both run in PappuClipRunner.xpc, over one session.
             appleScripts: scripts,
             services: scripts,
             javaScript: javaScript,
             system: SystemHostServices(),
-            installed: SystemInstalledApps()
+            installed: SystemInstalledApps(),
+            // M3 week 4: a script's network (JS-8, SEC-6) and its external scripts (JS-5), behind the
+            // dispatcher's checks.
+            hostCalls: [
+                NetworkHostCalls(manager: manager),
+                ScriptHostCalls(manager: manager, appleScripts: scripts, shortcuts: shortcutRunner),
+            ]
         )
 
         let builtinCatalog = resources.catalog

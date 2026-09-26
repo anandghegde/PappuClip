@@ -351,6 +351,25 @@ final class InProcessJSHost: JSHostTransport {
         #expect(await setup.run(job) == .returned("hello!"))
     }
 
+    /// EXM-5f: the scan reads the package's files and the manifest's inline scripts, and nothing runs.
+    @Test func thePackageIsScannedThroughTheClient() async throws {
+        let setup = try Setup(files: ["lib/keys.js": "module.exports = () => popclip.pressKey('command b')", "data.json": #"{"popclip":1}"#])
+        let manifest = ExtensionManifest(
+            name: "Scan",
+            identifier: "com.example.scan",
+            actions: [ActionManifest(identifier: "a", executor: .javaScript(JavaScriptAction(source: .inline("await $`ls`"))))]
+        )
+        #expect(await setup.client.scan(manifest, in: setup.package) == CodeScan(methods: ["$", "pressKey"]))
+        #expect(setup.console.entries.isEmpty)
+
+        let aliased = ExtensionManifest(
+            name: "Scan",
+            identifier: "com.example.scan",
+            actions: [ActionManifest(identifier: "a", executor: .javaScript(JavaScriptAction(source: .inline("const p = popclip"))))]
+        )
+        #expect(await setup.client.scan(aliased, in: setup.package) == CodeScan(methods: ["pressKey"], unbounded: [.aliasedPopclip]))
+    }
+
     @Test func aModuleThatWillNotDescribeSaysWhyInTheConsole() async throws {
         let setup = try Setup(files: ["Config.js": "throw new Error('no util yet')"])
         #expect(await setup.client.describe(Self.module(setup)) == .failure(ModuleDescribeFailure("no util yet")))

@@ -9,9 +9,9 @@ final class LibraryScratch: @unchecked Sendable {
     let root: URL
     let library: ExtensionLibrary
 
-    init() throws {
+    init(scanner: (any CodeScanning)? = nil) throws {
         root = FileManager.default.temporaryDirectory.appending(path: "pappu-settings-\(UUID().uuidString)", directoryHint: .isDirectory)
-        library = try ExtensionLibrary(paths: ExtensionLibrary.Paths(root: root))
+        library = try ExtensionLibrary(paths: ExtensionLibrary.Paths(root: root), scanner: scanner)
     }
 
     deinit {
@@ -43,6 +43,13 @@ final class LibraryScratch: @unchecked Sendable {
         var value: ExtensionLibrary.Proposal? { lock.withLock { proposal } }
         func set(_ proposal: ExtensionLibrary.Proposal) { lock.withLock { self.proposal = proposal } }
     }
+}
+
+/// The helper's scan, answering the same for every package.
+struct FixedScan: CodeScanning {
+    let found: CodeScan
+    init(_ found: CodeScan) { self.found = found }
+    func scan(_ manifest: ExtensionManifest, in directory: URL) async -> CodeScan? { found }
 }
 
 enum Snippets {
@@ -127,6 +134,42 @@ enum Snippets {
         #expect(ConsentPresenter.consent(.install, granting: [.script]) == .install(granting: [.script]))
         #expect(ConsentPresenter.consent(.cancel, granting: [.script]) == .cancel)
         #expect(ConsentPresenter.consent(.installSeparately, granting: []) == .installSeparately)
+    }
+
+    /// SEC-6: an extension that declares its hosts is disclosed by them, with no switch to turn on.
+    @Test func consentNamesTheHosts() async throws {
+        let snippet = "#popclip\nname: Fetch\nidentifier: com.example.fetch\nentitlements: [network]\nnetworkHosts: [api.example.com, cdn.example.com]\njavascript: return 1\n"
+        let review = ConsentPresenter.review(try await scratch.proposal(snippet))
+        let hosts = ListFormatter.localizedString(byJoining: ["api.example.com", "cdn.example.com"])
+        #expect(review.listed.contains(ExtensionStrings.sendsData(hosts)))
+        #expect(review.listed.contains { $0.contains("api.example.com") && $0.contains("cdn.example.com") })
+        #expect(!review.gates.map(\.capability).contains(.network))
+    }
+
+    /// EXM-5f: code that aliases `popclip` cannot be bounded, so it is gated once, and that one switch
+    /// names the sensitive methods it could reach. Synthetic input stays a switch of its own (SEC-7b), so
+    /// declining it still leaves the rest working.
+    @Test func anAliasedPopclipIsGatedOnceWithItsMethods() async throws {
+        let scanned = try LibraryScratch(scanner: FixedScan(CodeScan(unbounded: [.aliasedPopclip])))
+        let snippet = "#popclip\nname: Alias\nidentifier: com.example.alias\nentitlements: [script]\njavascript: const p = popclip; return p.runShellScript('ls')\n"
+        let proposal = try await scanned.proposal(snippet)
+        let review = ConsentPresenter.review(proposal)
+        #expect(review.gates.map(\.capability) == [.script, .syntheticInput, .unboundedCode])
+        #expect(review.gates.filter { $0.capability == .unboundedCode }.count == 1)
+        let methods = proposal.capabilities.reachableMethods
+        #expect(methods.contains("runShellScript") && methods.contains("pressKey") && methods.contains("$"))
+        let sentence = try #require(review.gates.first { $0.capability == .unboundedCode }?.sentence)
+        #expect(sentence == ExtensionStrings.gateUnboundedCode(calling: ListFormatter.localizedString(byJoining: methods)))
+        #expect(sentence.contains("runShellScript"))
+    }
+
+    /// EXM-5f: code the scan bounds needs no `unbounded-code` switch.
+    @Test func boundedCodeIsDisclosedByWhatItCalls() async throws {
+        let scanned = try LibraryScratch(scanner: FixedScan(CodeScan(methods: [])))
+        let snippet = "#popclip\nname: Upper\nidentifier: com.example.upper\njavascript: return popclip.input.text.toUpperCase()\n"
+        let review = ConsentPresenter.review(try await scanned.proposal(snippet))
+        #expect(review.gates.isEmpty)
+        #expect(review.listed == [ExtensionStrings.readsAndReplacesText])
     }
 
     @Test func everyCapabilityHasASentence() {

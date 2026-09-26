@@ -9,7 +9,7 @@ What `PappuClipJSHost.xpc` gives every extension beyond the language itself: the
 | `src/environment.js` | The globals: `URL`, `URLSearchParams`, `structuredClone`, `atob`, `btoa` and `DOMException` from core-js; `Buffer`; `TextEncoder`; `Blob` |
 | `src/blob.js`, `src/text-encoder.js` | Written here, as narrow as PopClip's (see below) |
 
-The build output is `environment.js`, `libraries/<name>.js`, `libraries.json`, which lists each library's version, licence and every package inside it, and `THIRD-PARTY-NOTICES.txt`. The build is deterministic: running it twice gives the same bytes.
+The build output is `environment.js`, `libraries/<name>.js`, `tooling/<name>.js`, `libraries.json`, which lists each library's and tool's version, licence and every package inside it, and `THIRD-PARTY-NOTICES.txt`. The build is deterministic: running it twice gives the same bytes.
 
 Timers, `sleep`, `window`, `print`, `define` and the module system are not here. They need the host or the world's own state, so they are in `ExtensionVM`'s prelude.
 
@@ -22,6 +22,10 @@ PopClip's type definitions (`@popclip/types`, the version the corpus pins) descr
 - **`TextEncoder`** is UTF-8 only and `encode()` returns a `Buffer`. There is no `TextDecoder`, as in PopClip.
 - **`URL`, `URLSearchParams`, `structuredClone`, `atob`, `btoa`** are the standard APIs, from core-js. It also installs `DOMException`, because `structuredClone` and `atob` throw one. core-js's own global, `__core-js_shared__`, is deleted once everything is installed.
 - **Libraries** are built for the browser, so axios uses `XMLHttpRequest` (JS-8, M3 week 4). The exception is turndown, which is built from its Node entry: that brings its own DOM (domino) and so works on an HTML string, where the browser build expects a `document` that does not exist here.
+
+## The helper's tools
+
+`tooling/acorn.js` is acorn 8.18.0 (MIT, Marijn Haverbeke and contributors, from npm, pinned in `package.json` and `package-lock.json`), bundled on its own with no other package. It runs only in the helper's tooling virtual machine, beside sucrase, so `require()` cannot load it and no extension sees it. It parses an extension's source for the reachable-method scan (EXM-5f, architecture §9.3) and evaluates none of it. Its licence text is in `THIRD-PARTY-NOTICES.txt` and its version and packages are under `tooling` in `libraries.json`.
 
 ## Licence audit (JS-9)
 
@@ -48,5 +52,6 @@ Every package in any bundle is checked as the build runs. A licence outside MIT,
 | sucrase | 3.35.1 | MIT | 6 | No |
 | turndown | 7.2.1 | MIT | 1 | Yes |
 | valibot | 1.1.0 | MIT | 0 | Yes |
+| acorn (tooling, not requirable) | 8.18.0 | MIT | 0 | Not applicable |
 
 **The last column is the open item.** JS-9 asks for the major versions PopClip bundles, and PopClip lists them on a documentation page that could not be reached when this was written. "Yes" means the version is the one the PopClip-Extensions corpus (`Tests/corpus/package.json`) pins as a dependency. PopClip tells extension authors to install the bundled version to type-check against, so that pin stands for the bundled one. "No" means the corpus does not pin the library and the long-standing major was chosen. For content-type that is 1.x, not the 2.x and 3.x rewrites of 2026, and for emoji-regex it is 10.x, not the 11.0 released in September 2026. Check the six "No" rows against https://www.popclip.app/dev/js-environment#bundled-libraries before the beta.

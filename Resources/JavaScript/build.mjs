@@ -5,6 +5,7 @@
 //   environment.js           the globals (see src/environment.js)
 //   libraries/<name>.js      one self-contained CommonJS module per library `require()` can load
 //   libraries.json           each library's version and licence, and every package inside it
+//   tooling/<name>.js        the helper's own tools, which no extension can require (acorn)
 //   THIRD-PARTY-NOTICES.txt  the licence text of every package in any of the above
 //
 // Everything is CommonJS text that the helper wraps and evaluates itself, so none of it is ever
@@ -27,6 +28,11 @@ const libraries = [
   'oauth-1.0a', 'rot13-cipher', 'sanitize-html', 'sucrase', 'turndown', 'valibot',
 ];
 const sharedWithTheEnvironment = new Set(['buffer']);
+
+// The helper's own tools. They run in its tooling virtual machine, beside sucrase, and never in an
+// extension's world, so `require()` does not find them: acorn parses an extension's source for the
+// reachable-method scan (EXM-5f, architecture §9.3) and evaluates none of it.
+const tooling = ['acorn'];
 
 // Built for the browser, a library that needs a DOM expects `document`, and there is none. turndown's
 // Node build brings its own (domino), which is what makes `turndown(htmlString)` work.
@@ -144,6 +150,7 @@ async function build(contents, resolveDir, extra = {}) {
 
 rmSync(output, { recursive: true, force: true });
 mkdirSync(join(output, 'libraries'), { recursive: true });
+mkdirSync(join(output, 'tooling'), { recursive: true });
 
 const environment = await build(
   readFileSync(join(here, 'src/environment.js'), 'utf8'),
@@ -179,10 +186,21 @@ for (const name of libraries) {
   };
 }
 
+const tools = {};
+for (const name of tooling) {
+  const version = manifest.dependencies[name];
+  const tool = await build(`module.exports = require(${JSON.stringify(name)});`, here, { platform: 'neutral', mainFields: ['main'] });
+  const file = `tooling/${name}.js`;
+  writeFileSync(join(output, file), tool.text);
+  const own = tool.packages.find((entry) => entry.name === name);
+  if (own.version !== version) throw new Error(`${name} resolved to ${own.version}, not the pinned ${version}`);
+  tools[name] = { version, license: own.license, file, packages: tool.packages.map((entry) => `${entry.name}@${entry.version}`) };
+}
+
 const environmentPackages = environment.packages.map((entry) => `${entry.name}@${entry.version}`);
 writeFileSync(
   join(output, 'libraries.json'),
-  JSON.stringify({ environment: { packages: environmentPackages }, libraries: record }, null, 2) + '\n',
+  JSON.stringify({ environment: { packages: environmentPackages }, libraries: record, tooling: tools }, null, 2) + '\n',
 );
 
 const lines = [
@@ -198,5 +216,6 @@ writeFileSync(join(output, 'THIRD-PARTY-NOTICES.txt'), lines.join('\n'));
 const sizes = readdirSync(join(output, 'libraries')).map((file) => [file, readFileSync(join(output, 'libraries', file)).length]);
 console.log(`environment.js ${environment.text.length} bytes, ${environmentPackages.length} packages`);
 for (const [file, size] of sizes) console.log(`libraries/${file} ${size} bytes`);
+for (const name of tooling) console.log(`tooling/${name}.js ${readFileSync(join(output, 'tooling', `${name}.js`)).length} bytes`);
 const licences = [...new Set([...notices.values()].map((entry) => entry.license))].sort().join(', ');
 console.log(`${notices.size} packages in all, under ${licences}`);

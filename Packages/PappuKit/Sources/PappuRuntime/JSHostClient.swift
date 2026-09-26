@@ -37,7 +37,7 @@ import XPC
 /// its answer was dropped — and it could reach the next invocation's `popclip`. So a cancel forgets that
 /// the extension is loaded, and its next run loads a fresh world, which the old code cannot reach
 /// (JS-15).
-public final class JSHostClient: JavaScriptRunning, ModuleDescribing, Sendable {
+public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanning, Sendable {
     /// SEC-1d: this many crashes inside `suspensionWindow` suspends the extension.
     public static let suspensionThreshold = 3
     public static let suspensionWindow: Duration = .seconds(600)
@@ -195,6 +195,48 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, Sendable {
         case .timedOut:
             kill(connection, name: module.extensionName)
             return failed("The module was still loading after \(moduleLimit), and was stopped.", module)
+        }
+    }
+
+    /// EXM-5f: the longest a scan may take before its code is taken to be unbounded.
+    public static let scanLimit: Duration = .seconds(10)
+
+    /// EXM-5f: every script in the package, and the manifest's own inline scripts, read by the helper for
+    /// the host methods they reach. Nothing is run, so it needs no approval and loads no world. Nil when
+    /// the package cannot be read, the helper does not start, or it does not answer in `scanLimit`: the
+    /// analysis then treats the code as unbounded, which discloses more rather than less.
+    public func scan(_ manifest: ExtensionManifest, in directory: URL) async -> CodeScan? {
+        var sources: [JSScan.Source] = []
+        switch await PackageSources.reading(directory) {
+        case .success(let files):
+            for (path, text) in files.sorted(by: { $0.key < $1.key }) where !path.lowercased().hasSuffix(".json") {
+                sources.append(JSScan.Source(name: path, text: text, typeScript: path.lowercased().hasSuffix(".ts")))
+            }
+        case .failure:
+            return nil
+        }
+        var inline: [(ScriptSource, Bool)] = manifest.actions.compactMap {
+            if case .javaScript(let script) = $0.executor { (script.source, script.isTypeScript) } else { nil }
+        }
+        if let module = manifest.moduleSource { inline.append((module.source, module.isTypeScript)) }
+        for (index, (source, typeScript)) in inline.enumerated() {
+            if case .inline(let text) = source {
+                sources.append(JSScan.Source(name: "inline \(index)", text: text, typeScript: typeScript))
+            }
+        }
+        guard let connection = await connect() else { return nil }
+        switch await ask(connection, .scan(JSScan(sources: sources)), within: Self.scanLimit) {
+        case .answered(.success(.scanned(let report))):
+            return CodeScan(
+                methods: report.methods,
+                // A reason this build does not know is still a reason.
+                unbounded: report.unbounded.map { CodeScan.Unbounded(rawValue: $0) ?? .unreadable }
+            )
+        case .answered(.failure):
+            lost(connection)
+            return nil
+        case .answered(.success), .timedOut:
+            return nil
         }
     }
 

@@ -1056,6 +1056,28 @@ Shell scripts and AppleScripts get `HTML`, `RAW_HTML` and `MARKDOWN` (§8.7). Ja
 - The capture is decided by every action the resolver offered, not only those the bar had room to show.
 - BAR-13's "App is excluded" for the shortcut in an excluded, paused or secure-input app is not built. The coordinator declines to show a bar there, and showing one with only a message is its own change.
 
+#### Network, scripts and the scan as built (M3 week 4)
+
+Both are `HostCallHandling` groups, the seam week 3 left: `AppAssembly` passes `NetworkHostCalls` and `ScriptHostCalls` to `ExtensionRunner(hostCalls:)`, which hands them to `HostAPIDispatcher.Effects.groups`. The dispatcher checks the run, the phase and the method, asks the group's `gate` for the grant, and only then calls `perform`. A `HostCallRefusal` from `perform` is `.refused`, "Not allowed" in the Debug Console. `CatalogAction` now carries the extension's `entitlements` and its `network: NetworkPolicy?`, so a group can decide from the run alone.
+
+**The network (JS-8, SEC-1c, SEC-6).** The helper still has no network. The prelude's `XMLHttpRequest` is asynchronous only; `send` becomes `httpRequest` with the method, URL, headers, a base64 body and the timeout. axios's XHR adapter works through it unchanged. `NetworkHostCalls.perform`:
+- needs the `network` entitlement. With `networkHosts` declared, nothing more is needed. Without them, the `network` grant is.
+- asks `NetworkPolicy`: http or https only, a declared host matched exactly and without case, and https for any named host (http is allowed for `localhost`, `.local`, IP literals and dotless names). `RedirectCheck` asks the same before any redirect is followed, and ends the request at one that fails.
+- makes the request on an ephemeral `URLSession` with no cookies, credentials or cache. `Cookie`, `Host` and the transport's own headers are dropped, as a browser drops them. The wait is at most 120 s and the body at most 16 MB. The request is attached to the invocation, so Escape cancels it.
+- names the rule in a refusal, never the address, since the address may carry the selected text.
+A timeout answers `{timedOut: true}` and becomes the XHR's `timeout` event; a refusal or an unreachable server becomes its `error` event.
+
+**Scripts (JS-5).** `runShellScript`, `runShellScriptFile`, the `$` tag, `runAppleScript`, `runAppleScriptFile` and `runShortcut` are three host calls: `runShellScript`, `runAppleScript` and `runShortcut`. Each needs the `script` grant and the `script` entitlement both (SEC-7d). They run as the actions of the same kind do: a child process with the small environment in the package folder, a file only from inside the package, the Runner for AppleScript, and `/usr/bin/shortcuts`. A shell script answers `{status, stdout, stderr, terminationReason}` with each output capped at 4 MB. The helper resolves to the trimmed output on a zero exit, and otherwise rejects with an `Error` carrying all four. `$` quotes every interpolated value and runs `set -euo pipefail` under `/bin/zsh`.
+
+**The scan (EXM-5f).** acorn 8.18.0 is vendored as `JavaScript/tooling/acorn.js` (provenance in `Resources/JavaScript/README.md`, licence in the notices). It runs in the helper's tooling virtual machine, beside sucrase. `JSHostRequest.scan` sends every script and module source; nothing is evaluated, so the scan can run before approval. `CodeScanner` walks every node for the gated methods, `$`, `XMLHttpRequest` and `require` of the network. It marks the reach **unbounded** for an aliased or computed `popclip`, the global object, `eval`, `Function`/`.constructor`, `with`, or a file that does not parse. `ExtensionLibrary` asks the scanner, `JSHostClient` as `CodeScanning`, when it loads a package, and keeps the answer in memory. No answer (no helper) counts as unbounded.
+
+`CapabilitySet.reachableMethods` is what the entitlements leave reachable. Bounded code is disclosed by the methods it names and needs no `unbounded-code` gate. Unbounded code gets exactly one gate. Its sentence, `capability.gate.unboundedCode.methods`, lists every reachable method, so aliasing `popclip` is consented to once and by name. `syntheticInput` stays a switch of its own, so declining it still leaves the rest working (SEC-7b). Declared hosts are listed ("Can send data to …"), not gated.
+
+**Known gaps:**
+- The scan is kept only in memory, so every package is scanned again at each launch.
+- `networkHosts` match exactly: no wildcards and no ports.
+- There is no `fetch`, no synchronous XHR, and no upload progress (`upload` is an inert object). A response's download is reported once, when it is complete.
+
 ---
 
 ## 11. Storage and data model

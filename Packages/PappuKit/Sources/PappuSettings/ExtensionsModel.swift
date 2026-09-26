@@ -203,7 +203,11 @@ public final class ExtensionsModel {
             version: installed.record.activeVersion?.short,
             listed: ConsentPresenter.sentences(for: installed.capabilities),
             gates: installed.capabilities.gated.map {
-                GateRow(capability: $0, sentence: ConsentPresenter.sentence(for: $0), isGranted: installed.isGranted($0))
+                GateRow(
+                    capability: $0,
+                    sentence: ConsentPresenter.sentence(for: $0, in: installed.capabilities),
+                    isGranted: installed.isGranted($0)
+                )
             },
             options: optionRows(for: installed),
             unreadable: nil

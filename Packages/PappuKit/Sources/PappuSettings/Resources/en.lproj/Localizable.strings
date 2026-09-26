@@ -112,6 +112,8 @@
 "capability.gate.network" = "Can send the selected text to any server";
 "capability.gate.syntheticInput" = "Can type and press keys in the current app";
 "capability.gate.unboundedCode" = "Runs code whose reach this version of PappuClip cannot check";
+/* %@ is a list of method names, such as runShellScript and pressKey (EXM-5f). */
+"capability.gate.unboundedCode.methods" = "Runs code whose reach this version of PappuClip cannot check, and which can call %@";
 
 /* Extension Info (SEC-4a, SEC-4b). */
 "extensions.empty" = "No extensions are installed. Open an extension file, or select an extension\U2019s text and choose Install Extension.";
