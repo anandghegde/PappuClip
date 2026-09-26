@@ -115,7 +115,16 @@ public enum ConsentPresenter {
     }
 
     public static func gates(of capabilities: CapabilitySet) -> [Gate] {
-        capabilities.gated.map { Gate(capability: $0, sentence: sentence(for: $0)) }
+        capabilities.gated.map { Gate(capability: $0, sentence: sentence(for: $0, in: capabilities)) }
+    }
+
+    /// A gate's sentence for this extension. Code that cannot be bounded names the sensitive methods it
+    /// could reach, so the one switch says what it covers (EXM-5f).
+    public static func sentence(for gate: GatedCapability, in capabilities: CapabilitySet) -> String {
+        if gate == .unboundedCode, !capabilities.reachableMethods.isEmpty {
+            return ExtensionStrings.gateUnboundedCode(calling: list(capabilities.reachableMethods))
+        }
+        return sentence(for: gate)
     }
 
     public static func sentence(for capability: ListedCapability) -> String {

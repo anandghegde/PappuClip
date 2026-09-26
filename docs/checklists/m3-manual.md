@@ -4,7 +4,7 @@ This page covers what M3 needs from a person. The tests do not cover it.
 
 The helper's isolation and lifecycle are tested in-process (`PappuJSHostTests`), and the client's crash handling is tested against a helper that can be made to crash (`PappuRuntimeTests`). `PappuClip --check-js-host` runs the same things against the real, sandboxed `PappuClipJSHost.xpc`. What is left here is the sandbox as the system enforces it, and the Debug Console as a person reads it.
 
-**Status: weeks 1 to 3; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
+**Status: weeks 1 to 4; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
 
 Fixtures:
 - **J**: a JavaScript snippet, `#popclip` / `name: Shout JS` / `javascript: print(popclip.input.text); return popclip.input.text.toUpperCase()`, with `after: paste-result`.
@@ -17,6 +17,10 @@ Fixtures:
 - **S**: a JavaScript snippet, `#popclip` / `name: Styled` / `capture html: true` / `javascript: popclip.showText(popclip.input.markdown)`.
 - **A**: a snippet, `#popclip` / `name: Needs App` / `app: {name: Nowhere, link: "https://example.com/", checkInstalled: true, bundleIdentifiers: [com.example.nowhere]}` / `url: https://example.com/?q=***`.
 - **B**: a snippet, `#popclip` / `name: Broken` / `interpreter: nosuchshell` / `shell script: echo hi`.
+- **N**: a JavaScript snippet, `#popclip` / `name: Fetch` / `entitlements: [network]` / `network hosts: [api.github.com]` / `javascript: const r = await axios.get('https://api.github.com/zen'); return r.data`, with `after: show-result`.
+- **N2**: N with its URL changed to `https://example.com/`.
+- **X**: a JavaScript snippet, `#popclip` / `name: Scripts` / `entitlements: [script]` / `after: show-result` / `javascript: return (await $`sw_vers -productVersion`) + ' ' + (await popclip.runAppleScript('return name of application "Finder"'))`.
+- **Y**: a JavaScript snippet, `#popclip` / `name: Alias` / `entitlements: [script]` / `javascript: const p = globalThis['pop' + 'clip']; p.runShellScript('echo hi')`.
 
 ## The helper (SEC-1a, SEC-1b, SEC-1d)
 
@@ -74,3 +78,14 @@ Fixtures:
 | 25 | Select the same words in Safari's address field and press Styled | The bar shows `one two three`, with no `**` | |
 | 26 | Install A, select any word and press Needs App | An alert, "“Nowhere” is not installed", with Open Website and OK; no search page opens. Open Website opens `https://example.com/` | |
 | 27 | Install B, approving it, select any word and press Broken | Grey text in the bar, "“Broken” could not start. The Debug Console says why.", which stays until you click elsewhere; the Debug Console has a line saying why | |
+
+## Network, scripts and the scan (JS-5, JS-8, SEC-1c, SEC-6, EXM-5f)
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| 28 | Install N | The consent sheet lists "Can send data to api.github.com." and has no network switch and no "Runs code whose reach…" switch | |
+| 29 | Approve N, select any word and press Fetch | The bar shows a short GitHub saying; `nettop` shows the connection from PappuClip, not from `PappuClipJSHost` | |
+| 30 | Install N2, approve it and press Fetch | The X; the Debug Console has "Not allowed" with `httpRequest may only reach the hosts the extension declares`; `nettop` shows no connection to `example.com` | |
+| 31 | Install X, approving it with "Can run scripts", and press Scripts | The macOS version and `Finder`; the first AppleScript may ask to control Finder, and the Debug Console names what failed if it is refused | |
+| 32 | Make a Shortcut named `Echo` that returns its input, then in X call `popclip.runShortcut('Echo', 'hi')` and press Scripts | `hi` | |
+| 33 | Install Y | Switches for scripts and for typing keys, and one "Runs code whose reach this version of PappuClip cannot check, and which can call…" switch whose sentence lists the methods, `runShellScript` and `pressKey` among them; no switch per method | |

@@ -202,5 +202,15 @@
         "valibot@1.1.0"
       ]
     }
+  },
+  "tooling": {
+    "acorn": {
+      "version": "8.18.0",
+      "license": "MIT",
+      "file": "tooling/acorn.js",
+      "packages": [
+        "acorn@8.18.0"
+      ]
+    }
   }
 }

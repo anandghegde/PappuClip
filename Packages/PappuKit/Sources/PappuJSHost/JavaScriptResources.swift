@@ -45,6 +45,24 @@ enum JavaScriptResources {
         return manifest.libraries.compactMapValues { $0.file.hasPrefix("libraries/") ? $0.file : nil }
     }()
 
+    /// One of the helper's own tools (`acorn`, for the reachable-method scan), from `libraries.json`'s
+    /// `tooling`: files under `tooling/`, which `require()` never looks in, so no extension can load one.
+    static func tool(_ name: String) -> String? {
+        guard let file = toolFiles[name] else { return nil }
+        return text(at: file)
+    }
+
+    static let toolFiles: [String: String] = {
+        struct Manifest: Decodable {
+            struct Tool: Decodable { var file: String }
+            var tooling: [String: Tool]?
+        }
+        guard let folder, let data = try? Data(contentsOf: folder.appending(path: "libraries.json")),
+              let manifest = try? JSONDecoder().decode(Manifest.self, from: data)
+        else { return [:] }
+        return (manifest.tooling ?? [:]).compactMapValues { $0.file.hasPrefix("tooling/") ? $0.file : nil }
+    }()
+
     private static func text(at file: String) -> String? {
         if let kept = texts.withLock({ $0[file] }) { return kept }
         guard let folder, let text = try? String(contentsOf: folder.appending(path: file), encoding: .utf8) else { return nil }

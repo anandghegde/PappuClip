@@ -58,8 +58,17 @@ public struct CatalogAction: Sendable, Equatable {
     /// The apps the extension says it works with (§8.3). One marked `checkInstalled` that is not
     /// installed stops the action before it runs (EXM-10).
     public var apps: [AppReference] = []
+    /// The extension's entitlements and `networkHosts`, which its JavaScript's requests are checked
+    /// against at the moment each is made (JS-8, SEC-6).
+    public var entitlements: [Entitlement] = []
+    public var networkHosts: [String] = []
 
     public var executor: ActionExecutor { manifest.executor }
+
+    /// Where its JavaScript may send requests; nil when it may send none.
+    public var network: NetworkPolicy? {
+        NetworkPolicy(entitlements: entitlements, networkHosts: networkHosts)
+    }
 
     /// The built-in behind this action, when there is one. The one question the M1 runner asks.
     public var builtin: BuiltinAction? {
@@ -89,19 +98,24 @@ public struct ActionCatalog: Sendable, Equatable {
         public var directory: URL?
         /// The store's local identity for this install, as text. Nil for a built-in.
         public var owner: String?
+        /// What the reachable-method scan found in its JavaScript (EXM-5f). Nil when it was not scanned,
+        /// and then its JavaScript needs `unbounded-code`.
+        public var scan: CodeScan?
 
         public init(
             manifest: ExtensionManifest,
             origin: ManifestOrigin,
             isEnabled: Bool = true,
             directory: URL? = nil,
-            owner: String? = nil
+            owner: String? = nil,
+            scan: CodeScan? = nil
         ) {
             self.manifest = manifest
             self.origin = origin
             self.isEnabled = isEnabled
             self.directory = directory
             self.owner = owner
+            self.scan = scan
         }
     }
 
@@ -127,9 +141,11 @@ public struct ActionCatalog: Sendable, Equatable {
                         isEnabled: entry.isEnabled,
                         directory: entry.directory,
                         owner: entry.owner,
-                        gates: CapabilityAnalyzer.gates(of: action, in: manifest),
+                        gates: CapabilityAnalyzer.gates(of: action, in: manifest, scan: entry.scan),
                         booleanOptions: Set(manifest.options.filter { $0.kind == .boolean }.compactMap(\.identifier)),
-                        apps: manifest.apps
+                        apps: manifest.apps,
+                        entitlements: manifest.entitlements,
+                        networkHosts: manifest.networkHosts
                     )
                 )
             }

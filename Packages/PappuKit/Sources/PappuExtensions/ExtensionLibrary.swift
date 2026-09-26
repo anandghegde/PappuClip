@@ -183,8 +183,30 @@ public actor ExtensionLibrary {
         moduleExports[ModuleKey(identity: identity, digest: digest)] = exports
     }
 
-    public init(paths: Paths, checkpoint: @escaping @Sendable (Checkpoint) -> Void = { _ in }) throws {
+    /// EXM-5f: reads an extension's JavaScript for the host methods it can reach. Nil in tests that do
+    /// not give one, and then every script is unbounded, as it was before there was a scan.
+    private let scanner: (any CodeScanning)?
+    /// What the scan found, by the bytes it read. Kept for the life of the app, like `moduleExports`: the
+    /// same bytes always scan the same, and the next launch scans them again. A failed scan is not kept.
+    var codeScans: [ModuleKey: CodeScan] = [:]
+
+    /// What the scan finds in `manifest`'s JavaScript, from `key`'s bytes when they were scanned before.
+    /// Nil for an extension with no JavaScript, and when there is no scanner or it could not scan.
+    func codeScan(_ manifest: ExtensionManifest, in directory: URL, key: ModuleKey?) async -> CodeScan? {
+        guard manifest.hasJavaScript || manifest.module != nil, let scanner else { return nil }
+        if let key, let known = codeScans[key] { return known }
+        let scan = await scanner.scan(manifest, in: directory)
+        if let key, let scan { codeScans[key] = scan }
+        return scan
+    }
+
+    public init(
+        paths: Paths,
+        scanner: (any CodeScanning)? = nil,
+        checkpoint: @escaping @Sendable (Checkpoint) -> Void = { _ in }
+    ) throws {
         self.paths = paths
+        self.scanner = scanner
         self.checkpoint = checkpoint
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: paths.extensions, withIntermediateDirectories: true)
@@ -252,7 +274,8 @@ public actor ExtensionLibrary {
             return .alreadyInstalled(identity)
         }
 
-        let capabilities = CapabilityAnalyzer.effective(loaded.manifest, directory: staging)
+        let scan = await codeScan(loaded.manifest, in: staging, key: nil)
+        let capabilities = CapabilityAnalyzer.effective(loaded.manifest, directory: staging, scan: scan)
         let consent = await review(Proposal(
             manifest: loaded.manifest,
             warnings: loaded.warnings,
@@ -311,6 +334,7 @@ public actor ExtensionLibrary {
             throw error
         }
         checkpoint(.committed)
+        if let scan { codeScans[ModuleKey(identity: identity, digest: digest)] = scan }
 
         try retire(retired)
         try deleteArchive(source)

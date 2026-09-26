@@ -1075,7 +1075,31 @@ requirements:
       - PappuRuntimeTests/anActionWhoseGateIsNotGrantedIsNotOffered
       - PappuAppTests/anUngrantedGateKeepsTheActionOffTheBar
   EXM-5e: { priority: P1, milestone: M5, tests: [] }
-  EXM-5f: { priority: P1, milestone: M3, tests: [] }
+  EXM-5f:
+    priority: P1
+    milestone: M3
+    note: >-
+      The helper parses every script and module with vendored acorn and lists the sensitive methods named
+      (CodeScan). popclip aliased or computed, eval, Function, with, the global object, or a file that
+      does not parse make the code unbounded: one unbounded-code gate whose sentence names every method the
+      entitlements leave reachable. No scan (helper down) is unbounded. Synthetic input stays its own gate.
+    tests:
+      - PappuJSHostTests/namedMethodsAreFound
+      - PappuJSHostTests/theNetworkIsFoundThroughItsDoors
+      - PappuJSHostTests/namesThatAreNotReferencesAreNotCounted
+      - PappuJSHostTests/whatCannotBeBoundedSaysWhy
+      - PappuJSHostTests/typeScriptIsReadWithoutItsTypes
+      - PappuJSHostTests/everyFileCounts
+      - PappuJSHostTests/theListIsCodeScans
+      - PappuRuntimeTests/thePackageIsScannedThroughTheClient
+      - PappuCoreTests/boundedJavaScriptIsWhatItCalls
+      - PappuCoreTests/whatIsReachableIsWhatTheEntitlementsLeave
+      - PappuCoreTests/aliasedPopclipIsGatedOnceWithItsMethods
+      - PappuCoreTests/aBoundedModuleIsNotUnbounded
+      - PappuCoreTests/aScannedActionCarriesItsGatesAndItsNetwork
+      - PappuSettingsTests/anAliasedPopclipIsGatedOnceWithItsMethods
+      - PappuSettingsTests/boundedCodeIsDisclosedByWhatItCalls
+      - manual:docs/checklists/m3-manual.md
   EXM-5g:
     priority: P0
     milestone: M2
@@ -1382,7 +1406,17 @@ requirements:
       - PappuJSHostTests/aSlowExtensionDoesNotHoldUpAnother
       - PappuJSHostTests/reloadingStartsAFreshWorld
       - manual:docs/checklists/m3-manual.md
-  SEC-1c: { priority: P1, milestone: M3, tests: [] }
+  SEC-1c:
+    priority: P1
+    milestone: M3
+    note: >-
+      The helper has no network; a script's XMLHttpRequest is the app's httpRequest (NetworkHostCalls), made
+      only with the network entitlement, over an ephemeral session with no cookies, credentials or cache.
+    tests:
+      - PappuRuntimeTests/withoutTheEntitlementNothingIsSent
+      - PappuRuntimeTests/theRequestIsWhatTheScriptSet
+      - PappuJSHostTests/thereIsNoFetchProcessDOMOrFileSystem
+      - PappuJSHostTests/aRefusedRequestIsANetworkError
   SEC-1d:
     priority: P1
     milestone: M3
@@ -1419,7 +1453,23 @@ requirements:
       - PappuRuntimeTests/revokingTheExtensionInvalidatesItsRunningInvocation
       - manual:docs/checklists/m2-manual.md
   SEC-5: { priority: P1, milestone: M5, tests: [] }
-  SEC-6: { priority: P1, milestone: M3, tests: [] }
+  SEC-6:
+    priority: P1
+    milestone: M3
+    note: >-
+      NetworkPolicy: a declared host matches exactly, without case; a named host needs https; every
+      redirect is asked the same before it is followed. Declared hosts are a listed sentence naming them;
+      without them the network gate is needed.
+    tests:
+      - PappuCoreTests/aRequestToAnUndeclaredHostFails
+      - PappuCoreTests/aNamedHostNeedsHttps
+      - PappuCoreTests/onlyHttpAndHttpsAreRequested
+      - PappuCoreTests/theEntitlementAndTheHostsMakeThePolicy
+      - PappuRuntimeTests/aRequestToAnUndeclaredHostFails
+      - PappuRuntimeTests/withoutHostsTheNetworkGrantIsNeeded
+      - PappuRuntimeTests/aRedirectOutsideThePolicyIsNotFollowed
+      - PappuSettingsTests/consentNamesTheHosts
+      - PappuCoreTests/dynamicAndBoundedNetworkAreListed
   SEC-7a:
     priority: P0
     milestone: M2
@@ -1440,7 +1490,8 @@ requirements:
       the grants cover it (pressKeys, performService and share need synthetic input, disclosed for every
       JavaScript extension and not needed to run one), its arguments, then a MutationPermit. Refusals go
       to the Debug Console by method and reason only. Methods beyond HostMethod (week 4's httpRequest)
-      come in as HostCallHandling groups behind the same checks. The reachable-method scan is week 4.
+      come in as HostCallHandling groups behind the same checks. Since week 4 the reachable-method scan
+      (EXM-5f) decides whether JavaScript discloses synthetic input: bounded code that names none does not.
     tests:
       - PappuRuntimeTests/aCallOutsideTheGrantsFailsAndIsLoggedWithoutContent
       - PappuRuntimeTests/aCallOutsideTheGrantsIsRefusedAndDoesNothing
@@ -1674,7 +1725,25 @@ requirements:
       - PappuRuntimeTests/openTemplateUrlIsAURLActionsExpansion
       - PappuRuntimeTests/pasteTextPastesThroughTheWholePath
       - PappuRuntimeTests/whatTheScriptShowsIsWhatTheBarShows
-  JS-5: { priority: P1, milestone: M3, tests: [] }
+  JS-5:
+    priority: P1
+    milestone: M3
+    note: >-
+      runShellScript(File), the $ tag, runAppleScript(File) and runShortcut are ScriptHostCalls behind the
+      script gate and the script entitlement both. A shell script answers status and both outputs; the
+      helper resolves its output for a clean exit and rejects with all four otherwise.
+    tests:
+      - PappuRuntimeTests/aScriptNeedsTheGrantAndTheEntitlement
+      - PappuRuntimeTests/aShellScriptAnswersItsStatusAndOutput
+      - PappuRuntimeTests/aFileOutsideThePackageIsRefused
+      - PappuRuntimeTests/appleScriptsAndShortcutsRunThroughTheirRunners
+      - PappuJSHostTests/aShellScriptResolvesToItsOutput
+      - PappuJSHostTests/aNonZeroExitRejectsWithItsStatusAndOutput
+      - PappuJSHostTests/aSignalRejectsToo
+      - PappuJSHostTests/theShellTagQuotesWhatItIsGiven
+      - PappuJSHostTests/appleScriptsAndShortcutsSendWhatTheyAreGiven
+      - PappuJSHostTests/aRefusalRejects
+      - manual:docs/checklists/m3-manual.md
   JS-6:
     priority: P1
     milestone: M3
@@ -1705,7 +1774,21 @@ requirements:
       - PappuCoreTests/headingsParagraphsAndInlineMarkup
       - PappuCoreTests/linksImagesAndEscaping
       - PappuCoreTests/itsHTMLIsAlreadySafe
-  JS-8: { priority: P1, milestone: M3, tests: [] }
+  JS-8:
+    priority: P1
+    milestone: M3
+    note: >-
+      XMLHttpRequest in the prelude, asynchronous only, sends httpRequest for the running invocation;
+      axios's XHR adapter works through it. A refusal is an error event, a timeout a timeout event.
+    tests:
+      - PappuJSHostTests/axiosGetsThroughTheShim
+      - PappuJSHostTests/axiosPostsItsBody
+      - PappuJSHostTests/aRefusedRequestIsANetworkError
+      - PappuJSHostTests/aTimeoutIsATimeout
+      - PappuJSHostTests/theObjectIsTheBrowsersShape
+      - PappuJSHostTests/aSynchronousRequestIsRefused
+      - PappuRuntimeTests/aTimeoutAndAnUnreachableServerAreAnswers
+      - manual:docs/checklists/m3-manual.md
   JS-9:
     priority: P1
     milestone: M3

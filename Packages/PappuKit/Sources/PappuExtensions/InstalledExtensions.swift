@@ -23,6 +23,9 @@ public struct InstalledExtension: Sendable, Equatable {
     public var moduleExports: ModuleExports? = nil
     /// JS-12: why what the module exported did not make a manifest, which leaves the config's.
     public var moduleProblem: String? = nil
+    /// EXM-5f: what the reachable-method scan found in its JavaScript, for these bytes. Nil when it has
+    /// none, or it could not be scanned, and then its JavaScript is unbounded.
+    public var codeScan: CodeScan? = nil
 
     /// JS-12: a module extension whose module has not been described for these bytes.
     public var awaitsModuleDescription: Bool {
@@ -92,17 +95,19 @@ extension ExtensionLibrary {
         let instance = try await store.instances(of: record.localIdentity).first?.id
         var stored: [String: String] = [:]
         if let instance { stored = try await store.optionValues(of: instance) }
+        let scan = await codeScan(manifest, in: directory, key: ModuleKey(identity: record.localIdentity, digest: digest))
         return InstalledExtension(
             record: record,
             manifest: manifest,
             directory: directory,
-            capabilities: CapabilityAnalyzer.effective(manifest, directory: directory),
+            capabilities: CapabilityAnalyzer.effective(manifest, directory: directory, scan: scan),
             instance: instance,
             storedOptions: stored,
             approval: approval,
             grants: try await store.grants(of: record.localIdentity),
             moduleExports: exports,
-            moduleProblem: moduleProblem
+            moduleProblem: moduleProblem,
+            codeScan: scan
         )
     }
 

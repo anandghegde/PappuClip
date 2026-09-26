@@ -139,4 +139,22 @@ import Testing
         #expect(catalog.actions[0].builtin == .cut)
         #expect(catalog.actions[0].origin == .appBundle)
     }
+
+    /// EXM-5f: a JavaScript action the scan bounds needs no `unbounded-code`; the rules its requests are
+    /// checked by travel with it (JS-8).
+    @Test func aScannedActionCarriesItsGatesAndItsNetwork() {
+        let manifest = ExtensionManifest(
+            name: "Fetch",
+            identifier: "com.example.fetch",
+            entitlements: [.network],
+            networkHosts: ["api.example.com"],
+            actions: [ActionManifest(identifier: "a", executor: .javaScript(JavaScriptAction(source: .inline("return 1"))))]
+        )
+        let unscanned = ActionCatalog(entries: [.init(manifest: manifest, origin: .installed)]).actions[0]
+        #expect(unscanned.gates == [.unboundedCode])
+        let bounded = ActionCatalog(entries: [.init(manifest: manifest, origin: .installed, scan: CodeScan(methods: ["XMLHttpRequest"]))]).actions[0]
+        #expect(bounded.gates.isEmpty)
+        #expect(bounded.network == NetworkPolicy(hosts: ["api.example.com"]))
+        #expect(bounded.entitlements == [.network])
+    }
 }

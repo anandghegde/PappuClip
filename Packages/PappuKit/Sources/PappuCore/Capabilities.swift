@@ -43,8 +43,9 @@ public enum GatedCapability: String, Sendable, Equatable, Hashable, Codable, Cas
     /// not needed to run one: `HostAPIDispatcher` checks it when a script asks for one of those three,
     /// and refuses the call without it (SEC-7b).
     case syntheticInput = "synthetic-input"
-    /// JavaScript whose reachable host methods this build cannot bound (EXM-5f, SEC-7c). Until M3's scan
-    /// every script is this, which is the broader disclosure SEC-7c asks for.
+    /// JavaScript whose reachable host methods cannot be bounded (EXM-5f, SEC-7c): code the scan found
+    /// reaching `popclip` other than by name, or that was not scanned at all. Its sentence names every
+    /// sensitive method the extension could call, which is the broader disclosure SEC-7c asks for.
     case unboundedCode = "unbounded-code"
 
     public static func < (lhs: Self, rhs: Self) -> Bool {
@@ -63,11 +64,20 @@ public struct CapabilitySet: Sendable, Equatable, Hashable, Codable {
     /// compiled script cannot be read, and then this says nothing — the script gate already says the
     /// broader thing (SEC-7c).
     public var controlledApps: [String]
+    /// The sensitive host methods its JavaScript can call (EXM-5f), sorted: what the scan found for
+    /// bounded code, and for unbounded code every one the extension's entitlements leave it (`CodeScan`).
+    public var reachableMethods: [String]
 
-    public init(listed: [ListedCapability] = [], gated: [GatedCapability] = [], controlledApps: [String] = []) {
+    public init(
+        listed: [ListedCapability] = [],
+        gated: [GatedCapability] = [],
+        controlledApps: [String] = [],
+        reachableMethods: [String] = []
+    ) {
         self.listed = listed
         self.gated = gated
         self.controlledApps = controlledApps
+        self.reachableMethods = reachableMethods
     }
 
     public static let none = CapabilitySet()
@@ -76,16 +86,19 @@ public struct CapabilitySet: Sendable, Equatable, Hashable, Codable {
     public var isListedOnly: Bool { gated.isEmpty }
 }
 
-/// SEC-7a for non-JavaScript actions; SEC-7c's broader answer for JavaScript until M3 can scan it.
+/// SEC-7a for non-JavaScript actions; for JavaScript, what the reachable-method scan found (EXM-5f), or
+/// SEC-7c's broader answer when there is no scan or it cannot bound the code.
 ///
 /// The analysis is for **disclosure**. It never grants anything: enforcement is the runtime checking
 /// an action's `gates` against the extension's grants at the moment it runs, so an analysis that
 /// missed something makes a sentence wrong, not a door open.
 public enum CapabilityAnalyzer {
     /// Everything `manifest` can do. `file` reads a package file by its relative path, as UTF-8; an
-    /// AppleScript kept in a file is read for its `tell` targets through it.
+    /// AppleScript kept in a file is read for its `tell` targets through it. `scan` is what the helper
+    /// found in its JavaScript; without one the code is unbounded.
     public static func effective(
         _ manifest: ExtensionManifest,
+        scan: CodeScan? = nil,
         file: (String) -> String? = { _ in nil }
     ) -> CapabilitySet {
         var listed: [ListedCapability] = []
@@ -97,7 +110,7 @@ public enum CapabilityAnalyzer {
         }
 
         for action in manifest.actions {
-            gated.formUnion(gates(of: action, in: manifest))
+            gated.formUnion(gates(of: action, in: manifest, scan: scan))
             switch action.executor {
             case .builtin:
                 break
@@ -132,13 +145,26 @@ public enum CapabilityAnalyzer {
         // approval this analysis is shown for, so its code is judged before there is anything to judge
         // it by: unbounded, like any script this build cannot scan. Each described action is JavaScript
         // and needs the same gates, so describing it discloses nothing the approval did not cover.
-        if manifest.module != nil, manifest.module != .detection(false) {
+        // A scan reads the module's files as it reads any script's, so a bounded one says the same here.
+        let bounded = scan?.isBounded == true
+        if manifest.module != nil, manifest.module != .detection(false), !bounded {
             gated.insert(.unboundedCode)
         }
-        // SEC-7b: JavaScript can reach the host methods that press keys and hand the text to other apps,
-        // and until week 4's scan can say whether it does, each such extension discloses them. The grant
-        // is checked when a script calls one, not when it runs, so declining it leaves the rest working.
-        if gated.contains(.unboundedCode) { gated.insert(.syntheticInput) }
+        // EXM-5f: the sensitive methods the code can call. For bounded code, what it names, less what
+        // its entitlements leave it no way to use; for unbounded code, all of those.
+        var reachable: Set<String> = []
+        if manifest.hasJavaScript || gated.contains(.unboundedCode) {
+            var available = CodeScan.syntheticInputMethods
+            if manifest.entitlements.contains(.script) { available.formUnion(CodeScan.scriptMethods) }
+            if manifest.entitlements.contains(.network) { available.formUnion(CodeScan.networkMethods) }
+            reachable = gated.contains(.unboundedCode) ? available : available.intersection(scan?.methods ?? [])
+            // P1: JavaScript that reaches nothing it would need a gate for reads, returns, copies and pastes.
+            if bounded { list(.readsAndReplacesText) }
+        }
+        // SEC-7b: JavaScript that can reach the host methods that press keys and hand the text to other
+        // apps discloses them. The grant is checked when a script calls one, not when it runs, so
+        // declining it leaves the rest working.
+        if !reachable.isDisjoint(with: CodeScan.syntheticInputMethods) { gated.insert(.syntheticInput) }
         // Entitlements are disclosed whatever the actions are. A claim this build has no use for is
         // still one the user should see before it has a use (SEC-7c).
         if manifest.entitlements.contains(.dynamic) { list(.runsOnEveryAppearance) }
@@ -147,12 +173,17 @@ public enum CapabilityAnalyzer {
         }
         gated.formUnion(entitlementGates(of: manifest))
 
-        return CapabilitySet(listed: listed, gated: gated.sorted(), controlledApps: apps.sorted())
+        return CapabilitySet(
+            listed: listed,
+            gated: gated.sorted(),
+            controlledApps: apps.sorted(),
+            reachableMethods: reachable.sorted()
+        )
     }
 
     /// The same, reading files from the package folder. A file outside it is not read.
-    public static func effective(_ manifest: ExtensionManifest, directory: URL?) -> CapabilitySet {
-        effective(manifest) { path in
+    public static func effective(_ manifest: ExtensionManifest, directory: URL?, scan: CodeScan? = nil) -> CapabilitySet {
+        effective(manifest, scan: scan) { path in
             guard let directory, !path.hasPrefix("/") else { return nil }
             let root = directory.standardizedFileURL.path
             let url = directory.appendingPathComponent(path).standardizedFileURL
@@ -162,13 +193,19 @@ public enum CapabilityAnalyzer {
     }
 
     /// The gated capabilities `action` needs granted before it may run (SEC-7d: denied access cannot
-    /// be obtained through another action type, because each type answers here for itself).
-    public static func gates(of action: ActionManifest, in manifest: ExtensionManifest) -> Set<GatedCapability> {
+    /// be obtained through another action type, because each type answers here for itself). JavaScript
+    /// needs `unbounded-code` unless `scan` bounds it: one scan for the whole package, because any of
+    /// its files can reach any other.
+    public static func gates(
+        of action: ActionManifest,
+        in manifest: ExtensionManifest,
+        scan: CodeScan? = nil
+    ) -> Set<GatedCapability> {
         switch action.executor {
         case .appleScript, .shellScript:
             [.script]
         case .javaScript:
-            Set([.unboundedCode]).union(entitlementGates(of: manifest))
+            (scan?.isBounded == true ? [] : Set([.unboundedCode])).union(entitlementGates(of: manifest))
         case .builtin, .url, .keyPress, .service, .shortcut:
             []
         }

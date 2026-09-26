@@ -204,7 +204,8 @@ public final class ExtensionHost: Sendable {
                 // the reason the inspector should give, rather than as `.disabled`.
                 isEnabled: installed.record.state != .disabled,
                 directory: installed.directory,
-                owner: installed.identity.description
+                owner: installed.identity.description,
+                scan: installed.codeScan
             ))
             if let approval = installed.approval { approvals[installed.identity] = approval }
             // The first install of an identifier keeps it, as in the catalog.

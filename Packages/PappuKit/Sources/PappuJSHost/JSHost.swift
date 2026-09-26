@@ -99,6 +99,10 @@ public final class JSHost: Sendable {
                 reply(.dropped)
             }
 
+        case .scan(let request):
+            // Off every world's queue: nothing is run, so nothing is ordered against a world.
+            DispatchQueue.global(qos: qos.qosClass).async { reply(.scanned(CodeScanner.shared.scan(request))) }
+
         case .unload(let name):
             guard let machine = machines.withLock({ $0.removeValue(forKey: name) }) else { return reply(.unloaded) }
             machine.interruptAll()

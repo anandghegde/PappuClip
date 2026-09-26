@@ -502,9 +502,11 @@ final class ExtensionVM: @unchecked Sendable {
     /// invocation's number. Arguments are checked for shape here, so a mistake throws where it was made.
     /// `pasteboard`, `RichString` and the dictionary and spelling lookups in `util` are synchronous host
     /// calls for the invocation whose code is running, and throw outside one — while a module loads, or
-    /// in a timer after its action ended. The rest of `util` is worked out here. External scripts (JS-5)
-    /// reject until week 4. An invocation settles only once every call it made has been answered, so a
-    /// script that ends with an un-awaited `copyText` has its copy made before its run is over.
+    /// in a timer after its action ended. The rest of `util` is worked out here. External scripts (JS-5),
+    /// the `$` shell tag and `XMLHttpRequest` (JS-8) are host calls the app checks against the `script`
+    /// gate and the extension's networkHosts. An invocation settles only once every call it made has been
+    /// answered, so a script that ends with an un-awaited `copyText` has its copy made before its run is
+    /// over.
     static let prelude = #"""
     (function (global, native) {
       'use strict';
@@ -1296,12 +1298,255 @@ final class ExtensionVM: @unchecked Sendable {
         return freeze(options);
       }
 
-      // What is left for a later week: external scripts are JS-5, and they reject rather than being absent,
-      // so a script that reaches for one says why it stopped.
-      function notYet(name) {
-        return function () {
-          return PromiseConstructor.reject(new Error('popclip.' + name + ' is not available in this version of PappuClip.'));
+      // XMLHttpRequest (JS-8): the helper has no network, so a request is the app's `httpRequest`, which
+      // checks it against the extension's networkHosts and the https rule before anything is sent, and
+      // again at every redirect. Enough of the browser's object for axios's adapter and for code written
+      // against it: asynchronous only, text, JSON and ArrayBuffer responses, no cookies, no upload
+      // progress. A request is sent for the invocation running when `send` is called.
+
+      const UNSENT = 0, OPENED = 1, HEADERS_RECEIVED = 2, LOADING = 3, DONE = 4;
+      const xhrEvents = ['readystatechange', 'loadstart', 'progress', 'abort', 'error', 'load', 'timeout', 'loadend'];
+
+      function bodyOf(data) {
+        if (data === undefined || data === null) return null;
+        if (typeof data === 'string') return Buffer.from(data, 'utf8').toString('base64');
+        if (data instanceof ArrayBuffer) return Buffer.from(data).toString('base64');
+        if (ArrayBuffer.isView(data)) return Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString('base64');
+        return Buffer.from(String(data), 'utf8').toString('base64');
+      }
+
+      function Listeners() {
+        const byType = Object.create(null);
+        return {
+          add: function (type, listener) {
+            if (typeof listener !== 'function') return;
+            (byType[type] = byType[type] || []).push(listener);
+          },
+          remove: function (type, listener) {
+            const list = byType[type];
+            if (list) byType[type] = list.filter(function (each) { return each !== listener; });
+          },
+          dispatch: function (target, type, loaded, total) {
+            const event = { type: type, target: target, currentTarget: target, loaded: loaded || 0, total: total || 0, lengthComputable: total > 0 };
+            const handler = target['on' + type];
+            const list = (byType[type] || []).slice();
+            try {
+              if (typeof handler === 'function') handler.call(target, event);
+            } catch (error) {
+              print('Uncaught ' + describe(error));
+            }
+            for (const listener of list) {
+              try { listener.call(target, event); } catch (error) { print('Uncaught ' + describe(error)); }
+            }
+          },
         };
+      }
+
+      class XMLHttpRequestUpload {
+        constructor() {
+          const listeners = Listeners();
+          for (const type of xhrEvents) this['on' + type] = null;
+          this.addEventListener = listeners.add;
+          this.removeEventListener = listeners.remove;
+        }
+      }
+
+      class XMLHttpRequest {
+        constructor() {
+          const listeners = Listeners();
+          const request = { method: null, url: null, headers: [], sent: false, id: 0, responseHeaders: {}, body: null };
+          for (const type of xhrEvents) this['on' + type] = null;
+          this.readyState = UNSENT;
+          this.status = 0;
+          this.statusText = '';
+          this.responseURL = '';
+          this.responseType = '';
+          this.timeout = 0;
+          this.withCredentials = false;
+          this.upload = new XMLHttpRequestUpload();
+          const self = this;
+          function fire(type, loaded, total) { listeners.dispatch(self, type, loaded, total); }
+          function change(state) {
+            self.readyState = state;
+            fire('readystatechange');
+          }
+          function end(type) {
+            request.sent = false;
+            self.status = 0;
+            self.statusText = '';
+            request.body = null;
+            change(DONE);
+            fire(type);
+            fire('loadend');
+          }
+          defineProperty(this, 'addEventListener', { value: listeners.add });
+          defineProperty(this, 'removeEventListener', { value: listeners.remove });
+          defineProperty(this, 'open', {
+            value: function open(method, url, async) {
+              if (async === false) throw new Error('PappuClip makes asynchronous requests only.');
+              request.method = String(method).toUpperCase();
+              request.url = new URLClass(String(url)).href;
+              request.headers = [];
+              request.sent = false;
+              request.id += 1;
+              request.body = null;
+              request.responseHeaders = {};
+              self.status = 0;
+              self.statusText = '';
+              self.responseURL = '';
+              change(OPENED);
+            },
+          });
+          defineProperty(this, 'setRequestHeader', {
+            value: function setRequestHeader(name, value) {
+              if (self.readyState !== OPENED || request.sent) throw new Error('setRequestHeader is allowed only after open and before send.');
+              request.headers.push([String(name), String(value)]);
+            },
+          });
+          defineProperty(this, 'send', {
+            value: function send(data) {
+              if (self.readyState !== OPENED || request.sent) throw new Error('send is allowed only once after open.');
+              request.sent = true;
+              const id = request.id;
+              const invocation = current;
+              const args = {
+                method: request.method,
+                url: request.url,
+                headers: request.headers,
+                body: request.method === 'GET' || request.method === 'HEAD' ? null : bodyOf(data),
+                timeout: Number(self.timeout) > 0 ? Number(self.timeout) : 0,
+              };
+              fire('loadstart');
+              callHost(invocation, 'httpRequest', args).then(function (result) {
+                if (request.id !== id || !request.sent) return;
+                if (result && result.timedOut) return end('timeout');
+                request.sent = false;
+                request.responseHeaders = result.headers || {};
+                request.body = Buffer.from(result.body || '', 'base64');
+                self.status = result.status;
+                self.statusText = result.statusText || '';
+                self.responseURL = result.url || request.url;
+                change(HEADERS_RECEIVED);
+                change(LOADING);
+                fire('progress', request.body.length, request.body.length);
+                change(DONE);
+                fire('load', request.body.length, request.body.length);
+                fire('loadend', request.body.length, request.body.length);
+              }, function (error) {
+                if (request.id !== id || !request.sent) return;
+                // Refused or unreachable: an error event, as a browser gives, and the reason in the console.
+                print('XMLHttpRequest: ' + describe(error));
+                end('error');
+              });
+            },
+          });
+          defineProperty(this, 'abort', {
+            value: function abort() {
+              if (!request.sent) return;
+              request.id += 1;
+              end('abort');
+              self.readyState = UNSENT;
+            },
+          });
+          defineProperty(this, 'getResponseHeader', {
+            value: function getResponseHeader(name) {
+              if (self.readyState < HEADERS_RECEIVED) return null;
+              const value = request.responseHeaders[String(name).toLowerCase()];
+              return value === undefined ? null : value;
+            },
+          });
+          defineProperty(this, 'getAllResponseHeaders', {
+            value: function getAllResponseHeaders() {
+              if (self.readyState < HEADERS_RECEIVED) return '';
+              return keys(request.responseHeaders).sort().map(function (name) { return name + ': ' + request.responseHeaders[name] + '\r\n'; }).join('');
+            },
+          });
+          defineProperty(this, 'overrideMimeType', { value: function overrideMimeType() {} });
+          defineProperty(this, 'responseText', {
+            get: function () { return request.body === null ? '' : request.body.toString('utf8'); },
+          });
+          defineProperty(this, 'response', {
+            get: function () {
+              if (self.responseType === '' || self.responseType === 'text') return self.responseText;
+              if (self.readyState !== DONE || request.body === null) return null;
+              if (self.responseType === 'json') {
+                try { return parse(request.body.toString('utf8')); } catch (error) { return null; }
+              }
+              const body = request.body;
+              return body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength);
+            },
+          });
+        }
+      }
+      for (const [name, value] of [['UNSENT', UNSENT], ['OPENED', OPENED], ['HEADERS_RECEIVED', HEADERS_RECEIVED], ['LOADING', LOADING], ['DONE', DONE]]) {
+        defineProperty(XMLHttpRequest, name, { value: value });
+        defineProperty(XMLHttpRequest.prototype, name, { value: value });
+      }
+      install('XMLHttpRequest', XMLHttpRequest);
+
+      // External scripts (JS-5): shell scripts, AppleScripts and Shortcuts, run by the app behind the
+      // `script` gate. A shell script settles to its status and both outputs whatever its exit; it
+      // resolves to its output, less one line break at the end as an action's does, and rejects with an
+      // Error carrying all four otherwise.
+
+      function trimmedOutput(text) {
+        if (text.endsWith('\r\n')) return text.slice(0, -2);
+        if (text.endsWith('\n')) return text.slice(0, -1);
+        return text;
+      }
+
+      function shellArguments(options) {
+        const env = {};
+        const given = options && options.env;
+        if (given !== null && typeof given === 'object') for (const key of keys(given)) env[key] = String(given[key]);
+        return {
+          interpreter: optionalText(options, 'interpreter'),
+          shellMode: choice(options, 'shellMode', ['login', 'nonlogin', 'none'], 'login'),
+          stdin: optionalText(options, 'stdin'),
+          env: env,
+        };
+      }
+
+      function shellRun(invocation, args, what) {
+        return callHost(invocation, 'runShellScript', args).then(function (result) {
+          if (result.status === 0 && result.terminationReason === 'exit') return trimmedOutput(result.stdout);
+          const how = result.terminationReason === 'exit' ? ' exited with status ' + result.status : ' was stopped by signal ' + result.status;
+          const error = new Error(what + how + (result.stderr ? ': ' + result.stderr.trim() : '.'));
+          error.status = result.status;
+          error.stdout = result.stdout;
+          error.stderr = result.stderr;
+          error.terminationReason = result.terminationReason;
+          throw error;
+        });
+      }
+
+      // `$`: a shell command as a template, where every interpolated value is one quoted word (an array
+      // is one word each), so the selected text is never read as shell syntax. It runs in zsh with
+      // `set -euo pipefail`, so the first failing command fails it.
+      function shellQuote(value) {
+        return "'" + String(value).replace(/'/g, "'\\''") + "'";
+      }
+
+      function shellTemplate(strings, values) {
+        let command = strings[0];
+        for (let index = 0; index < values.length; index += 1) {
+          const value = values[index];
+          command += (isArray(value) ? value.map(shellQuote).join(' ') : shellQuote(value)) + strings[index + 1];
+        }
+        return command;
+      }
+
+      install('$', function $(strings) {
+        if (!isArray(strings) || !isArray(strings.raw)) throw new TypeError('$ is a template tag: $`command`.');
+        const script = 'set -euo pipefail\n' + shellTemplate(strings, slice(arguments, 1));
+        return shellRun(current, { script: script, interpreter: '/bin/zsh', shellMode: 'none', env: {} }, 'The command');
+      });
+
+      function appleScriptParameters(params) {
+        if (params === undefined || params === null) return [];
+        if (isArray(params)) return params.map(String);
+        if (typeof params === 'object') return keys(params).map(function (key) { return String(params[key]); });
+        throw new TypeError('The parameters must be an array or an object.');
       }
 
       function popclipFor(state) {
@@ -1360,11 +1605,30 @@ final class ExtensionVM: @unchecked Sendable {
           pressKeys: function pressKeys(sequence, options) {
             return ask('pressKeys', { steps: keySteps(sequence), target: keyTarget(options) });
           },
-          runAppleScript: notYet('runAppleScript'),
-          runAppleScriptFile: notYet('runAppleScriptFile'),
-          runShortcut: notYet('runShortcut'),
-          runShellScript: notYet('runShellScript'),
-          runShellScriptFile: notYet('runShellScriptFile'),
+          runAppleScript: function runAppleScript(source, options) {
+            if (typeof source !== 'string') throw new TypeError('The AppleScript must be text.');
+            return ask('runAppleScript', { source: source, handler: optionalText(options, 'handler'), params: appleScriptParameters(options && options.params) });
+          },
+          runAppleScriptFile: function runAppleScriptFile(file, options) {
+            if (typeof file !== 'string' || file === '') throw new TypeError('The file is required.');
+            return ask('runAppleScript', { file: file, handler: optionalText(options, 'handler'), params: appleScriptParameters(options && options.params) });
+          },
+          runShortcut: function runShortcut(name, options) {
+            if (typeof name !== 'string' || name === '') throw new TypeError('The shortcut name is required.');
+            return ask('runShortcut', { name: name, input: optionalText(options, 'input') });
+          },
+          runShellScript: function runShellScript(script, options) {
+            if (typeof script !== 'string') throw new TypeError('The script must be text.');
+            const args = shellArguments(options);
+            args.script = script;
+            return shellRun(invocation, args, 'The shell script');
+          },
+          runShellScriptFile: function runShellScriptFile(file, options) {
+            if (typeof file !== 'string' || file === '') throw new TypeError('The file is required.');
+            const args = shellArguments(options);
+            args.file = file;
+            return shellRun(invocation, args, 'The shell script');
+          },
           performService: function performService(name, input) {
             if (typeof name !== 'string' || name === '') throw new TypeError('The service name is required.');
             let content;

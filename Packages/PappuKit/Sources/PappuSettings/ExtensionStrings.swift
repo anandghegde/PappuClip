@@ -123,6 +123,12 @@ public enum ExtensionStrings {
         localized("capability.gate.unboundedCode", "Runs code whose reach this version of PappuClip cannot check")
     }
 
+    public static func gateUnboundedCode(calling methods: String) -> String {
+        String(localized: "capability.gate.unboundedCode.methods",
+               defaultValue: "Runs code whose reach this version of PappuClip cannot check, and which can call \(methods)",
+               bundle: .module, comment: "%@ is a list of method names, such as runShellScript and pressKey.")
+    }
+
     // MARK: Extension Info (SEC-4a–b)
 
     public static var empty: String {
@@ -211,6 +217,7 @@ public enum ExtensionStrings {
         "capability.gate.network",
         "capability.gate.syntheticInput",
         "capability.gate.unboundedCode",
+        "capability.gate.unboundedCode.methods",
         "extensions.empty",
         "extensions.state.enabled",
         "extensions.state.pending",
