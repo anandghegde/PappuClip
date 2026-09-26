@@ -27,5 +27,8 @@ public enum ProductIdentity {
         public static let package = ["pappuext", "popclipext"]
         public static let zippedPackage = ["pappuextz", "popclipextz"]
         public static let snippet = ["pappucliptxt", "popcliptxt"]
+        /// Snippets saved under their language's own suffix (EXM-3). Opened with "Open With" or dropped
+        /// on the menu bar icon, never claimed: the app is not these types' handler.
+        public static let codeSnippet = ["js", "ts", "yaml"]
     }
 }

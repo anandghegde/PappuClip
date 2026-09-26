@@ -1029,7 +1029,16 @@ requirements:
       - PappuExtensionsTests/anIdentifierCollisionFromAnotherOriginInstallsSeparately
       - PappuExtensionsTests/theSamePublisherOffersAReplacementOnlyOnAManualRoute
       - PappuExtensionsTests/aMatchingNameIsOnlyAWarning
-  EXM-3: { priority: P1, milestone: M3, tests: [] }
+  EXM-3:
+    priority: P1
+    milestone: M3
+    note: >-
+      `.js`, `.ts` and `.yaml` files are snippet files: `Source.file` reads them as snippet text, so one with no marker is refused, and each goes through the same review as a `.popcliptxt`. The app is an Alternate handler for them, so they are in Open With and are never opened by it by default. Dropping any extension file on the menu bar icon opens it as the Finder would; the drop itself is checked by hand (m3-manual).
+    tests:
+      - PappuExtensionsTests/codeAndYAMLSnippetFilesInstallAsSnippets
+      - PappuExtensionsTests/aCodeFileWithNoMarkerIsRefused
+      - PappuExtensionsTests/sourceFilesAreRecognisedByExtension
+      - PappuAppTests/theIconTakesOnlyExtensionFiles
   EXM-4: { priority: P1, milestone: M3, tests: [] }
   EXM-5a:
     priority: P0
