@@ -17,7 +17,15 @@ import XPC
 /// connection is answered with a failure the moment the helper goes, the connection is forgotten,
 /// and the next action opens another; launchd starts a new helper for it. Each extension that had
 /// code running is charged with the crash in the Debug Console, and one that crashes the helper
-/// `suspensionThreshold` times inside `suspensionWindow` is not run again until the app restarts.
+/// `suspensionThreshold` times inside `suspensionWindow` is suspended. One whose code was loading when
+/// the helper crashed is suspended at once: a crash while loading is a crash every time it loads. (Not
+/// when the watchdog killed it: another extension's runaway may have been the cause.)
+///
+/// **A runaway is a crash the app causes** (SEC-2). While extension code runs, loads or is described,
+/// the helper's CPU and memory are sampled (`JSHostWatchdog`). An overrun kills the helper, says why in
+/// the Debug Console against each extension that had code in it, and is charged as a crash. A
+/// suspension is handed to `whenSuspended`, which in the app writes it to the store, where it lasts
+/// until Extension Info's Resume, which calls `resume(_:)`.
 ///
 /// **Cancelling is a drop, then a kill.** The helper is asked to stop waiting for the invocation,
 /// which it does at once unless the script is busy on its world's queue — a loop that never yields.
@@ -46,6 +54,14 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
 
     private struct State {
         var connection: (any JSHostConnection)?
+        /// Owners whose code is loading or being described on `connection`, and how many times over.
+        var loading: [String: Int] = [:]
+        /// SEC-2: a watch is running on `connection`.
+        var watching = false
+        /// SEC-2: the watchdog killed the helper. What was loading is charged as an ordinary crash, not
+        /// suspended at once: another extension's runaway may have been what took it down.
+        var overran = false
+        var whenSuspended: (@Sendable (String) async -> Void)?
         /// What is loaded on `connection`, by owner: the generation.
         var loaded: [String: String] = [:]
         /// The jobs in flight on `connection`.
@@ -64,9 +80,13 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
     private let moduleLimit: Duration
     private let sleeper: any InvocationSleeping
     private let now: @Sendable () -> ContinuousClock.Instant
+    private let limits: JSHostWatchdog.Limits
+    private let sampler: any JSHostUsageSampling
     private let state = Mutex(State())
     /// Extension names by owner, for the lines the helper sends with only an owner on them.
     private let names = Mutex<[String: String]>([:])
+    /// JS-16, JS-19: what is kept loaded, and whether that is being done (see "The warm helper" below).
+    private let warmth = Mutex(Warmth())
 
     public init(
         transport: any JSHostTransport = XPCJSHostTransport(),
@@ -74,8 +94,12 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
         grace: Duration = .milliseconds(500),
         describeLimit: Duration = JSHostClient.describeLimit,
         sleeper: any InvocationSleeping = SystemInvocationSleep(),
-        now: @escaping @Sendable () -> ContinuousClock.Instant = { ContinuousClock.now }
+        now: @escaping @Sendable () -> ContinuousClock.Instant = { ContinuousClock.now },
+        watchdog: JSHostWatchdog.Limits = .standard,
+        sampler: any JSHostUsageSampling = ProcessUsageSampler()
     ) {
+        limits = watchdog
+        self.sampler = sampler
         self.transport = transport
         self.console = console
         self.grace = grace
@@ -110,6 +134,7 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
             return run
         }
         guard let started else { return nil }
+        watch(connection)
         connection.send(.invoke(JSInvoke(
             invocation: started.id,
             extensionName: job.owner,
@@ -121,7 +146,8 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
             options: job.options,
             booleanOptions: job.booleanOptions,
             typeScript: job.action.isTypeScript,
-            export: job.action.export
+            export: job.action.export,
+            auth: job.auth
         ))) { reply in started.settle(reply) }
         return started
     }
@@ -178,6 +204,9 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
             entry: entry,
             typeScript: module.module.isTypeScript
         ))
+        // Still loading while a lost helper is charged below, so the charge knows it was.
+        loading(module.owner, on: connection, true)
+        defer { loading(module.owner, on: connection, false) }
         switch await ask(connection, request, within: moduleLimit) {
         case .answered(.success(.described(let description))):
             do {
@@ -286,6 +315,19 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
         state.withLock { $0.suspended.contains(owner) }
     }
 
+    /// Called with the owner of each extension the client suspends, once each time.
+    public func whenSuspended(_ handler: @escaping @Sendable (String) async -> Void) {
+        state.withLock { $0.whenSuspended = handler }
+    }
+
+    /// Extension Info's Resume: `owner` may run again, with no crashes held against it.
+    public func resume(_ owner: String) {
+        state.withLock { state in
+            state.suspended.remove(owner)
+            state.crashes[owner] = nil
+        }
+    }
+
     // MARK: Connecting and loading
 
     private func connect() async -> (any JSHostConnection)? {
@@ -306,6 +348,9 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
             }
             state.connection = opened
             state.loaded = [:]
+            state.loading = [:]
+            state.watching = false
+            state.overran = false
             state.killed = false
             return opened
         }
@@ -328,6 +373,8 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
             console?.add(.loadFailed, from: extensionName)
             return false
         }
+        loading(owner, on: connection, true)
+        defer { loading(owner, on: connection, false) }
         let reply = await withCheckedContinuation { continuation in
             connection.send(.load(JSLoad(extensionName: owner, generation: generation, files: files))) {
                 continuation.resume(returning: $0)
@@ -359,34 +406,113 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
 
     /// Forgets a connection that has gone, and charges the extensions that were running in it.
     fileprivate func lost(_ connection: any JSHostConnection) {
-        let (charged, killed) = state.withLock { state -> ([Job], Bool) in
-            guard state.connection === connection else { return ([], true) }
+        let (charged, loading, killed, overran) = state.withLock { state -> ([Job], Set<String>, Bool, Bool) in
+            guard state.connection === connection else { return ([], [], true, false) }
             state.connection = nil
             state.loaded = [:]
             let running = Array(state.running.values)
             state.running = [:]
-            return (running, state.killed)
+            let loading = Set(state.loading.keys)
+            state.loading = [:]
+            return (running, loading, state.killed, state.overran)
         }
         connection.close()
+        // JS-19: the helper is re-created for the extensions that populate, whatever took it down.
+        rewarm()
         guard !killed else { return }
-        let owners = Set(charged.filter { !$0.wasCancelled }.map(\.request.owner))
+        let owners = Set(charged.filter { !$0.wasCancelled }.map(\.request.owner)).union(loading)
         for owner in owners.sorted() {
-            charge(owner, name: charged.first { $0.request.owner == owner }?.request.extensionName ?? owner)
+            let name = charged.first { $0.request.owner == owner }?.request.extensionName
+                ?? names.withLock { $0[owner] } ?? owner
+            charge(owner, name: name, whileLoading: loading.contains(owner) && !overran)
         }
     }
 
-    private func charge(_ owner: String, name: String) {
+    /// SEC-1d: `suspensionThreshold` crashes inside `suspensionWindow`, or one while loading (§10.7).
+    private func charge(_ owner: String, name: String, whileLoading: Bool) {
         console?.add(.crashed, from: name)
         let at = now()
-        let suspended = state.withLock { state -> Bool in
+        let (suspended, handler) = state.withLock { state -> (Bool, (@Sendable (String) async -> Void)?) in
             var recent = (state.crashes[owner] ?? []).filter { $0.duration(to: at) < Self.suspensionWindow }
             recent.append(at)
             state.crashes[owner] = recent
-            guard recent.count >= Self.suspensionThreshold, !state.suspended.contains(owner) else { return false }
+            guard recent.count >= Self.suspensionThreshold || whileLoading, !state.suspended.contains(owner) else {
+                return (false, nil)
+            }
             state.suspended.insert(owner)
+            return (true, state.whenSuspended)
+        }
+        guard suspended else { return }
+        console?.add(.suspended, from: name)
+        if let handler { Task { await handler(owner) } }
+    }
+
+    private func loading(_ owner: String, on connection: any JSHostConnection, _ started: Bool) {
+        state.withLock { state in
+            guard state.connection === connection else { return }
+            let count = state.loading[owner, default: 0] + (started ? 1 : -1)
+            state.loading[owner] = count > 0 ? count : nil
+        }
+        if started { watch(connection) }
+    }
+
+    // MARK: The watchdog (SEC-2)
+
+    /// Samples the helper for as long as code is running, loading or being described in it. One watch
+    /// per connection; it ends when the connection goes, when nothing is running, or when the helper
+    /// cannot be sampled at all.
+    private func watch(_ connection: any JSHostConnection) {
+        let begin = state.withLock { state -> Bool in
+            guard state.connection === connection, !state.watching else { return false }
+            state.watching = true
             return true
         }
-        if suspended { console?.add(.suspended, from: name) }
+        guard begin else { return }
+        let sleeper = self.sleeper, limits = self.limits, sampler = self.sampler, now = self.now
+        Task { [weak self] in
+            var meter = JSHostWatchdog.Meter(limits: limits)
+            while true {
+                guard let usage = sampler.usage(of: connection) else { break }
+                guard let self else { return }
+                if let overrun = meter.observe(usage, at: now()) {
+                    self.overran(connection, overrun)
+                    return
+                }
+                await sleeper.sleep(for: limits.interval)
+                // Still ours and still busy, or the watch ends; checked under the lock that `start` and
+                // `load` take, so work that begins as this ends starts a new watch.
+                let goOn = self.state.withLock { state -> Bool in
+                    // A connection that has gone is not ours to say anything about: `connect` reset it.
+                    guard state.connection === connection else { return false }
+                    let busy = !state.running.isEmpty || !state.loading.isEmpty
+                    if !busy { state.watching = false }
+                    return busy
+                }
+                guard goOn else { return }
+            }
+            self?.state.withLock { state in
+                if state.connection === connection { state.watching = false }
+            }
+        }
+    }
+
+    /// SEC-2: the helper is killed, and what had code in it is charged as for a crash.
+    private func overran(_ connection: any JSHostConnection, _ overrun: JSHostWatchdog.Overrun) {
+        let owners = state.withLock { state -> [String: String] in
+            guard state.connection === connection else { return [:] }
+            var owners: [String: String] = [:]
+            for job in state.running.values where !job.wasCancelled { owners[job.request.owner] = job.request.extensionName }
+            for owner in state.loading.keys where owners[owner] == nil { owners[owner] = owner }
+            if !owners.isEmpty { state.overran = true }
+            return owners
+        }
+        guard !owners.isEmpty else { return }
+        for (owner, name) in owners.sorted(by: { $0.key < $1.key }) {
+            let shown = name == owner ? (names.withLock { $0[owner] } ?? owner) : name
+            console?.add(.overran, from: shown, overrun.explanation)
+        }
+        connection.kill()
+        lost(connection)
     }
 
     fileprivate func kill(_ connection: any JSHostConnection, name: String) {
@@ -599,9 +725,10 @@ public struct XPCJSHostTransport: JSHostTransport {
     }
 }
 
-final class XPCJSHostConnection: JSHostConnection, @unchecked Sendable {
+final class XPCJSHostConnection: JSHostConnection, JSHostProcess, @unchecked Sendable {
     private let session: XPCSession
     let processID = Mutex<pid_t>(0)
+    var processIdentifier: pid_t { processID.withLock { $0 } }
 
     init(session: XPCSession) {
         self.session = session
@@ -631,5 +758,146 @@ final class XPCJSHostConnection: JSHostConnection, @unchecked Sendable {
 
     func close() {
         session.cancel(reason: "Closed.")
+    }
+}
+
+// MARK: - The warm helper and population (JS-13, JS-16, JS-19, architecture §10.6)
+
+/// What the client keeps loaded for population.
+private struct Warmth {
+    var modules: [String: WarmModule] = [:]
+    /// A warm-up is running; another is not started beside it.
+    var warming = false
+    /// Something asked for a warm-up while one ran: it goes round again when it finishes.
+    var again = false
+}
+
+extension JSHostClient: ModulePopulating, HelperWarming {
+    /// JS-16: the helper is started, and these extensions loaded into it, now and after every loss of
+    /// it, so that population never waits for either. An empty list starts nothing: a helper with no
+    /// dynamic extension to hold starts when an action first needs it, as before.
+    public func keepWarm(_ modules: [WarmModule]) {
+        let kept = Dictionary(modules.map { ($0.owner, $0) }, uniquingKeysWith: { first, _ in first })
+        names.withLock { names in for module in modules { names[module.owner] = module.extensionName } }
+        warmth.withLock { $0.modules = kept }
+        rewarm()
+    }
+
+    /// JS-16: a mouse-down. A running helper is sent `ping`, which it answers at once and which finds out
+    /// early that it has gone; a helper that is not running is started and loaded. Nothing waits.
+    public func ping() {
+        guard warmth.withLock({ !$0.modules.isEmpty }) else { return }
+        if let connection = state.withLock({ $0.connection }) {
+            connection.send(.ping) { [weak self] reply in
+                if case .failure = reply { self?.lost(connection) }
+            }
+        }
+        rewarm()
+    }
+
+    /// Whether `owner`'s world at `generation` is loaded on a running helper: what population needs to be
+    /// asked at all.
+    public func isWarm(_ owner: String, generation: String) -> Bool {
+        state.withLock { $0.connection != nil && $0.loaded[owner] == generation }
+    }
+
+    /// JS-13: the population function of one extension, answered within `limit` or not at all.
+    ///
+    /// A cold helper is not waited for: the answer is `cold` at once and a warm-up starts for the next
+    /// attempt. A reply after `limit` is dropped by `ask`, which has already answered `late`. Host calls
+    /// are refused in the helper for as long as a population function runs, and could not reach a run
+    /// here anyway: a population is not a `Job`, so `served` finds nothing to hand them to.
+    public func populate(_ request: PopulationRequest, within limit: Duration) async -> PopulationAnswer {
+        names.withLock { $0[request.owner] = request.extensionName }
+        guard !isSuspended(request.owner) else { return .suspended }
+        let connection = state.withLock { state in
+            state.connection != nil && state.loaded[request.owner] == request.generation ? state.connection : nil
+        }
+        guard let connection else {
+            rewarm()
+            return .cold
+        }
+        guard limit > .zero else { return .late }
+        let entry: JSInvoke.Entry = switch request.module.source {
+        case .inline(let text): .inline(text)
+        case .file(let path): .file(path)
+        }
+        let message = JSHostRequest.populate(JSPopulate(
+            attempt: request.attempt.rawValue,
+            extensionName: request.owner,
+            generation: request.generation,
+            entry: entry,
+            typeScript: request.module.isTypeScript,
+            input: request.input,
+            context: request.context,
+            options: request.options,
+            booleanOptions: request.booleanOptions
+        ))
+        switch await ask(connection, message, within: limit) {
+        case .answered(.success(.populated(let population))):
+            return .offered(population.actions)
+        case .answered(.success(.threw(let why))):
+            console?.add(.threw, from: request.extensionName, why)
+            return .failed(why)
+        case .answered(.success(.notLoaded)):
+            forgetWorld(of: request.owner, on: connection)
+            rewarm()
+            return .cold
+        case .answered(.success):
+            return .failed("The helper did not run the population function.")
+        case .answered(.failure):
+            lost(connection)
+            return .failed("The JavaScript helper stopped.")
+        case .timedOut:
+            return .late
+        }
+    }
+
+    /// Starts a warm-up unless one is running, in which case that one goes round again.
+    fileprivate func rewarm() {
+        let start = warmth.withLock { warmth -> Bool in
+            guard !warmth.modules.isEmpty else { return false }
+            guard !warmth.warming else {
+                warmth.again = true
+                return false
+            }
+            warmth.warming = true
+            return true
+        }
+        guard start else { return }
+        Task { await self.warmUp() }
+    }
+
+    private func warmUp() async {
+        while true {
+            let modules = warmth.withLock { Array($0.modules.values) }
+                .filter { !isSuspended($0.owner) }
+                .sorted { $0.owner < $1.owner }
+            if !modules.isEmpty, let connection = await connect() {
+                for module in modules where !isWarm(module.owner, generation: module.generation) {
+                    _ = await load(
+                        owner: module.owner,
+                        generation: module.generation,
+                        extensionName: module.extensionName,
+                        directory: module.directory,
+                        on: connection
+                    )
+                }
+            }
+            let done = warmth.withLock { warmth -> Bool in
+                guard warmth.again else {
+                    warmth.warming = false
+                    return true
+                }
+                warmth.again = false
+                return false
+            }
+            if done { return }
+        }
+    }
+
+    /// For the tests: whether a warm-up is under way.
+    public var isWarming: Bool {
+        warmth.withLock { $0.warming }
     }
 }

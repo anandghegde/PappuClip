@@ -24,7 +24,9 @@ public struct JavaScriptRunRequest: Sendable {
     /// The options that are booleans, which a script reads as `true` and `false`.
     public var booleanOptions: [String]
     /// Where the script's host calls go (architecture §10.4). Nil refuses every one.
-    public var host: HostAPIDispatcher?
+    public var host: (any HostCallServing)?
+    /// §8.10: run the module's `auth(info, flow)` rather than the action's code.
+    public var auth: JSAuthInfo?
 
     public init(
         owner: String,
@@ -37,7 +39,8 @@ public struct JavaScriptRunRequest: Sendable {
         modifiers: JSModifiers = JSModifiers(),
         options: [String: String] = [:],
         booleanOptions: [String] = [],
-        host: HostAPIDispatcher? = nil
+        host: (any HostCallServing)? = nil,
+        auth: JSAuthInfo? = nil
     ) {
         self.owner = owner
         self.generation = generation
@@ -50,6 +53,7 @@ public struct JavaScriptRunRequest: Sendable {
         self.options = options
         self.booleanOptions = booleanOptions
         self.host = host
+        self.auth = auth
     }
 
     /// A run with the text alone, and nothing else about where it came from.

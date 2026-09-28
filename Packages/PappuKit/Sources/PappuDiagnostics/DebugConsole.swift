@@ -19,12 +19,15 @@ public struct ConsoleEntry: Sendable, Equatable, Identifiable {
         case crashed
         /// The extension's code did not stop when asked, and the helper was restarted to stop it. No text.
         case hung
-        /// The extension crashed the helper too often, and its code will not run again until the app
-        /// restarts (SEC-1d). No text.
+        /// The extension crashed the helper too often, or while its code was loading, and its code will
+        /// not run again until it is resumed (SEC-1d, SEC-2). No text.
         case suspended
         /// A host call was refused: the action had ended, or the extension's grants do not cover it
         /// (SEC-7b). The text names the method and why, never what it was called with.
         case refused
+        /// The watchdog stopped the helper while this extension's code was in it: too much CPU or
+        /// memory (SEC-2). The text says which, and the limit; never anything the script said.
+        case overran
     }
 
     public let id: UInt64

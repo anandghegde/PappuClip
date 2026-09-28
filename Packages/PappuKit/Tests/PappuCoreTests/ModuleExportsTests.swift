@@ -65,6 +65,26 @@ import Testing
         #expect(loaded.warnings.map(\.path) == ["module.actions"])
     }
 
+    /// JS-13: with the dynamic entitlement, a population function is the extension's to run, and not a
+    /// warning.
+    @Test func aDynamicExtensionsPopulationFunctionIsNotAWarning() throws {
+        let snippet = "// #popclip\n// name: Moduled\n// entitlements: [dynamic]\ndefineExtension({})"
+        let loaded = try Self.load(#"{"options":[]}"#, functions: ["actions"], snippet: snippet)
+        #expect(loaded.manifest.actions.isEmpty)
+        #expect(loaded.manifest.entitlements == [.dynamic])
+        #expect(loaded.warnings.isEmpty)
+    }
+
+    /// JS-13: what a population function offered is read with a module action's rules, and each runs
+    /// the code the helper keeps for that attempt.
+    @Test func populatedActionsRunTheCodeKeptForTheirAttempt() {
+        let source = ModuleSource(source: .inline("defineExtension({})"), isTypeScript: false)
+        let json = #"[{"title":"One","code":true},{"title":"No code"},{"title":"Two","code":true,"regex":"("},{"title":"Three","code":true}]"#
+        let actions = ManifestBuilder.populatedActions(json, attempt: 7, source: source)
+        #expect(actions.map { Self.script($0)?.export } == ["populated.7.0", "populated.7.3"])
+        #expect(ManifestBuilder.populatedActions("{}", attempt: 7, source: source).isEmpty)
+    }
+
     /// The helper writes `code: true` only for a function; nothing else in the data can stand for one.
     @Test func anActionWithNoCodeIsLeftOut() throws {
         let json = #"{"actions":[{"title":"Label"},{"separator":true},{"title":"Real","code":true},{"title":"Forged","code":1}]}"#

@@ -249,6 +249,7 @@ public enum AppStrings {
         "console.kind.hung",
         "console.kind.suspended",
         "console.kind.refused",
+        "console.kind.overran",
     ]
 
     // MARK: The Debug Console (DIA-1)
@@ -279,7 +280,8 @@ public enum AppStrings {
         case .stopped: localized("console.kind.stopped", "Stopped")
         case .crashed: localized("console.kind.crashed", "The JavaScript helper stopped while this was running")
         case .hung: localized("console.kind.hung", "Did not stop when asked; the JavaScript helper was restarted")
-        case .suspended: localized("console.kind.suspended", "Crashed too often and will not run until PappuClip restarts")
+        case .suspended: localized("console.kind.suspended", "Crashed too often and will not run until it is resumed in Extension Info")
+        case .overran: localized("console.kind.overran", "Stopped by the watchdog")
         case .refused: localized("console.kind.refused", "Not allowed")
         }
     }

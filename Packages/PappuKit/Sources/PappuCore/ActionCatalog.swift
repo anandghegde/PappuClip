@@ -172,3 +172,18 @@ public struct ActionCatalog: Sendable, Equatable {
         index[key].map { actions[$0] }
     }
 }
+
+extension ActionCatalog {
+    /// The same actions under other keys. JS-13: a population function's actions are keyed apart from
+    /// the static ones they would otherwise share a position with.
+    public func rekeyed(_ key: (ActionKey) -> ActionKey) -> ActionCatalog {
+        var copy = self
+        copy.actions = actions.map { action in
+            var action = action
+            action.key = key(action.key)
+            return action
+        }
+        copy.index = Dictionary(copy.actions.enumerated().map { ($0.element.key, $0.offset) }, uniquingKeysWith: { first, _ in first })
+        return copy
+    }
+}

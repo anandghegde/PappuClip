@@ -230,6 +230,23 @@ final class ExtensionVM: @unchecked Sendable {
     func invoke(_ invocation: JSInvoke, reply: @escaping Reply) {
         guard let context, let runner else { return reply(.notLoaded) }
         guard let state = Self.state(of: invocation) else { return reply(.threw("The action's input could not be read.")) }
+        if let auth = invocation.auth {
+            // §8.10: the module's `auth(info, flow)`. The secret it gives goes back as an `authSecret`
+            // host call, never as the reply, so it is not in the Debug Console.
+            guard let module = moduleEntry(invocation.entry) else {
+                return reply(.threw("Cannot find the module \(invocation.entry.path ?? "")."))
+            }
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.withoutEscapingSlashes]
+            guard let data = try? encoder.encode(auth), let info = String(data: data, encoding: .utf8) else {
+                return reply(.threw("The sign-in details could not be read."))
+            }
+            let settle = settler(for: invocation.invocation, reply: reply)
+            runner.invokeMethod("runAuth", withArguments: [
+                module.source, module.isFile, invocation.typeScript, state, info, JSValue(object: settle, in: context) as Any,
+            ])
+            return
+        }
         if let export = invocation.export {
             guard let module = moduleEntry(invocation.entry) else {
                 return reply(.threw("Cannot find the module \(invocation.entry.path ?? "")."))
@@ -319,6 +336,37 @@ final class ExtensionVM: @unchecked Sendable {
         }
         let functions = result.objectForKeyedSubscript("functions")?.toArray() as? [String] ?? []
         return .described(JSModuleDescription(exports: json, functions: functions))
+    }
+
+    /// JS-13: runs the module's population function for one attempt, with timers and host calls
+    /// refused while it runs, and answers what it offered as data.
+    func populate(_ request: JSPopulate) -> JSHostReply {
+        guard let runner else { return .notLoaded }
+        guard let module = moduleEntry(request.entry) else {
+            return .threw("Cannot find the module \(request.entry.path ?? "").")
+        }
+        let invocation = JSInvoke(
+            invocation: 0,
+            extensionName: request.extensionName,
+            generation: request.generation,
+            entry: request.entry,
+            input: request.input,
+            context: request.context,
+            options: request.options,
+            booleanOptions: request.booleanOptions
+        )
+        guard let state = Self.state(of: invocation) else { return .threw("The input could not be read.") }
+        guard let result = runner.invokeMethod("populate", withArguments: [
+            module.source, module.isFile, request.typeScript, String(request.attempt), state,
+        ]), result.isObject
+        else { return .threw("The population function could not be run.") }
+        if let error = result.objectForKeyedSubscript("error"), error.isString {
+            return .threw(error.toString())
+        }
+        guard let actions = result.objectForKeyedSubscript("actions"), actions.isString, let json = actions.toString() else {
+            return .threw("The population function could not be run.")
+        }
+        return .populated(JSPopulation(actions: json))
     }
 
     /// A module as the prelude takes it: a package path it loads as `require` would, or a snippet's
@@ -566,8 +614,16 @@ final class ExtensionVM: @unchecked Sendable {
       const timers = new Timers();
       let lastTimer = 0;
       const timerLimit = 10000;
+      // JS-13: a population function is running. It may not start timers or call the host: it runs for
+      // every selection, before anyone chose anything, within a deadline measured in milliseconds.
+      let populating = false;
+
+      function notWhilePopulating(what) {
+        return new Error(what + ' is not available in a population function.');
+      }
 
       function schedule(callback, delay, repeats) {
+        if (populating) throw notWhilePopulating('A timer');
         if (typeof callback !== 'function') throw new TypeError('The callback must be a function.');
         if (timers.size >= timerLimit) throw new RangeError('Too many timers are waiting.');
         let milliseconds = Number(delay);
@@ -926,6 +982,10 @@ final class ExtensionVM: @unchecked Sendable {
 
       function callHost(invocation, method, args) {
         return new PromiseConstructor(function (resolve, reject) {
+          if (populating) {
+            reject(notWhilePopulating(method));
+            return;
+          }
           if (invocation === null) {
             reject(outOfAction(method));
             return;
@@ -938,6 +998,7 @@ final class ExtensionVM: @unchecked Sendable {
       }
 
       function callHostNow(invocation, method, args) {
+        if (populating) throw notWhilePopulating(method);
         if (invocation === null) throw outOfAction(method);
         const answer = native.callSync(invocation, method, stringify(args));
         return settled(answer.kind, answer.value);
@@ -1704,9 +1765,81 @@ final class ExtensionVM: @unchecked Sendable {
         );
       }
 
+      // Population (JS-13, architecture §10.6). The actions a population function offered, by the attempt
+      // it ran for, so that the one the person clicks is the one that was offered. Only the last few
+      // attempts are kept: an older one's bar is gone.
+      const populations = new Timers();
+      const populationsKept = 4;
+
+      function populatedAction(path) {
+        const steps = String(path).split('.');
+        const offered = steps.length === 3 ? populations.get(steps[1]) : undefined;
+        const action = offered === undefined || !/^[0-9]+$/.test(steps[2]) ? undefined : offered[Number(steps[2])];
+        if (typeof action === 'function') return action;
+        if (action !== null && typeof action === 'object' && typeof action.code === 'function') return action;
+        throw new Error('The action is no longer offered.');
+      }
+
+      // `populate` runs the function with nothing it could act through: `popclip` has the input, options and
+      // context and none of the methods, `current` is nobody's, and `populating` refuses timers and host
+      // calls. Whatever was global is put back when it returns, for an action still running in this world.
+      function runPopulation(extension, stateJSON) {
+        const populate = extension !== null && typeof extension === 'object' ? extension.actions : undefined;
+        if (typeof populate !== 'function') throw new TypeError('The module has no population function.');
+        const state = parse(stateJSON);
+        const popclip = freeze({
+          modifiers: freeze({ shift: false, control: false, option: false, command: false }),
+          input: inputOf(state.input),
+          context: contextOf(state.context),
+          options: optionsOf(state.options, state.booleanOptions),
+        });
+        const saved = {
+          popclip: Object.getOwnPropertyDescriptor(global, 'popclip'),
+          pappuclip: Object.getOwnPropertyDescriptor(global, 'pappuclip'),
+          current: current,
+        };
+        defineProperty(global, 'popclip', { value: popclip, writable: false, configurable: true });
+        defineProperty(global, 'pappuclip', { value: popclip, writable: false, configurable: true });
+        current = null;
+        populating = true;
+        try {
+          return populate.call(extension, popclip.input, popclip.options, popclip.context);
+        } finally {
+          populating = false;
+          current = saved.current;
+          for (const name of ['popclip', 'pappuclip']) {
+            if (saved[name] === undefined) delete global[name];
+            else defineProperty(global, name, saved[name]);
+          }
+        }
+      }
+
       return freeze({
         fire: fire,
         answer: answer,
+
+        // JS-13: the actions `extension.actions(input, options, context)` offers for `attempt`, described as
+        // `describe` describes a module's. `{ actions }`, or `{ error }`.
+        populate: function (source, isFile, typeScript, attempt, stateJSON) {
+          try {
+            const result = runPopulation(extensionOf(loadModule(source, isFile, typeScript)), stateJSON);
+            if (result !== null && (typeof result === 'object' || typeof result === 'function') && typeof result.then === 'function') {
+              result.then(undefined, function () {});
+              throw new TypeError('A population function must return its actions, not a promise.');
+            }
+            const offered = result === undefined || result === null ? [] : isArray(result) ? Array.prototype.slice.call(result) : [result];
+            const budget = { left: 100000 };
+            const json = JSON.stringify(offered.map(function (entry) { return describeAction(entry, 1, budget); }));
+            if (json.length > describedLimit) throw new RangeError('The actions offered are too large to describe.');
+            const key = String(attempt);
+            populations.delete(key);
+            populations.set(key, offered);
+            while (populations.size > populationsKept) populations.delete(populations.keys().next().value);
+            return { actions: json };
+          } catch (error) {
+            return { error: describe(error) };
+          }
+        },
 
         run: function (source, url, base, stateJSON, reply, typeScript) {
           const state = parse(stateJSON);
@@ -1751,12 +1884,47 @@ final class ExtensionVM: @unchecked Sendable {
           const settle = leaving(state.invocation, reply);
           let promise;
           try {
-            const action = exportedAction(extensionOf(loadModule(source, isFile, typeScript)), path);
+            const action = String(path).indexOf('populated.') === 0 ? populatedAction(path)
+              : exportedAction(extensionOf(loadModule(source, isFile, typeScript)), path);
             const popclip = enter(state);
             const result = typeof action === 'function'
               ? action.call(undefined, popclip.input, popclip.options, popclip.context)
               : action.code.call(action, popclip.input, popclip.options, popclip.context);
             promise = PromiseConstructor.resolve(result);
+          } catch (error) {
+            settle('threw', describe(error));
+            return;
+          }
+          settleWith(promise, settle);
+        },
+
+        // §8.10: a module's `auth(info, flow)`. `flow(url, params, expect)` asks the app to open the URL
+        // and resolves with the expected query parameters the callback listener received. The secret the
+        // function resolves with is handed to the app as its own host call; the reply carries nothing.
+        runAuth: function (source, isFile, typeScript, stateJSON, infoJSON, reply) {
+          const state = parse(stateJSON);
+          const settle = leaving(state.invocation, reply);
+          const invocation = state.invocation;
+          let promise;
+          try {
+            const auth = extensionOf(loadModule(source, isFile, typeScript)).auth;
+            if (typeof auth !== 'function') throw new TypeError('The extension has no auth function.');
+            enter(state);
+            const info = parse(infoJSON);
+            const flow = function (url, params, expect) {
+              const query = {};
+              if (params !== null && typeof params === 'object') {
+                for (const key of Object.keys(params)) {
+                  if (params[key] !== undefined && params[key] !== null) query[key] = String(params[key]);
+                }
+              }
+              const expected = Array.isArray(expect) ? expect.map(String) : typeof expect === 'string' ? [expect] : [];
+              return callHost(invocation, 'authFlow', { url: String(url), params: query, expect: expected });
+            };
+            promise = PromiseConstructor.resolve(auth.call(undefined, info, flow)).then(function (secret) {
+              if (typeof secret !== 'string' || secret === '') throw new Error('The auth function returned no secret.');
+              return callHost(invocation, 'authSecret', { secret: secret });
+            }).then(function () { return null; });
           } catch (error) {
             settle('threw', describe(error));
             return;

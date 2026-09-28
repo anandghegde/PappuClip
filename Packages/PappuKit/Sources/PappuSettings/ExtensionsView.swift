@@ -63,6 +63,8 @@ struct ExtensionInfoView: View {
                         }
                         if let unreadable = row.unreadable {
                             Text(unreadable).foregroundStyle(.secondary)
+                        } else if row.isSuspended {
+                            Text(ExtensionStrings.suspendedHelp).foregroundStyle(.secondary)
                         } else if !row.isApproved {
                             Text(ExtensionStrings.pendingHelp).foregroundStyle(.secondary)
                         }
@@ -87,8 +89,15 @@ struct ExtensionInfoView: View {
                         if row.isApproved {
                             Button(ExtensionStrings.revoke, role: .destructive) { Task { await model.revoke(identity) } }
                             Text(ExtensionStrings.revokeHelp).font(.callout).foregroundStyle(.secondary)
+                        } else if row.isSuspended, row.unreadable == nil {
+                            Button(ExtensionStrings.resume) { Task { await model.resume(identity) } }
                         } else if row.unreadable == nil {
                             Button(ExtensionStrings.approve) { Task { await model.approve(identity) } }
+                        }
+                    }
+                    if let signIn = row.signIn {
+                        Section(ExtensionStrings.signInSection) {
+                            SignInSection(model: model, identity: identity, signIn: signIn)
                         }
                     }
                     if row.unreadable == nil {
@@ -186,12 +195,38 @@ struct OptionsForm: View {
         case .secret:
             OptionTextField(label: option.label, value: option.value, secure: true, multiline: false) { set($0, option) }
         case .password:
-            LabeledContent(option.label) { EmptyView() }
+            // Held for the next sign-in, never stored (§8.10).
+            OptionTextField(label: option.label, value: "", secure: true, multiline: false) { set($0, option) }
         }
     }
 
     private func set(_ value: String, _ option: ExtensionsModel.OptionRow) {
         Task { await model.setOption(value, for: option.id, of: identity) }
+    }
+}
+
+/// §8.10: whether the extension is signed in to its service, and the one button that changes it.
+private struct SignInSection: View {
+    let model: ExtensionsModel
+    let identity: LocalIdentity
+    let signIn: ExtensionsModel.SignInRow
+
+    var body: some View {
+        Text(signIn.isSignedIn ? ExtensionStrings.signedIn(signIn.service) : ExtensionStrings.notSignedIn(signIn.service))
+        if signIn.inProgress {
+            HStack {
+                ProgressView().controlSize(.small)
+                Text(ExtensionStrings.signingIn).foregroundStyle(.secondary)
+                Spacer()
+                Button(ExtensionStrings.signInCancel) { Task { await model.cancelSignIn(identity) } }
+            }
+        } else if !signIn.isAvailable {
+            Text(ExtensionStrings.signInUnavailable).font(.callout).foregroundStyle(.secondary)
+        } else if signIn.isSignedIn {
+            Button(ExtensionStrings.signOut) { Task { await model.signOut(identity) } }
+        } else {
+            Button(ExtensionStrings.signIn) { Task { await model.signIn(identity) } }
+        }
     }
 }
 

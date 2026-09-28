@@ -131,6 +131,8 @@ public final class AppAssembly: SelectionInstalling {
                 builtins: resources.builtins,
                 modules: javaScript,
                 console: console,
+                // JS-16: the helper starts at launch when a dynamic extension needs it, and after a crash.
+                warmer: javaScript,
                 invalidate: { owner in await manager.invalidate(ownedBy: owner) }
             )
         }
@@ -175,6 +177,16 @@ public final class AppAssembly: SelectionInstalling {
 
         let builtinCatalog = resources.catalog
         let catalog: @Sendable () -> ActionCatalog = { host?.catalog ?? builtinCatalog }
+        // EXM-5: nothing an extension wrote runs without the store's approval of its active bytes.
+        let resolver = ActionResolver { action in host?.approval(for: action) ?? ExecutionApproval.bundled(action) }
+        // JS-13, JS-16: dynamic population, and where it says what it did for the trace.
+        let populations = PopulationLog()
+        let populator = DynamicPopulator(
+            helper: javaScript,
+            sources: { host?.populationSources ?? [] },
+            resolver: resolver,
+            options: { source in host?.populationOptions(for: source) ?? [:] }
+        )
         let bridge = SelectionBridge(
             catalog: catalog,
             gate: gate,
@@ -198,9 +210,11 @@ public final class AppAssembly: SelectionInstalling {
             // half asked for here (PRV-2).
             secureInput: { SecureInput.state(focusedFieldIsSecure: false) },
             // EXM-5: nothing an extension wrote runs without the store's approval of its active bytes.
-            resolver: ActionResolver { action in host?.approval(for: action) ?? ExecutionApproval.bundled(action) },
+            resolver: resolver,
             options: { host?.options ?? [:] },
-            runtimeOptions: { action in host?.runtimeOptions(for: action) ?? [:] }
+            runtimeOptions: { action in host?.runtimeOptions(for: action) ?? [:] },
+            populator: populator,
+            populations: populations
         )
 
         let bar = BarController(
@@ -222,7 +236,10 @@ public final class AppAssembly: SelectionInstalling {
             presenter: bar,
             watcher: watcher,
             frontmost: frontmost.reader,
-            popClipIsRunning: { coexistence.current.popClipIsRunning }
+            popClipIsRunning: { coexistence.current.popClipIsRunning },
+            populations: populations,
+            // JS-16: a mouse-down wakes the helper, and restarts it if it went away.
+            onMouseDown: { javaScript.ping() }
         )
 
         let hotkeys = HotkeyService(registrar: SystemHotkeyRegistrar())
@@ -233,7 +250,13 @@ public final class AppAssembly: SelectionInstalling {
         // The model is made second, so the first is handed it through a weak reference.
         weak var settingsRef: SettingsModel?
         let extensionsModel = host.map { host in
-            ExtensionsModel(library: host.library, secrets: host.secrets) { change in
+            ExtensionsModel(
+                library: host.library,
+                secrets: host.secrets,
+                // §8.10: a module's `auth`, in the helper, with the browser coming back to a loopback listener.
+                signIn: ExtensionSignIn(javaScript: javaScript, secrets: host.secrets)
+            ) { change in
+                if case .resumed(let identity) = change { javaScript.resume(identity.description) }
                 await host.handle(change)
                 settingsRef?.refresh()
             }
@@ -249,6 +272,13 @@ public final class AppAssembly: SelectionInstalling {
             openAccessibilitySettings: { accessibility.openSystemSettings() }
         )
         settingsRef = settingsModel
+        // SEC-1d, SEC-2: a suspension is kept in the store, the bar drops the extension's actions, and
+        // Extension Info says it was stopped.
+        javaScript.whenSuspended { [weak settingsModel] owner in
+            await host?.suspend(owner: owner)
+            await extensionsModel?.refresh()
+            await settingsModel?.refresh()
+        }
         let settingsWindow = SettingsWindow(model: settingsModel)
         let onboardingWindow = OnboardingWindow(model: OnboardingModel(
             store: onboarding,

@@ -37,8 +37,8 @@ import Testing
         private let asked = Mutex<[ModuleDescribeRequest]>([])
         var requests: [ModuleDescribeRequest] { asked.withLock { $0 } }
 
-        init(_ json: String) throws {
-            answer = try ModuleExports(json: json, functions: [])
+        init(_ json: String, functions: [String] = []) throws {
+            answer = try ModuleExports(json: json, functions: functions)
         }
 
         func describe(_ module: ModuleDescribeRequest) async -> Result<ModuleExports, ModuleDescribeFailure> {
@@ -205,6 +205,26 @@ import Testing
         try? FileManager.default.removeItem(at: root)
     }
 
+    /// SEC-1d, SEC-2: a suspension from the JavaScript client is kept in the store and takes the
+    /// approval away; Resume gives it back.
+    @Test func aSuspensionTakesTheApprovalAwayUntilResumed() async throws {
+        let identity = try await install(Self.search)
+        let host = host()
+        await host.reload()
+        let action = try #require(host.catalog.actions.first)
+        #expect(host.approval(for: action) != nil)
+
+        await host.suspend(owner: identity.description)
+        #expect(host.approval(for: action) == nil)
+        #expect(try await library.store.extension(identity)?.state == .suspended)
+
+        try await library.store.resume(identity)
+        await host.handle(.resumed(identity))
+        #expect(host.approval(for: action) != nil)
+        #expect(invalidated.all.isEmpty)
+        try? FileManager.default.removeItem(at: root)
+    }
+
     @Test func anOptionChangeDoesNotStopAnything() async throws {
         let identity = try await install(Self.search)
         let host = host()
@@ -223,6 +243,26 @@ import Testing
         #expect(host.options["com.example.keyed"] == ["apikey": "", "lang": "en"])
         let action = try #require(host.catalog.actions.first)
         #expect(host.runtimeOptions(for: action) == ["apikey": "sk-123", "lang": "en"])
+        try? FileManager.default.removeItem(at: root)
+    }
+
+    /// §8.10, SEC-8a: what `auth` stored reaches that extension's runs as `options.authsecret`, and no
+    /// other extension's.
+    @Test func theAuthSecretReachesOnlyItsOwnExtensionsRuns() async throws {
+        let signedIn = try await install(Self.module)
+        let other = try await install(Self.module.replacingOccurrences(of: "com.example.moduled", with: "com.example.other"))
+        let modules = try FakeModules(#"{"action":{"title":"Go","code":true}}"#, functions: ["auth"])
+        let host = ExtensionHost(library: library, secrets: secrets, builtins: [], modules: modules) { _ in }
+        await host.reload()
+        try await eventually { host.catalog.actions.count == 2 }
+        let instance = try #require(try await library.store.instances(of: signedIn).first?.id)
+        try secrets.setAuthSecret("token", of: instance, owner: signedIn)
+        let mine = try #require(host.catalog.actions.first { $0.owner == signedIn.description })
+        let theirs = try #require(host.catalog.actions.first { $0.owner == other.description })
+        #expect(host.runtimeOptions(for: mine)["authsecret"] == "token")
+        #expect(host.runtimeOptions(for: theirs)["authsecret"] == nil)
+        try secrets.setAuthSecret("", of: instance, owner: signedIn)
+        #expect(host.runtimeOptions(for: mine)["authsecret"] == nil)
         try? FileManager.default.removeItem(at: root)
     }
 

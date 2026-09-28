@@ -880,7 +880,7 @@ A returned string is the result and any other value is none. A throw is reported
 - **Connecting.** It opens one `XPCSession` when first needed; its first message learns the helper's process ID.
 - **Loading.** An extension is loaded on first use, and again when its generation changes. A new connection starts with nothing loaded.
 - **Cancelling.** Jobs are `owned`. A cancel sends `drop`. If that is not answered within 500 ms, because the script is in a loop that never yields, the helper is killed with SIGKILL, logged as `hung`, and the job ends `stopped`.
-- **SEC-1d.** When the helper goes away, every request in flight fails at once and the connection is forgotten. The next action opens another, and launchd starts a new helper. Each extension that had code running and was not being cancelled is charged with a crash. Three within ten minutes suspend it in memory until the app restarts. §10.7's rule of suspending on the first crash during loading is not implemented.
+- **SEC-1d.** When the helper goes away, every request in flight fails at once and the connection is forgotten. The next action opens another, and launchd starts a new helper. Each extension that had code running and was not being cancelled is charged with a crash. Three within ten minutes suspend it in memory until the app restarts. §10.7's rule of suspending on the first crash during loading is not implemented. *(Week 5 keeps the suspension in the store and adds the loading rule; see "The watchdog as built".)*
 
 **The Debug Console (DIA-1).** `DebugConsole` in `PappuDiagnostics` keeps up to 2,000 lines in memory: printed text, load failures, returns, throws, stops, crashes, hangs and suspensions, each with the extension's name. `DebugConsoleWindow` in `PappuApp` opens from the menu bar's **Debug Console** and offers Copy All and Clear.
 
@@ -895,8 +895,8 @@ A returned string is the result and any other value is none. A throw is reported
 **Known gaps:**
 - launchd's 10-second throttle applies here as it does to the Runner (§9.5 as built). A helper killed within 10 s of its launch holds up the next JavaScript action for the rest of that time.
 - Killing the helper stops every extension's code in it. This is the trade §10.7 accepts.
-- There is no host API yet: no `popclip.*` methods, `pasteboard`, XHR, timers or population (weeks 2 onward). No CPU or memory watchdog yet (SEC-2).
-- Suspension is not persisted and is not shown in Extension Info.
+- There is no host API yet: no `popclip.*` methods, `pasteboard`, XHR, timers or population (weeks 2 onward). No CPU or memory watchdog yet (SEC-2). *(Settled in week 5.)*
+- Suspension is not persisted and is not shown in Extension Info. *(Settled in week 5.)*
 
 #### The language environment as built (M3 week 2)
 
@@ -971,7 +971,7 @@ The week 1 limits of 1 MB a file and 8 MB a package were too tight for real exte
 Since week 3 built `util`, those 9 describe too: all 84 do in `jsc`, and `CorpusModuleTests` now names only OpenAIPrompt.
 
 **Known gaps:**
-- Population functions (JS-13) and `auth` (§8.10) are week 5.
+- Population functions (JS-13) are week 5. `auth` (§8.10) is week 5 too; see "Sign-in as built" below.
 - Described exports are not persisted.
 - The action list (ALM, M4) does not yet get items for module actions: nothing reads the list yet.
 
@@ -1077,6 +1077,63 @@ A timeout answers `{timedOut: true}` and becomes the XHR's `timeout` event; a re
 - The scan is kept only in memory, so every package is scanned again at each launch.
 - `networkHosts` match exactly: no wildcards and no ports.
 - There is no `fetch`, no synchronous XHR, and no upload progress (`upload` is an inert object). A response's download is reported once, when it is complete.
+
+#### The watchdog as built (M3 week 5, SEC-2 and the rest of SEC-1d)
+
+**Sampling.** `JSHostWatchdog` in `PappuRuntime` holds the rule; `JSHostClient` applies it. While the client has anything running, loading or being described, it samples the helper every 500 ms. `ProcessUsageSampler` reads `proc_pid_rusage` (`RUSAGE_INFO_V4`) for the pid learned at `identify`: `ri_phys_footprint`, and user plus system time in Mach ticks converted with `mach_timebase_info`. An in-process helper (the tests' transport) has no pid of its own and is not sampled. The watch stops when the client is idle, so an idle helper costs nothing.
+
+**The limits** are `Limits.standard`:
+- **Memory.** A footprint over 1.5 GB is an overrun at the first sample.
+- **CPU.** The helper keeping at least 90% of one core busy for 30 s without a break. A sample below 90% starts the span again. A script that waits (for the network, a timer, a promise) uses no CPU and is never stopped: there is still no fixed timeout.
+
+**An overrun** writes an `overran` line ("Stopped by the watchdog", with which limit and by how much) for each extension that had code in the helper, kills the helper with SIGKILL, and goes down the same path as any lost helper: each of those extensions is charged a crash, its invocation fails, and the next action opens a new helper.
+
+**Attribution and suspension.** A crash is charged to each extension that had a run in flight and was not being cancelled, and to each extension whose code was loading or being described. Three charges within ten minutes suspend it. An extension whose code was loading when the helper went is suspended on that first charge (§10.7), unless the watchdog killed the helper: another extension's runaway may have been the cause, so that load is charged as an ordinary crash.
+
+**Kept in the store.** `JSHostClient.whenSuspended` tells `AppAssembly`, which has `ExtensionHost.suspend(owner:)` move the store's state from `enabled` to `suspended` (`ExtensionStore.suspend`; built-ins are never suspended) and reload, so no `ExecutionApproval` is minted for it and its buttons leave the bar. Extensions and Extension Info show it as "Stopped" with a sentence saying why and a **Resume** button. Resume sets it back to `enabled` (`ExtensionStore.resume`), clears the client's suspension and crash history, and lets `ExtensionHost` describe its module again. A suspension survives a restart because it is the store's state.
+
+**Known gaps:**
+- The limits are fixed; there is no setting for them.
+- The warm helper and population (JS-13, §10.6) are another slice. A helper that was killed is not re-warmed by the watchdog; it starts when next needed.
+- The watchdog measures the one helper, not a world, so it cannot tell which extension used the memory or the CPU. Every extension with code running is charged, including an innocent one that was running beside the runaway (§10.7's accepted trade). The runaway is the one that keeps being charged, so it is the one that reaches three.
+
+#### Sign-in as built (M3 week 5, §8.10)
+
+A module that exports `auth(info, flow)` gets an Account section in Extension Info, with Sign In… or Sign Out and "Signed in to …" (`authServiceLabel`, else the name). `ExtensionsModel` holds a `SigningIn` (declared in PappuExtensions, so Settings does not import the runtime); the app's is `ExtensionSignIn` in PappuRuntime, wired in `AppAssembly`.
+
+**The run.** `SignInRequest(installed, password:)` exists only for approved bytes with an instance and `auth` among `moduleExports.functions`. `ExtensionSignIn` opens a `LoopbackCallbackListener` and runs the module through the ordinary `JavaScriptRunning` path with `JSInvoke.auth` set: `info` is `{username, password, redirect, name, identifier}`, where `username` is the `username` option, `password` is the `password` option typed into the sheet (held in memory for that one sign-in, never stored), and `redirect` is `http://127.0.0.1:<port>/callback`. The prelude's `runAuth` calls `auth(info, flow)` with `popclip` entered as for an action. Its host calls go to `SignInHost` rather than a `HostAPIDispatcher`; `JavaScriptRunRequest.host` is now `any HostCallServing`, which both conform to.
+
+**The calls.** `flow(url, params, expect)` is the `authFlow` host call. `SignInHost` adds `params` to the URL's query, opens it with `URLOpening`, and waits for the listener. It answers the `expect`ed parameters, or refuses when one is missing, the wait timed out, or the sign-in was cancelled; `flow` may be called once. The secret `auth` resolves with is handed over as an `authSecret` host call, and the run's result is `null`, so the secret never reaches the Debug Console. `httpRequest` is served under the extension's `NetworkPolicy` and its approval's grants, as for an action (`NetworkHostCalls.request`). Every other method is refused: there is no selection and no bar.
+
+**The listener.** A POSIX socket bound to 127.0.0.1 port 0, read by a `DispatchSource`. The first `GET /callback` wins: its query is kept, the browser is told to close the tab, and the socket closes. Another path gets a 404 and the listener waits on. The wait is 300 s, and the whole run 360 s; `cancelSignIn` closes the listener and stops the run. A timeout or a cancel ends as `timedOut` or `cancelled`, stores nothing, and leaves an earlier secret as it was.
+
+**Where the secret lives (SEC-8a).** The Keychain, through `SecretStore`, under the account `<LocalIdentity>/<InstanceID>/#authsecret`. No option identifier can be `#authsecret`, so an option does not shadow it. It is bound to the install, not the manifest identifier, so another extension, or a separate install of the same identifier, reads nothing, and uninstalling takes it with the other secrets. `ExtensionHost.runtimeOptions` adds it as `options.authsecret` at the click, for that extension only; without it the prelude's `authsecret` throws "Not signed in". Sign Out deletes the item.
+
+**Known gaps:**
+- `authKeychain` is read and ignored; nothing syncs (M6).
+- Any local process that reaches the port before the browser can answer the callback. The port is ephemeral and the listener takes one request, but there is no `state` check of the app's own; an extension that wants one passes it in `params` and checks it.
+- Parameters in the URL fragment never reach the listener, since browsers do not send fragments.
+- A failure inside `auth` shows only "The Debug Console says why" in the sheet; the thrown message is in the Debug Console.
+
+#### Population and the warm helper as built (M3 week 5)
+
+**Population (JS-13).** An extension is asked for its actions when it is enabled, approved for its current bytes, has the `dynamic` entitlement, and its module exports `actions` as a function (`ExtensionHost.populationSources`). `ManifestBuilder` no longer warns about such a function for a dynamic extension; for one without the entitlement it still says the function is never run. `JSHostRequest.populate` carries the attempt number, the selection as `popclip.input`, the context, and the option values without secrets. The prelude's `populate`:
+- runs `actions(input, options, context)` with a frozen `popclip` that has the input, context, options and modifiers but no methods;
+- sets `populating`, which makes every timer, host call and pasteboard access throw "… is not available in a population function." — a `popclip` saved by an earlier action is refused the same way, in the helper, so nothing reaches the app;
+- refuses a promise ("A population function must return its actions, not a promise."); `undefined` is no actions and one object is one action;
+- describes each action as the module describer does, and keeps the list for the attempt (the last four attempts per world).
+`ManifestBuilder.populatedActions` reads that data with a module action's rules; each action runs export `populated.<attempt>.<index>`, which the prelude looks up among the kept lists or refuses with "The action is no longer offered.". `DynamicPopulator` catalogues them under their extension's manifest, keyed `populated.<identifier or index>` so they cannot collide with static actions, and resolves them with the same `ActionResolver`, facts and approvals. `SelectionBridge` appends them after the static actions.
+
+**The deadline (JS-16).** `AttemptPresentation` now carries the attempt's `AttemptClock`. Past the target budget nothing is asked (`skipped: pastTargetBudget`); with the population stage spent nothing is asked (`noTimeLeft`). Otherwise every extension is asked at once, each within `min(populationPerFunction, what is left of the stage)`, so the stage costs its slowest answer and never more. A late answer is dropped by `JSHostClient.ask`'s `Once`. What happened is a `PopulationRecord` of codes, owners and counts — offered(n), cold, late, failed, suspended — which the bridge leaves in a `PopulationLog` and `ActivationCoordinator.finish` puts in the attempt's `AttemptRecord.population` (DIA-2).
+
+**The warm helper (JS-16, JS-19).** `JSHostClient` is `HelperWarming`. `ExtensionHost.reload` hands it the population sources with `keepWarm`, which at launch starts the helper and loads those extensions. A population never waits for either: a helper that is not running, or has not loaded that world at that generation, answers `cold` at once, and the attempt's record says so, and a warm-up starts for the next attempt. Every mouse-down calls `ping`, off the budget: a running helper is sent `.ping`, which finds a dead connection early, and a missing one is started and loaded. `lost` re-warms after any teardown — a crash, a kill, or a cancel that had to stop the helper. One warm-up runs at a time; a request during one makes it go round again. With no dynamic extension, nothing is started early.
+
+**Known gaps:**
+- The 16 KB cap on the text given to a population function is not applied; it is given the whole selection.
+- A population function that never returns holds its world's queue until the watchdog (§10.7) stops the helper; until then that extension answers `late`.
+- Module-level defaults (icon, `after`, requirements set at the top of the module) are not applied to populated actions.
+- Populated actions follow the static ones; their place in the user's order is ALM's (M4). A populated submenu waits for M4.
+- The attempt trace has no inspector yet (M4), so a cold-helper skip is visible only in tests and the record.
 
 ---
 

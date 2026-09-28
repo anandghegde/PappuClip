@@ -280,7 +280,7 @@ public struct ManifestBuilder {
         // JS-12: a module's exports, read over the config.
         let moduleSource = sourceOfModule(module, language: language)
         if let moduleSource, let exports = input.moduleExports {
-            readExports(exports, source: moduleSource, configDefaults: defaults, actions: &actions, options: &options)
+            readExports(exports, source: moduleSource, configDefaults: defaults, isDynamic: entitlements.contains(.dynamic), actions: &actions, options: &options)
         }
 
         let manifest = ExtensionManifest(
@@ -730,6 +730,7 @@ public struct ManifestBuilder {
         _ exports: ModuleExports,
         source: ModuleSource,
         configDefaults: [ConfigValue.Entry],
+        isDynamic: Bool,
         actions: inout [ActionManifest],
         options: inout [OptionManifest]
     ) {
@@ -750,12 +751,16 @@ public struct ManifestBuilder {
         }
         for name in exports.functions {
             switch KeyNormalizer.normalize(name) {
-            case "actions", "submenu":
-                warn(top.join(name), "A population function needs the dynamic runtime (M3 week 5); until then the module offers no actions from it.")
-            case "auth":
-                warn(top.join(name), "Sign-in arrives in M3 week 5; until then the auth function is not called.")
+            case "actions":
+                // JS-13: run for each selection in the helper, under the population deadline, and only
+                // for an extension that asked for it.
+                if !isDynamic {
+                    warn(top.join(name), "A population function runs only for an extension with the dynamic entitlement; this one offers no actions from it.")
+                }
+            case "submenu":
+                warn(top.join(name), "A submenu population function arrives with the bar's submenu support (M4); until then the module offers no actions from it.")
             default:
-                // `test`, and functions a module exports for itself.
+                // `auth` (§8.10, signed in from Settings), `test`, and functions a module exports for itself.
                 break
             }
         }
@@ -802,6 +807,28 @@ public struct ManifestBuilder {
             }
         }
         actions = built
+    }
+
+    /// JS-13: the actions a population function offered for one attempt, as the helper described them
+    /// (`JSPopulation.actions`), each running the code the helper keeps for that attempt at
+    /// `populated.<attempt>.<index>`. Read with a module action's rules; an entry that breaks them is
+    /// left out, and the rest are offered.
+    public static func populatedActions(_ json: String, attempt: UInt64, source: ModuleSource) -> [ActionManifest] {
+        guard let value = try? ConfigDecoding.decodeYAML(json), case .array(let values) = value else { return [] }
+        var builder = ManifestBuilder(input: Input(config: .dictionary([])))
+        var built: [ActionManifest] = []
+        for (index, value) in values.enumerated() {
+            let errorCount = builder.errors.count
+            let action = builder.moduleAction(
+                value,
+                export: "populated.\(attempt).\(index)",
+                defaults: [],
+                source: source,
+                path: "actions[\(index)]"
+            )
+            if let action, builder.errors.count == errorCount { built.append(action) }
+        }
+        return built
     }
 
     /// One of a module's actions, which runs the code at `export`. An action with no code has nothing

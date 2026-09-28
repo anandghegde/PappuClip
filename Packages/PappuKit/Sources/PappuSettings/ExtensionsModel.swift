@@ -17,6 +17,8 @@ public final class ExtensionsModel {
         /// Something it was allowed to do is no longer allowed: rebuild, and cancel what it is running.
         case revoked(LocalIdentity)
         case removed(LocalIdentity)
+        /// SEC-1d, SEC-2: a suspended extension may run again: rebuild, and forget its crashes.
+        case resumed(LocalIdentity)
     }
 
     public struct Row: Sendable, Equatable, Identifiable {
@@ -30,9 +32,13 @@ public final class ExtensionsModel {
         public var options: [OptionRow]
         /// Set when the files could not be read, in which case there is nothing else to show.
         public var unreadable: String?
+        /// §8.10: set when its module exports `auth`.
+        public var signIn: SignInRow? = nil
 
         public var id: LocalIdentity { identity }
         public var isApproved: Bool { state == .enabled && unreadable == nil }
+        /// SEC-1d, SEC-2: the watchdog stopped it, and Resume is what starts it again.
+        public var isSuspended: Bool { state == .suspended }
         public var stateLabel: String { ExtensionsModel.label(for: state) }
     }
 
@@ -45,6 +51,16 @@ public final class ExtensionsModel {
         public var id: GatedCapability { capability }
     }
 
+    /// §8.10: Sign In and Sign Out, and which account.
+    public struct SignInRow: Sendable, Equatable {
+        /// `authServiceLabel`, else the extension's name.
+        public var service: String
+        public var isSignedIn: Bool
+        public var inProgress: Bool
+        /// It may sign in now: approved, with an instance.
+        public var isAvailable: Bool
+    }
+
     /// One control on the generated sheet (§8.9).
     public struct OptionRow: Sendable, Equatable, Identifiable {
         public enum Control: Sendable, Equatable {
@@ -53,7 +69,7 @@ public final class ExtensionsModel {
             /// Values and what to call them, in the manifest's order.
             case choice([Choice])
             case secret
-            /// Asked for by `auth` (M3) and never stored, so there is nothing to edit here.
+            /// Asked for by `auth` (§8.10) and never stored: held in memory until the next sign-in.
             case password
             case heading
         }
@@ -78,6 +94,10 @@ public final class ExtensionsModel {
     private let secrets: any SecretStore
     private let locale: Locale
     private let changed: @MainActor (Change) async -> Void
+    private let signing: (any SigningIn)?
+    /// §8.10: `password` options typed for the next sign-in, never written anywhere.
+    private var passwords: [LocalIdentity: [String: String]] = [:]
+    private var signingIn: Set<LocalIdentity> = []
 
     public private(set) var rows: [Row] = []
     /// The last failure, said once under whatever the user was doing.
@@ -88,11 +108,13 @@ public final class ExtensionsModel {
         library: ExtensionLibrary,
         secrets: any SecretStore,
         locale: Locale = .current,
+        signIn: (any SigningIn)? = nil,
         changed: @escaping @MainActor (Change) async -> Void = { _ in }
     ) {
         self.library = library
         self.secrets = secrets
         self.locale = locale
+        self.signing = signIn
         self.changed = changed
     }
 
@@ -153,6 +175,11 @@ public final class ExtensionsModel {
         }
     }
 
+    /// SEC-1d, SEC-2: Resume. It runs again under the grants it had when it was stopped.
+    public func resume(_ identity: LocalIdentity) async {
+        await perform(.resumed(identity)) { try await self.library.store.resume(identity) }
+    }
+
     public func uninstall(_ identity: LocalIdentity) async {
         await perform(.removed(identity)) {
             try await self.library.uninstall(identity)
@@ -169,8 +196,10 @@ public final class ExtensionsModel {
               let schema = installed.manifest.options.first(where: { $0.identifier == option })
         else { return }
         switch schema.kind {
-        case .heading, .password:
+        case .heading:
             return
+        case .password:
+            passwords[identity, default: [:]][option] = value
         case .secret:
             await perform(.updated(identity)) {
                 try self.secrets.setSecret(value, for: option, of: instance, owner: identity)
@@ -180,6 +209,45 @@ public final class ExtensionsModel {
                 try await self.library.store.setOptionValue(value, for: option, of: instance)
             }
         }
+    }
+
+    // MARK: Sign-in (§8.10)
+
+    /// Runs the module's `auth`, which opens the browser; the secret it gives goes to the Keychain under
+    /// this extension's identity and instance. The typed password is forgotten once it has been used.
+    public func signIn(_ identity: LocalIdentity) async {
+        guard let signing, let installed = installed[identity], !signingIn.contains(identity) else { return }
+        let password = installed.manifest.options.first { $0.kind == .password }?.identifier.flatMap { passwords[identity]?[$0] } ?? ""
+        guard let request = SignInRequest(installed, password: password) else { return }
+        signingIn.insert(identity)
+        rows = rows.map { row in
+            guard row.identity == identity else { return row }
+            var row = row
+            row.signIn?.inProgress = true
+            return row
+        }
+        let outcome = await signing.signIn(request)
+        signingIn.remove(identity)
+        passwords[identity] = nil
+        failure = switch outcome {
+        case .signedIn: nil
+        case .timedOut: ExtensionStrings.signInTimedOut
+        case .cancelled: nil
+        case .failed(let why): ExtensionStrings.signInFailed(why)
+        }
+        await refresh()
+        if outcome == .signedIn { await changed(.updated(identity)) }
+    }
+
+    public func cancelSignIn(_ identity: LocalIdentity) async {
+        await signing?.cancelSignIn(for: identity)
+    }
+
+    /// Takes the stored secret away; the extension's actions then read `options.authsecret` as not
+    /// signed in.
+    public func signOut(_ identity: LocalIdentity) async {
+        guard let instance = installed[identity]?.instance else { return }
+        await perform(.updated(identity)) { try self.secrets.setAuthSecret("", of: instance, owner: identity) }
     }
 
     // MARK: Internals
@@ -210,7 +278,18 @@ public final class ExtensionsModel {
                 )
             },
             options: optionRows(for: installed),
-            unreadable: nil
+            unreadable: nil,
+            signIn: signInRow(for: installed)
+        )
+    }
+
+    private func signInRow(for installed: InstalledExtension) -> SignInRow? {
+        guard installed.signsIn, signing != nil else { return nil }
+        return SignInRow(
+            service: installed.manifest.authServiceLabel?.text(for: locale) ?? installed.manifest.name.text(for: locale),
+            isSignedIn: installed.instance.flatMap { secrets.authSecret(of: $0, owner: installed.identity) } != nil,
+            inProgress: signingIn.contains(installed.identity),
+            isAvailable: SignInRequest(installed) != nil
         )
     }
 

@@ -155,6 +155,14 @@ public enum ExtensionStrings {
 
     public static var pendingHelp: String { localized("extensions.info.pending", "It will not run until you approve it.") }
     public static var uninstall: String { localized("extensions.info.uninstall", "Uninstall") }
+    public static var resume: String { localized("extensions.info.resume", "Resume") }
+
+    public static var suspendedHelp: String {
+        localized(
+            "extensions.info.suspended",
+            "PappuClip stopped it after it crashed the JavaScript helper or used too much CPU or memory. The Debug Console says when. It will not run until you resume it."
+        )
+    }
 
     public static func version(_ digest: String) -> String {
         String(localized: "extensions.info.version", defaultValue: "Installed version \(digest)", bundle: .module,
@@ -168,6 +176,37 @@ public enum ExtensionStrings {
 
     public static func failed(_ reason: String) -> String {
         String(localized: "extensions.failed", defaultValue: "That did not work: \(reason)", bundle: .module,
+               comment: "%@ is the reason.")
+    }
+
+    // MARK: Sign-in (§8.10)
+
+    public static var signInSection: String { localized("extensions.signIn", "Account") }
+    public static var signIn: String { localized("extensions.signIn.button", "Sign In\u{2026}") }
+    public static var signOut: String { localized("extensions.signIn.signOut", "Sign Out") }
+    public static var signInCancel: String { localized("extensions.signIn.cancel", "Cancel Sign-In") }
+    public static var signingIn: String {
+        localized("extensions.signIn.waiting", "Finish signing in in your browser.")
+    }
+    public static var signInUnavailable: String {
+        localized("extensions.signIn.unavailable", "Approve the extension to sign in.")
+    }
+    public static var signInTimedOut: String {
+        localized("extensions.signIn.timedOut", "The sign-in timed out. Try again.")
+    }
+
+    public static func signedIn(_ service: String) -> String {
+        String(localized: "extensions.signIn.signedIn", defaultValue: "Signed in to \(service).", bundle: .module,
+               comment: "%@ is the service's name.")
+    }
+
+    public static func notSignedIn(_ service: String) -> String {
+        String(localized: "extensions.signIn.notSignedIn", defaultValue: "Not signed in to \(service).", bundle: .module,
+               comment: "%@ is the service's name.")
+    }
+
+    public static func signInFailed(_ reason: String) -> String {
+        String(localized: "extensions.signIn.failed", defaultValue: "Sign-in did not work: \(reason)", bundle: .module,
                comment: "%@ is the reason.")
     }
 
@@ -231,9 +270,21 @@ public enum ExtensionStrings {
         "extensions.info.revoke.help",
         "extensions.info.pending",
         "extensions.info.uninstall",
+        "extensions.info.resume",
+        "extensions.info.suspended",
         "extensions.info.version",
         "extensions.info.unreadable",
         "extensions.failed",
+        "extensions.signIn",
+        "extensions.signIn.button",
+        "extensions.signIn.signOut",
+        "extensions.signIn.cancel",
+        "extensions.signIn.waiting",
+        "extensions.signIn.unavailable",
+        "extensions.signIn.timedOut",
+        "extensions.signIn.signedIn",
+        "extensions.signIn.notSignedIn",
+        "extensions.signIn.failed",
         "extensions.options",
         "extensions.options.button",
         "extensions.options.none",

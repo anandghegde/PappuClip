@@ -69,6 +69,13 @@ enum Snippets {
         default value: en
     url: https://example.com/?q=***&l={popclip option lang}
     """
+    static let signsIn = """
+    // #popclip
+    // name: Service
+    // identifier: com.example.service
+    // options: [{ identifier: username, type: string, label: User }, { identifier: password, type: password, label: Password }]
+    defineExtension({ action: { title: 'Go', code: (input) => input.text } })
+    """
 }
 
 @Suite struct ExtensionStringsTests {
@@ -247,6 +254,25 @@ enum Snippets {
         #expect(try await scratch.library.store.approval(for: identity)?.gates == [])
     }
 
+    /// SEC-1d, SEC-2: Extension Info shows a suspended extension as stopped, and Resume is announced so
+    /// the app can forget its crashes; it runs again under the grants it had.
+    @Test func aSuspendedExtensionIsShownAndCanBeResumed() async throws {
+        let identity = try await scratch.install(Snippets.shell, consent: .install(granting: [.script]))
+        try await scratch.library.store.suspend(identity)
+        let changes = Changes()
+        let model = model(recording: changes)
+        await model.refresh()
+        let row = try #require(model.row(identity))
+        #expect(row.isSuspended)
+        #expect(!row.isApproved)
+        #expect(row.stateLabel == ExtensionStrings.stateSuspended)
+
+        await model.resume(identity)
+        #expect(changes.all == [.resumed(identity)])
+        #expect(model.row(identity)?.isApproved == true)
+        #expect(try await scratch.library.store.approval(for: identity)?.gates == [.script])
+    }
+
     /// Approve does not switch gates on (EXM-5d).
     @Test func approvingAgainKeepsGatesOff() async throws {
         let identity = try await scratch.install(Snippets.shell)
@@ -281,6 +307,63 @@ enum Snippets {
         #expect(secrets.count == 1)
         let instance = try #require(try await scratch.library.store.instances(of: identity).first?.id)
         #expect(try await scratch.library.store.optionValues(of: instance) == ["lang": "fr"])
+    }
+
+    /// §8.10: Sign In runs `auth` with the typed password, which is then forgotten; Sign Out takes the
+    /// secret away. An extension without `auth` has no sign-in.
+    @Test func signingInAndOut() async throws {
+        let identity = try await scratch.install(Snippets.signsIn)
+        let plain = try await scratch.install(Snippets.keyed)
+        let digest = try #require(try await scratch.library.store.approval(for: identity)?.digest)
+        await scratch.library.remember(
+            ModuleExports(object: ["action": ["title": "Go", "code": true]], functions: ["auth"]), for: identity, digest: digest
+        )
+        let signing = FakeSignIn(secrets: secrets)
+        let changes = Changes()
+        let model = ExtensionsModel(library: scratch.library, secrets: secrets, locale: Locale(identifier: "en"), signIn: signing) { change in
+            changes.all.append(change)
+        }
+        await model.refresh()
+        #expect(model.row(plain)?.signIn == nil)
+        #expect(model.row(identity)?.signIn == ExtensionsModel.SignInRow(service: "Service", isSignedIn: false, inProgress: false, isAvailable: true))
+        #expect(model.row(identity)?.options.map(\.control) == [.text(multiline: false), .password])
+
+        await model.setOption("ann", for: "username", of: identity)
+        await model.setOption("hunter2", for: "password", of: identity)
+        await model.signIn(identity)
+        #expect(signing.requests.map(\.username) == ["ann"])
+        #expect(signing.requests.map(\.password) == ["hunter2"])
+        #expect(model.row(identity)?.signIn?.isSignedIn == true)
+        #expect(changes.all.last == .updated(identity))
+        // The password was never stored, and is not kept for the next sign-in.
+        let instance = try #require(try await scratch.library.store.instances(of: identity).first?.id)
+        #expect(try await scratch.library.store.optionValues(of: instance)["password"] == nil)
+        await model.signIn(identity)
+        #expect(signing.requests.last?.password == "")
+
+        await model.signOut(identity)
+        #expect(secrets.authSecret(of: instance, owner: identity) == nil)
+        #expect(model.row(identity)?.signIn?.isSignedIn == false)
+
+        signing.outcome = .timedOut
+        await model.signIn(identity)
+        #expect(model.failure == ExtensionStrings.signInTimedOut)
+        #expect(model.row(identity)?.signIn?.isSignedIn == false)
+    }
+
+    final class FakeSignIn: SigningIn, @unchecked Sendable {
+        let secrets: InMemorySecretStore
+        var requests: [SignInRequest] = []
+        var outcome = SignInOutcome.signedIn
+        init(secrets: InMemorySecretStore) { self.secrets = secrets }
+
+        func signIn(_ request: SignInRequest) async -> SignInOutcome {
+            requests.append(request)
+            if outcome == .signedIn { try? secrets.setAuthSecret("secret", of: request.instance, owner: request.owner) }
+            return outcome
+        }
+
+        func cancelSignIn(for owner: LocalIdentity) async {}
     }
 
     /// SEC-3: an uninstalled extension's secrets go with it.

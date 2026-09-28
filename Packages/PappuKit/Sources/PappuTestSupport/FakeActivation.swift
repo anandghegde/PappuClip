@@ -83,8 +83,13 @@ public final class FakeBarPresenter: BarPresenting, Sendable {
     }
 
     private let appearances = Mutex<[Appearance]>([])
+    /// What the bar's side does with the presentation, as the app's `SelectionBridge` would: dynamic
+    /// population, for one.
+    private let onShow: @Sendable (AttemptPresentation) -> Void
 
-    public init() {}
+    public init(onShow: @escaping @Sendable (AttemptPresentation) -> Void = { _ in }) {
+        self.onShow = onShow
+    }
 
     public var shown: [Appearance] { appearances.withLock { $0 } }
     public var last: Appearance? { shown.last }
@@ -102,6 +107,7 @@ public final class FakeBarPresenter: BarPresenting, Sendable {
             pointer: presentation.pointer
         )
         appearances.withLock { $0.append(appearance) }
+        onShow(presentation)
     }
 }
 

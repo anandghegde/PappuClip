@@ -4,7 +4,7 @@ This page covers what M3 needs from a person. The tests do not cover it.
 
 The helper's isolation and lifecycle are tested in-process (`PappuJSHostTests`), and the client's crash handling is tested against a helper that can be made to crash (`PappuRuntimeTests`). `PappuClip --check-js-host` runs the same things against the real, sandboxed `PappuClipJSHost.xpc`. What is left here is the sandbox as the system enforces it, and the Debug Console as a person reads it.
 
-**Status: weeks 1 to 4; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
+**Status: weeks 1 to 5; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
 
 Fixtures:
 - **J**: a JavaScript snippet, `#popclip` / `name: Shout JS` / `javascript: print(popclip.input.text); return popclip.input.text.toUpperCase()`, with `after: paste-result`.
@@ -21,6 +21,10 @@ Fixtures:
 - **N2**: N with its URL changed to `https://example.com/`.
 - **X**: a JavaScript snippet, `#popclip` / `name: Scripts` / `entitlements: [script]` / `after: show-result` / `javascript: return (await $`sw_vers -productVersion`) + ' ' + (await popclip.runAppleScript('return name of application "Finder"'))`.
 - **Y**: a JavaScript snippet, `#popclip` / `name: Alias` / `entitlements: [script]` / `javascript: const p = globalThis['pop' + 'clip']; p.runShellScript('echo hi')`.
+- **W**: a JavaScript snippet, `#popclip` / `name: Hog` / `javascript: const a=[]; while(true) a.push(new Array(1e6).fill(1))`.
+- **D**: a module snippet, `// #popclip` / `// name: Dynamo` / `// entitlements: [dynamic]` / `defineExtension({ actions: (input) => input.text.length < 20 ? [{ title: 'Echo ' + input.text, code: (i) => popclip.showText(i.text) }] : [] })`.
+- **D2**: D with `actions: () => { setTimeout(() => {}, 1); return []; }`.
+- **D3**: D with `actions: () => { while (true) {} }`.
 
 ## The helper (SEC-1a, SEC-1b, SEC-1d)
 
@@ -40,7 +44,7 @@ Fixtures:
 | 7 | Menu bar → Debug Console after row 3 | "Shout JS", the printed word, then "Returned:" with the capitals | |
 | 8 | After row 5 | "Spin", "Did not stop when asked; the JavaScript helper was restarted", then "Stopped" | |
 | 9 | After row 6 | "Spin", "The JavaScript helper stopped while this was running" | |
-| 10 | Repeat row 6 twice more within ten minutes | A "Crashed too often…" line; Spin does nothing until PappuClip is restarted | |
+| 10 | Repeat row 6 twice more within ten minutes | A "Crashed too often…" line; Spin leaves the bar until it is resumed in Extension Info (row 36) | |
 | 11 | Copy All, then Clear | The lines are on the clipboard; the window says there is nothing yet | |
 
 ## The language environment (JS-2, JS-9, JS-14)
@@ -91,3 +95,40 @@ Fixtures:
 | 31 | Install X, approving it with "Can run scripts", and press Scripts | The macOS version and `Finder`; the first AppleScript may ask to control Finder, and the Debug Console names what failed if it is refused | |
 | 32 | Make a Shortcut named `Echo` that returns its input, then in X call `popclip.runShortcut('Echo', 'hi')` and press Scripts | `hi` | |
 | 33 | Install Y | Switches for scripts and for typing keys, and one "Runs code whose reach this version of PappuClip cannot check, and which can call…" switch whose sentence lists the methods, `runShellScript` and `pressKey` among them; no switch per method | |
+
+## The watchdog (SEC-2, SEC-1d)
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| 34 | Press Spin (L) and leave it for 30 s | After about 30 s it fails with the X; the Debug Console has "Stopped by the watchdog" saying it kept a processor busy for 30 s, then the crash line | |
+| 35 | Install W, press Hog and watch `PappuClipJSHost` in Activity Monitor | It is stopped as its memory passes 1.5 GB; the Debug Console has "Stopped by the watchdog" with the MB it used and the limit | |
+| 36 | Press Hog twice more (after launchd's 10 s each time) | A "Crashed too often…" line; Hog leaves the bar; Extension Info shows it as "Stopped" with the sentence saying why and a Resume button. Press Resume: Hog is back on the bar and runs (and is stopped) again | |
+| 37 | Let an extension be suspended as in row 36, then quit PappuClip and start it again | It is still "Stopped" in Extension Info and is not on the bar | |
+| 38 | Install N, press Fetch and while it waits leave it for a minute with a slow or offline network | Not stopped by the watchdog; it ends only when the request does | |
+
+## Sign-in (§8.10, SEC-8a)
+
+Fixture **G**: a module snippet, `// #popclip` / `// name: Sign` / `// after: show-result` followed by `exports.auth = async (info, flow) => (await flow('https://example.com/', { redirect_uri: info.redirect }, ['code'])).code; exports.action = (input, options) => options.authsecret;`.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| G1 | Install and approve G, open its Extension Info | An Account section with "Not signed in to Sign." and Sign In… | |
+| G2 | Press Sign In… | example.com opens in the browser with `redirect_uri=http://127.0.0.1:<port>/callback`; Info shows "Finish signing in in your browser." and Cancel Sign-In | |
+| G3 | Visit `http://127.0.0.1:<port>/callback?code=abc` | The tab says it can be closed; Info shows "Signed in to Sign." and Sign Out; Keychain Access has an `app.pappuclip.extension-secret` item whose account ends `/#authsecret` | |
+| G4 | Select a word and press Sign | `abc`; the Debug Console does not show `abc` for the sign-in | |
+| G5 | Visit the same callback address again | The browser cannot connect: the listener took one callback | |
+| G6 | Sign Out, then press Sign | The Debug Console has "Not signed in" | |
+| G7 | Press Sign In…, then Cancel Sign-In | Info goes back to Sign In…; `lsof -iTCP -sTCP:LISTEN -a -c PappuClip` shows no listener left | |
+| G8 | Install G again as a separate extension (change its identifier), sign the first in and press the second's action | "Not signed in": the second cannot read the first's secret | |
+
+## Dynamic population and the warm helper (JS-13, JS-16, JS-19)
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| 39 | Quit PappuClip, install D, approve it, quit again, then launch and within a second check Activity Monitor | `PappuClipJSHost` is running before any selection is made | |
+| 40 | Select `hello` in TextEdit | The bar has "Echo hello" after the static actions, on the first selection after launch; pressing it shows `hello` | |
+| 41 | Select a sentence longer than 20 characters | No "Echo" item | |
+| 42 | `kill -9` the `PappuClipJSHost` process, then press the mouse once in TextEdit without selecting | A new `PappuClipJSHost` process is running within a second; the next selection has "Echo …" again, or at worst the one straight after | |
+| 43 | Install D2, approve it and select a word | No item from D2; the Debug Console has "A timer is not available in a population function." | |
+| 44 | Install D3, approve it and select a word | The bar appears as fast as without D3, with no item from D3 (a population that never returns is ended only by the watchdog, §10.7) | |
+
