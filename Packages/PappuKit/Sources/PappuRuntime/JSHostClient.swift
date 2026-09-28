@@ -121,7 +121,8 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
             options: job.options,
             booleanOptions: job.booleanOptions,
             typeScript: job.action.isTypeScript,
-            export: job.action.export
+            export: job.action.export,
+            auth: job.auth
         ))) { reply in started.settle(reply) }
         return started
     }

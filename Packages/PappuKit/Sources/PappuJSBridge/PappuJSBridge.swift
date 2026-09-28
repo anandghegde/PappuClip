@@ -118,6 +118,8 @@ public struct JSInvoke: Codable, Sendable, Equatable {
     /// JS-12: the entry is a module, and this is where in what it exported the action's code is
     /// (`action`, `actions.3`). Nil for a script.
     public var export: String?
+    /// §8.10: run the module's `auth(info, flow)` instead of an action. Nil for an action.
+    public var auth: JSAuthInfo?
 
     public init(
         invocation: UInt64,
@@ -130,7 +132,8 @@ public struct JSInvoke: Codable, Sendable, Equatable {
         options: [String: String] = [:],
         booleanOptions: [String] = [],
         typeScript: Bool = false,
-        export: String? = nil
+        export: String? = nil,
+        auth: JSAuthInfo? = nil
     ) {
         self.invocation = invocation
         self.extensionName = extensionName
@@ -143,6 +146,26 @@ public struct JSInvoke: Codable, Sendable, Equatable {
         self.booleanOptions = booleanOptions
         self.typeScript = typeScript
         self.export = export
+        self.auth = auth
+    }
+}
+
+/// §8.10: the `info` a module's `auth(info, flow)` receives. The password is what the user typed
+/// for this one sign-in and is never stored.
+public struct JSAuthInfo: Codable, Sendable, Equatable {
+    public var username: String
+    public var password: String
+    /// Where the service sends the browser back: the loopback listener's callback URL.
+    public var redirect: String
+    public var name: String
+    public var identifier: String
+
+    public init(username: String = "", password: String = "", redirect: String, name: String, identifier: String) {
+        self.username = username
+        self.password = password
+        self.redirect = redirect
+        self.name = name
+        self.identifier = identifier
     }
 }
 

@@ -82,8 +82,14 @@ public struct NetworkHostCalls: HostCallHandling {
     ]
 
     public func perform(_ method: String, arguments: Data, for run: HostAPIDispatcher.Run) async throws -> JSHostAnswer {
+        try await request(arguments, policy: run.action?.network, invocation: run.invocation)
+    }
+
+    /// The request itself, under `policy`, for a run or for a sign-in (§8.10), which has no action. The
+    /// caller has checked the grant. `invocation` is what the request is attached to, when `manager` is.
+    func request(_ arguments: Data, policy: NetworkPolicy?, invocation: InvocationID?) async throws -> JSHostAnswer {
         let given = try JSONDecoder().decode(Request.self, from: arguments)
-        guard let policy = run.action?.network else {
+        guard let policy else {
             throw HostCallRefusal("httpRequest needs the network entitlement, which this extension does not have.")
         }
         guard let url = URL(string: given.url) else {
@@ -110,7 +116,7 @@ public struct NetworkHostCalls: HostCallHandling {
         let fetch = HTTPFetch(url: url, method: verb, headers: headers, body: body, timeout: seconds)
 
         let task = Task { try await fetcher.fetch(fetch, policy: policy) }
-        if let manager, await !manager.attach(FetchWork(task: task), to: run.invocation) {
+        if let manager, let invocation, await !manager.attach(FetchWork(task: task), to: invocation) {
             task.cancel()
             throw HostCallRefusal("The action is no longer running.")
         }

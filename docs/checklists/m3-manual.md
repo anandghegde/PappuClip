@@ -4,7 +4,7 @@ This page covers what M3 needs from a person. The tests do not cover it.
 
 The helper's isolation and lifecycle are tested in-process (`PappuJSHostTests`), and the client's crash handling is tested against a helper that can be made to crash (`PappuRuntimeTests`). `PappuClip --check-js-host` runs the same things against the real, sandboxed `PappuClipJSHost.xpc`. What is left here is the sandbox as the system enforces it, and the Debug Console as a person reads it.
 
-**Status: weeks 1 to 4; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
+**Status: weeks 1 to 5 (sign-in); not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
 
 Fixtures:
 - **J**: a JavaScript snippet, `#popclip` / `name: Shout JS` / `javascript: print(popclip.input.text); return popclip.input.text.toUpperCase()`, with `after: paste-result`.
@@ -91,3 +91,18 @@ Fixtures:
 | 31 | Install X, approving it with "Can run scripts", and press Scripts | The macOS version and `Finder`; the first AppleScript may ask to control Finder, and the Debug Console names what failed if it is refused | |
 | 32 | Make a Shortcut named `Echo` that returns its input, then in X call `popclip.runShortcut('Echo', 'hi')` and press Scripts | `hi` | |
 | 33 | Install Y | Switches for scripts and for typing keys, and one "Runs code whose reach this version of PappuClip cannot check, and which can call…" switch whose sentence lists the methods, `runShellScript` and `pressKey` among them; no switch per method | |
+
+## Sign-in (§8.10, SEC-8a)
+
+Fixture **G**: a module snippet, `// #popclip` / `// name: Sign` / `// after: show-result` followed by `exports.auth = async (info, flow) => (await flow('https://example.com/', { redirect_uri: info.redirect }, ['code'])).code; exports.action = (input, options) => options.authsecret;`.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| G1 | Install and approve G, open its Extension Info | An Account section with "Not signed in to Sign." and Sign In… | |
+| G2 | Press Sign In… | example.com opens in the browser with `redirect_uri=http://127.0.0.1:<port>/callback`; Info shows "Finish signing in in your browser." and Cancel Sign-In | |
+| G3 | Visit `http://127.0.0.1:<port>/callback?code=abc` | The tab says it can be closed; Info shows "Signed in to Sign." and Sign Out; Keychain Access has an `app.pappuclip.extension-secret` item whose account ends `/#authsecret` | |
+| G4 | Select a word and press Sign | `abc`; the Debug Console does not show `abc` for the sign-in | |
+| G5 | Visit the same callback address again | The browser cannot connect: the listener took one callback | |
+| G6 | Sign Out, then press Sign | The Debug Console has "Not signed in" | |
+| G7 | Press Sign In…, then Cancel Sign-In | Info goes back to Sign In…; `lsof -iTCP -sTCP:LISTEN -a -c PappuClip` shows no listener left | |
+| G8 | Install G again as a separate extension (change its identifier), sign the first in and press the second's action | "Not signed in": the second cannot read the first's secret | |

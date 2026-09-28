@@ -230,6 +230,23 @@ final class ExtensionVM: @unchecked Sendable {
     func invoke(_ invocation: JSInvoke, reply: @escaping Reply) {
         guard let context, let runner else { return reply(.notLoaded) }
         guard let state = Self.state(of: invocation) else { return reply(.threw("The action's input could not be read.")) }
+        if let auth = invocation.auth {
+            // §8.10: the module's `auth(info, flow)`. The secret it gives goes back as an `authSecret`
+            // host call, never as the reply, so it is not in the Debug Console.
+            guard let module = moduleEntry(invocation.entry) else {
+                return reply(.threw("Cannot find the module \(invocation.entry.path ?? "")."))
+            }
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.withoutEscapingSlashes]
+            guard let data = try? encoder.encode(auth), let info = String(data: data, encoding: .utf8) else {
+                return reply(.threw("The sign-in details could not be read."))
+            }
+            let settle = settler(for: invocation.invocation, reply: reply)
+            runner.invokeMethod("runAuth", withArguments: [
+                module.source, module.isFile, invocation.typeScript, state, info, JSValue(object: settle, in: context) as Any,
+            ])
+            return
+        }
         if let export = invocation.export {
             guard let module = moduleEntry(invocation.entry) else {
                 return reply(.threw("Cannot find the module \(invocation.entry.path ?? "")."))
@@ -1757,6 +1774,40 @@ final class ExtensionVM: @unchecked Sendable {
               ? action.call(undefined, popclip.input, popclip.options, popclip.context)
               : action.code.call(action, popclip.input, popclip.options, popclip.context);
             promise = PromiseConstructor.resolve(result);
+          } catch (error) {
+            settle('threw', describe(error));
+            return;
+          }
+          settleWith(promise, settle);
+        },
+
+        // §8.10: a module's `auth(info, flow)`. `flow(url, params, expect)` asks the app to open the URL
+        // and resolves with the expected query parameters the callback listener received. The secret the
+        // function resolves with is handed to the app as its own host call; the reply carries nothing.
+        runAuth: function (source, isFile, typeScript, stateJSON, infoJSON, reply) {
+          const state = parse(stateJSON);
+          const settle = leaving(state.invocation, reply);
+          const invocation = state.invocation;
+          let promise;
+          try {
+            const auth = extensionOf(loadModule(source, isFile, typeScript)).auth;
+            if (typeof auth !== 'function') throw new TypeError('The extension has no auth function.');
+            enter(state);
+            const info = parse(infoJSON);
+            const flow = function (url, params, expect) {
+              const query = {};
+              if (params !== null && typeof params === 'object') {
+                for (const key of Object.keys(params)) {
+                  if (params[key] !== undefined && params[key] !== null) query[key] = String(params[key]);
+                }
+              }
+              const expected = Array.isArray(expect) ? expect.map(String) : typeof expect === 'string' ? [expect] : [];
+              return callHost(invocation, 'authFlow', { url: String(url), params: query, expect: expected });
+            };
+            promise = PromiseConstructor.resolve(auth.call(undefined, info, flow)).then(function (secret) {
+              if (typeof secret !== 'string' || secret === '') throw new Error('The auth function returned no secret.');
+              return callHost(invocation, 'authSecret', { secret: secret });
+            }).then(function () { return null; });
           } catch (error) {
             settle('threw', describe(error));
             return;

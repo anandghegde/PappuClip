@@ -971,7 +971,7 @@ The week 1 limits of 1 MB a file and 8 MB a package were too tight for real exte
 Since week 3 built `util`, those 9 describe too: all 84 do in `jsc`, and `CorpusModuleTests` now names only OpenAIPrompt.
 
 **Known gaps:**
-- Population functions (JS-13) and `auth` (§8.10) are week 5.
+- Population functions (JS-13) are week 5. `auth` (§8.10) is week 5 too; see "Sign-in as built" below.
 - Described exports are not persisted.
 - The action list (ALM, M4) does not yet get items for module actions: nothing reads the list yet.
 
@@ -1077,6 +1077,24 @@ A timeout answers `{timedOut: true}` and becomes the XHR's `timeout` event; a re
 - The scan is kept only in memory, so every package is scanned again at each launch.
 - `networkHosts` match exactly: no wildcards and no ports.
 - There is no `fetch`, no synchronous XHR, and no upload progress (`upload` is an inert object). A response's download is reported once, when it is complete.
+
+#### Sign-in as built (M3 week 5, §8.10)
+
+A module that exports `auth(info, flow)` gets an Account section in Extension Info, with Sign In… or Sign Out and "Signed in to …" (`authServiceLabel`, else the name). `ExtensionsModel` holds a `SigningIn` (declared in PappuExtensions, so Settings does not import the runtime); the app's is `ExtensionSignIn` in PappuRuntime, wired in `AppAssembly`.
+
+**The run.** `SignInRequest(installed, password:)` exists only for approved bytes with an instance and `auth` among `moduleExports.functions`. `ExtensionSignIn` opens a `LoopbackCallbackListener` and runs the module through the ordinary `JavaScriptRunning` path with `JSInvoke.auth` set: `info` is `{username, password, redirect, name, identifier}`, where `username` is the `username` option, `password` is the `password` option typed into the sheet (held in memory for that one sign-in, never stored), and `redirect` is `http://127.0.0.1:<port>/callback`. The prelude's `runAuth` calls `auth(info, flow)` with `popclip` entered as for an action. Its host calls go to `SignInHost` rather than a `HostAPIDispatcher`; `JavaScriptRunRequest.host` is now `any HostCallServing`, which both conform to.
+
+**The calls.** `flow(url, params, expect)` is the `authFlow` host call. `SignInHost` adds `params` to the URL's query, opens it with `URLOpening`, and waits for the listener. It answers the `expect`ed parameters, or refuses when one is missing, the wait timed out, or the sign-in was cancelled; `flow` may be called once. The secret `auth` resolves with is handed over as an `authSecret` host call, and the run's result is `null`, so the secret never reaches the Debug Console. `httpRequest` is served under the extension's `NetworkPolicy` and its approval's grants, as for an action (`NetworkHostCalls.request`). Every other method is refused: there is no selection and no bar.
+
+**The listener.** A POSIX socket bound to 127.0.0.1 port 0, read by a `DispatchSource`. The first `GET /callback` wins: its query is kept, the browser is told to close the tab, and the socket closes. Another path gets a 404 and the listener waits on. The wait is 300 s, and the whole run 360 s; `cancelSignIn` closes the listener and stops the run. A timeout or a cancel ends as `timedOut` or `cancelled`, stores nothing, and leaves an earlier secret as it was.
+
+**Where the secret lives (SEC-8a).** The Keychain, through `SecretStore`, under the account `<LocalIdentity>/<InstanceID>/#authsecret`. No option identifier can be `#authsecret`, so an option does not shadow it. It is bound to the install, not the manifest identifier, so another extension, or a separate install of the same identifier, reads nothing, and uninstalling takes it with the other secrets. `ExtensionHost.runtimeOptions` adds it as `options.authsecret` at the click, for that extension only; without it the prelude's `authsecret` throws "Not signed in". Sign Out deletes the item.
+
+**Known gaps:**
+- `authKeychain` is read and ignored; nothing syncs (M6).
+- Any local process that reaches the port before the browser can answer the callback. The port is ephemeral and the listener takes one request, but there is no `state` check of the app's own; an extension that wants one passes it in `params` and checks it.
+- Parameters in the URL fragment never reach the listener, since browsers do not send fragments.
+- A failure inside `auth` shows only "The Debug Console says why" in the sheet; the thrown message is in the Debug Console.
 
 ---
 
