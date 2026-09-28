@@ -17,6 +17,8 @@ public final class ExtensionsModel {
         /// Something it was allowed to do is no longer allowed: rebuild, and cancel what it is running.
         case revoked(LocalIdentity)
         case removed(LocalIdentity)
+        /// SEC-1d, SEC-2: a suspended extension may run again: rebuild, and forget its crashes.
+        case resumed(LocalIdentity)
     }
 
     public struct Row: Sendable, Equatable, Identifiable {
@@ -33,6 +35,8 @@ public final class ExtensionsModel {
 
         public var id: LocalIdentity { identity }
         public var isApproved: Bool { state == .enabled && unreadable == nil }
+        /// SEC-1d, SEC-2: the watchdog stopped it, and Resume is what starts it again.
+        public var isSuspended: Bool { state == .suspended }
         public var stateLabel: String { ExtensionsModel.label(for: state) }
     }
 
@@ -151,6 +155,11 @@ public final class ExtensionsModel {
         } else {
             await perform(.revoked(identity)) { try await self.library.store.revoke(gate, of: identity) }
         }
+    }
+
+    /// SEC-1d, SEC-2: Resume. It runs again under the grants it had when it was stopped.
+    public func resume(_ identity: LocalIdentity) async {
+        await perform(.resumed(identity)) { try await self.library.store.resume(identity) }
     }
 
     public func uninstall(_ identity: LocalIdentity) async {

@@ -148,6 +148,30 @@ extension ExtensionStore {
         }
     }
 
+    /// SEC-1d, SEC-2: the watchdog stopped it. Its grants stay, and no approval is minted until it is
+    /// resumed. Only an enabled extension is suspended; one that is off, waiting or revoked stays so.
+    /// - Returns: Whether the state changed.
+    @discardableResult
+    public func suspend(_ identity: LocalIdentity) throws -> Bool {
+        try database.write { db in
+            guard var record = try ExtensionRecord.fetchOne(db, key: identity) else { throw GrantError.notInstalled(identity) }
+            guard !record.isBuiltin, record.state == .enabled else { return false }
+            record.state = .suspended
+            try record.update(db)
+            return true
+        }
+    }
+
+    /// Extension Info's Resume: a suspended extension runs again under the grants it had.
+    public func resume(_ identity: LocalIdentity) throws {
+        try database.write { db in
+            guard var record = try ExtensionRecord.fetchOne(db, key: identity) else { throw GrantError.notInstalled(identity) }
+            guard record.state == .suspended else { return }
+            record.state = .enabled
+            try record.update(db)
+        }
+    }
+
     /// Replaces every grant `identity` holds with execution and `gates`, at `digest`.
     func replaceGrants(of identity: LocalIdentity, at digest: ContentDigest, granting gates: Set<GatedCapability>, in db: Database) throws {
         try GrantRecord.filter(Column("local_identity") == identity).deleteAll(db)

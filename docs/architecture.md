@@ -880,7 +880,7 @@ A returned string is the result and any other value is none. A throw is reported
 - **Connecting.** It opens one `XPCSession` when first needed; its first message learns the helper's process ID.
 - **Loading.** An extension is loaded on first use, and again when its generation changes. A new connection starts with nothing loaded.
 - **Cancelling.** Jobs are `owned`. A cancel sends `drop`. If that is not answered within 500 ms, because the script is in a loop that never yields, the helper is killed with SIGKILL, logged as `hung`, and the job ends `stopped`.
-- **SEC-1d.** When the helper goes away, every request in flight fails at once and the connection is forgotten. The next action opens another, and launchd starts a new helper. Each extension that had code running and was not being cancelled is charged with a crash. Three within ten minutes suspend it in memory until the app restarts. §10.7's rule of suspending on the first crash during loading is not implemented.
+- **SEC-1d.** When the helper goes away, every request in flight fails at once and the connection is forgotten. The next action opens another, and launchd starts a new helper. Each extension that had code running and was not being cancelled is charged with a crash. Three within ten minutes suspend it in memory until the app restarts. §10.7's rule of suspending on the first crash during loading is not implemented. *(Week 5 keeps the suspension in the store and adds the loading rule; see "The watchdog as built".)*
 
 **The Debug Console (DIA-1).** `DebugConsole` in `PappuDiagnostics` keeps up to 2,000 lines in memory: printed text, load failures, returns, throws, stops, crashes, hangs and suspensions, each with the extension's name. `DebugConsoleWindow` in `PappuApp` opens from the menu bar's **Debug Console** and offers Copy All and Clear.
 
@@ -895,8 +895,8 @@ A returned string is the result and any other value is none. A throw is reported
 **Known gaps:**
 - launchd's 10-second throttle applies here as it does to the Runner (§9.5 as built). A helper killed within 10 s of its launch holds up the next JavaScript action for the rest of that time.
 - Killing the helper stops every extension's code in it. This is the trade §10.7 accepts.
-- There is no host API yet: no `popclip.*` methods, `pasteboard`, XHR, timers or population (weeks 2 onward). No CPU or memory watchdog yet (SEC-2).
-- Suspension is not persisted and is not shown in Extension Info.
+- There is no host API yet: no `popclip.*` methods, `pasteboard`, XHR, timers or population (weeks 2 onward). No CPU or memory watchdog yet (SEC-2). *(Settled in week 5.)*
+- Suspension is not persisted and is not shown in Extension Info. *(Settled in week 5.)*
 
 #### The language environment as built (M3 week 2)
 
@@ -1077,6 +1077,25 @@ A timeout answers `{timedOut: true}` and becomes the XHR's `timeout` event; a re
 - The scan is kept only in memory, so every package is scanned again at each launch.
 - `networkHosts` match exactly: no wildcards and no ports.
 - There is no `fetch`, no synchronous XHR, and no upload progress (`upload` is an inert object). A response's download is reported once, when it is complete.
+
+#### The watchdog as built (M3 week 5, SEC-2 and the rest of SEC-1d)
+
+**Sampling.** `JSHostWatchdog` in `PappuRuntime` holds the rule; `JSHostClient` applies it. While the client has anything running, loading or being described, it samples the helper every 500 ms. `ProcessUsageSampler` reads `proc_pid_rusage` (`RUSAGE_INFO_V4`) for the pid learned at `identify`: `ri_phys_footprint`, and user plus system time in Mach ticks converted with `mach_timebase_info`. An in-process helper (the tests' transport) has no pid of its own and is not sampled. The watch stops when the client is idle, so an idle helper costs nothing.
+
+**The limits** are `Limits.standard`:
+- **Memory.** A footprint over 1.5 GB is an overrun at the first sample.
+- **CPU.** The helper keeping at least 90% of one core busy for 30 s without a break. A sample below 90% starts the span again. A script that waits (for the network, a timer, a promise) uses no CPU and is never stopped: there is still no fixed timeout.
+
+**An overrun** writes an `overran` line ("Stopped by the watchdog", with which limit and by how much) for each extension that had code in the helper, kills the helper with SIGKILL, and goes down the same path as any lost helper: each of those extensions is charged a crash, its invocation fails, and the next action opens a new helper.
+
+**Attribution and suspension.** A crash is charged to each extension that had a run in flight and was not being cancelled, and to each extension whose code was loading or being described. Three charges within ten minutes suspend it. An extension whose code was loading when the helper went is suspended on that first charge (§10.7), unless the watchdog killed the helper: another extension's runaway may have been the cause, so that load is charged as an ordinary crash.
+
+**Kept in the store.** `JSHostClient.whenSuspended` tells `AppAssembly`, which has `ExtensionHost.suspend(owner:)` move the store's state from `enabled` to `suspended` (`ExtensionStore.suspend`; built-ins are never suspended) and reload, so no `ExecutionApproval` is minted for it and its buttons leave the bar. Extensions and Extension Info show it as "Stopped" with a sentence saying why and a **Resume** button. Resume sets it back to `enabled` (`ExtensionStore.resume`), clears the client's suspension and crash history, and lets `ExtensionHost` describe its module again. A suspension survives a restart because it is the store's state.
+
+**Known gaps:**
+- The limits are fixed; there is no setting for them.
+- The warm helper and population (JS-13, §10.6) are another slice. A helper that was killed is not re-warmed by the watchdog; it starts when next needed.
+- The watchdog measures the one helper, not a world, so it cannot tell which extension used the memory or the CPU. Every extension with code running is charged, including an innocent one that was running beside the runaway (§10.7's accepted trade). The runaway is the one that keeps being charged, so it is the one that reaches three.
 
 ---
 

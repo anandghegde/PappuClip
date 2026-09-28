@@ -4,7 +4,7 @@ This page covers what M3 needs from a person. The tests do not cover it.
 
 The helper's isolation and lifecycle are tested in-process (`PappuJSHostTests`), and the client's crash handling is tested against a helper that can be made to crash (`PappuRuntimeTests`). `PappuClip --check-js-host` runs the same things against the real, sandboxed `PappuClipJSHost.xpc`. What is left here is the sandbox as the system enforces it, and the Debug Console as a person reads it.
 
-**Status: weeks 1 to 4; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
+**Status: weeks 1 to 5; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
 
 Fixtures:
 - **J**: a JavaScript snippet, `#popclip` / `name: Shout JS` / `javascript: print(popclip.input.text); return popclip.input.text.toUpperCase()`, with `after: paste-result`.
@@ -21,6 +21,7 @@ Fixtures:
 - **N2**: N with its URL changed to `https://example.com/`.
 - **X**: a JavaScript snippet, `#popclip` / `name: Scripts` / `entitlements: [script]` / `after: show-result` / `javascript: return (await $`sw_vers -productVersion`) + ' ' + (await popclip.runAppleScript('return name of application "Finder"'))`.
 - **Y**: a JavaScript snippet, `#popclip` / `name: Alias` / `entitlements: [script]` / `javascript: const p = globalThis['pop' + 'clip']; p.runShellScript('echo hi')`.
+- **W**: a JavaScript snippet, `#popclip` / `name: Hog` / `javascript: const a=[]; while(true) a.push(new Array(1e6).fill(1))`.
 
 ## The helper (SEC-1a, SEC-1b, SEC-1d)
 
@@ -40,7 +41,7 @@ Fixtures:
 | 7 | Menu bar → Debug Console after row 3 | "Shout JS", the printed word, then "Returned:" with the capitals | |
 | 8 | After row 5 | "Spin", "Did not stop when asked; the JavaScript helper was restarted", then "Stopped" | |
 | 9 | After row 6 | "Spin", "The JavaScript helper stopped while this was running" | |
-| 10 | Repeat row 6 twice more within ten minutes | A "Crashed too often…" line; Spin does nothing until PappuClip is restarted | |
+| 10 | Repeat row 6 twice more within ten minutes | A "Crashed too often…" line; Spin leaves the bar until it is resumed in Extension Info (row 36) | |
 | 11 | Copy All, then Clear | The lines are on the clipboard; the window says there is nothing yet | |
 
 ## The language environment (JS-2, JS-9, JS-14)
@@ -91,3 +92,13 @@ Fixtures:
 | 31 | Install X, approving it with "Can run scripts", and press Scripts | The macOS version and `Finder`; the first AppleScript may ask to control Finder, and the Debug Console names what failed if it is refused | |
 | 32 | Make a Shortcut named `Echo` that returns its input, then in X call `popclip.runShortcut('Echo', 'hi')` and press Scripts | `hi` | |
 | 33 | Install Y | Switches for scripts and for typing keys, and one "Runs code whose reach this version of PappuClip cannot check, and which can call…" switch whose sentence lists the methods, `runShellScript` and `pressKey` among them; no switch per method | |
+
+## The watchdog (SEC-2, SEC-1d)
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| 34 | Press Spin (L) and leave it for 30 s | After about 30 s it fails with the X; the Debug Console has "Stopped by the watchdog" saying it kept a processor busy for 30 s, then the crash line | |
+| 35 | Install W, press Hog and watch `PappuClipJSHost` in Activity Monitor | It is stopped as its memory passes 1.5 GB; the Debug Console has "Stopped by the watchdog" with the MB it used and the limit | |
+| 36 | Press Hog twice more (after launchd's 10 s each time) | A "Crashed too often…" line; Hog leaves the bar; Extension Info shows it as "Stopped" with the sentence saying why and a Resume button. Press Resume: Hog is back on the bar and runs (and is stopped) again | |
+| 37 | Let an extension be suspended as in row 36, then quit PappuClip and start it again | It is still "Stopped" in Extension Info and is not on the bar | |
+| 38 | Install N, press Fetch and while it waits leave it for a minute with a slow or offline network | Not stopped by the watchdog; it ends only when the request does | |

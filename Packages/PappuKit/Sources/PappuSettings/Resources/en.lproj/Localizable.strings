@@ -130,6 +130,10 @@
 "extensions.info.pending" = "It will not run until you approve it.";
 "extensions.info.uninstall" = "Uninstall";
 
+/* SEC-1d, SEC-2: Extension Info for an extension the watchdog stopped. */
+"extensions.info.resume" = "Resume";
+"extensions.info.suspended" = "PappuClip stopped it after it crashed the JavaScript helper or used too much CPU or memory. The Debug Console says when. It will not run until you resume it.";
+
 /* %@ is the start of the version's content digest. */
 "extensions.info.version" = "Installed version %@";
 

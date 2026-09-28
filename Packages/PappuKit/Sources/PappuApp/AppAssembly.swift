@@ -234,6 +234,7 @@ public final class AppAssembly: SelectionInstalling {
         weak var settingsRef: SettingsModel?
         let extensionsModel = host.map { host in
             ExtensionsModel(library: host.library, secrets: host.secrets) { change in
+                if case .resumed(let identity) = change { javaScript.resume(identity.description) }
                 await host.handle(change)
                 settingsRef?.refresh()
             }
@@ -249,6 +250,13 @@ public final class AppAssembly: SelectionInstalling {
             openAccessibilitySettings: { accessibility.openSystemSettings() }
         )
         settingsRef = settingsModel
+        // SEC-1d, SEC-2: a suspension is kept in the store, the bar drops the extension's actions, and
+        // Extension Info says it was stopped.
+        javaScript.whenSuspended { [weak settingsModel] owner in
+            await host?.suspend(owner: owner)
+            await extensionsModel?.refresh()
+            await settingsModel?.refresh()
+        }
         let settingsWindow = SettingsWindow(model: settingsModel)
         let onboardingWindow = OnboardingWindow(model: OnboardingModel(
             store: onboarding,

@@ -247,6 +247,25 @@ enum Snippets {
         #expect(try await scratch.library.store.approval(for: identity)?.gates == [])
     }
 
+    /// SEC-1d, SEC-2: Extension Info shows a suspended extension as stopped, and Resume is announced so
+    /// the app can forget its crashes; it runs again under the grants it had.
+    @Test func aSuspendedExtensionIsShownAndCanBeResumed() async throws {
+        let identity = try await scratch.install(Snippets.shell, consent: .install(granting: [.script]))
+        try await scratch.library.store.suspend(identity)
+        let changes = Changes()
+        let model = model(recording: changes)
+        await model.refresh()
+        let row = try #require(model.row(identity))
+        #expect(row.isSuspended)
+        #expect(!row.isApproved)
+        #expect(row.stateLabel == ExtensionStrings.stateSuspended)
+
+        await model.resume(identity)
+        #expect(changes.all == [.resumed(identity)])
+        #expect(model.row(identity)?.isApproved == true)
+        #expect(try await scratch.library.store.approval(for: identity)?.gates == [.script])
+    }
+
     /// Approve does not switch gates on (EXM-5d).
     @Test func approvingAgainKeepsGatesOff() async throws {
         let identity = try await scratch.install(Snippets.shell)

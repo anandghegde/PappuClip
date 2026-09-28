@@ -157,11 +157,23 @@ public final class ExtensionHost: Sendable {
 
     /// Settings changed something: rebuild, and for anything taken away, stop what it is running.
     public func handle(_ change: ExtensionsModel.Change) async {
+        if case .resumed(let identity) = change {
+            // A module that crashed while it was being described is asked again.
+            asked.withLock { $0 = $0.filter { !$0.hasPrefix("\(identity)@") } }
+        }
         await reload()
         switch change {
-        case .updated: break
+        case .updated, .resumed: break
         case .revoked(let identity), .removed(let identity): await invalidate(identity.description)
         }
+    }
+
+    /// SEC-1d, SEC-2: the JavaScript helper's client suspended `owner`. The store keeps it suspended —
+    /// across restarts, until Extension Info's Resume — and the bar stops offering its actions.
+    public func suspend(owner: String) async {
+        guard let identity = LocalIdentity(owner) else { return }
+        _ = try? await library.store.suspend(identity)
+        await reload()
     }
 
     /// Every file the app was asked to open, one review at a time (EXM-1, EXM-5). A file that is not an

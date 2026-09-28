@@ -63,6 +63,8 @@ struct ExtensionInfoView: View {
                         }
                         if let unreadable = row.unreadable {
                             Text(unreadable).foregroundStyle(.secondary)
+                        } else if row.isSuspended {
+                            Text(ExtensionStrings.suspendedHelp).foregroundStyle(.secondary)
                         } else if !row.isApproved {
                             Text(ExtensionStrings.pendingHelp).foregroundStyle(.secondary)
                         }
@@ -87,6 +89,8 @@ struct ExtensionInfoView: View {
                         if row.isApproved {
                             Button(ExtensionStrings.revoke, role: .destructive) { Task { await model.revoke(identity) } }
                             Text(ExtensionStrings.revokeHelp).font(.callout).foregroundStyle(.secondary)
+                        } else if row.isSuspended, row.unreadable == nil {
+                            Button(ExtensionStrings.resume) { Task { await model.resume(identity) } }
                         } else if row.unreadable == nil {
                             Button(ExtensionStrings.approve) { Task { await model.approve(identity) } }
                         }
