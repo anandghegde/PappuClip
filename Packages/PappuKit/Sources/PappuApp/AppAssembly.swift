@@ -233,7 +233,12 @@ public final class AppAssembly: SelectionInstalling {
         // The model is made second, so the first is handed it through a weak reference.
         weak var settingsRef: SettingsModel?
         let extensionsModel = host.map { host in
-            ExtensionsModel(library: host.library, secrets: host.secrets) { change in
+            ExtensionsModel(
+                library: host.library,
+                secrets: host.secrets,
+                // §8.10: a module's `auth`, in the helper, with the browser coming back to a loopback listener.
+                signIn: ExtensionSignIn(javaScript: javaScript, secrets: host.secrets)
+            ) { change in
                 if case .resumed(let identity) = change { javaScript.resume(identity.description) }
                 await host.handle(change)
                 settingsRef?.refresh()

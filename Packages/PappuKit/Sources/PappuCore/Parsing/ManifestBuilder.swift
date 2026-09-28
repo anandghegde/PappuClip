@@ -752,10 +752,8 @@ public struct ManifestBuilder {
             switch KeyNormalizer.normalize(name) {
             case "actions", "submenu":
                 warn(top.join(name), "A population function needs the dynamic runtime (M3 week 5); until then the module offers no actions from it.")
-            case "auth":
-                warn(top.join(name), "Sign-in arrives in M3 week 5; until then the auth function is not called.")
             default:
-                // `test`, and functions a module exports for itself.
+                // `auth` (§8.10, signed in from Settings), `test`, and functions a module exports for itself.
                 break
             }
         }

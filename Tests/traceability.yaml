@@ -1563,6 +1563,8 @@ requirements:
       - PappuExtensionsTests/anIdentifierCollisionFromAnotherOriginInstallsSeparately
       - PappuExtensionsTests/aLocalPackageWithTheSameIdentifierInstallsSeparately
       - PappuExtensionsTests/everyLoadableCorpusPackageInstalls
+      - PappuRuntimeTests/authCompletesAgainstALoopbackFlowAndTheSecretIsScopedToTheExtension
+      - PappuAppTests/theAuthSecretReachesOnlyItsOwnExtensionsRuns
   SEC-8b:
     priority: P0
     milestone: M2
@@ -1733,6 +1735,7 @@ requirements:
       - PappuJSHostTests/theInputIsPopClipsShape
       - PappuJSHostTests/optionsAndInputAreReadOnly
       - PappuRuntimeTests/popclipDescribesTheSelectionAndWhereItCameFrom
+      - PappuAppTests/theAuthSecretReachesOnlyItsOwnExtensionsRuns
   JS-4:
     priority: P1
     milestone: M3
@@ -1873,8 +1876,11 @@ requirements:
     note: >-
       The helper describes an approved module (defineExtension, default or named exports, CommonJS; LZFSE
       files decompressed) as data with its code marked, ManifestBuilder reads that with a config's rules,
-      and each action calls its export as code(input, options, context). Population functions (JS-13) and
-      auth (§8.10) are week 5, and one module with a submenu waits for M4.
+      and each action calls its export as code(input, options, context). Population functions (JS-13) are
+      week 5, and one module with a submenu waits for M4. `auth(info, flow)` (§8.10, week 5) runs from
+      Settings' Sign In: `flow` opens the browser and a one-shot loopback listener on 127.0.0.1 takes the
+      callback, and the secret goes to the Keychain under the extension's identity and instance, reaching
+      its actions as `options.authsecret`.
     tests:
       - PappuCoreTests/eachDescribedActionRunsTheCodeAtItsExport
       - PappuCoreTests/theModulesKeysAreDefaultsOverTheConfigs
@@ -1893,6 +1899,22 @@ requirements:
       - PappuRuntimeTests/anLZFSEModuleIsSentDecompressed
       - PappuRuntimeTests/everyCorpusModuleIsDescribedOrWaitsForAKnownReason
       - PappuAppTests/anApprovedModuleIsDescribedAndItsActionsReachTheCatalog
+      - PappuJSHostTests/authRunsWithInfoAndFlowAndHandsTheSecretToTheApp
+      - PappuJSHostTests/aModuleWithoutAuthFails
+      - PappuJSHostTests/noSecretIsAFailure
+      - PappuJSHostTests/aFailedFlowRejectsInTheFunction
+      - PappuRuntimeTests/theCallbackIsHeardOnceOnTheLoopbackAddress
+      - PappuRuntimeTests/noCallbackInTimeIsATimeoutAndTheSocketCloses
+      - PappuRuntimeTests/aCancelEndsTheWait
+      - PappuRuntimeTests/eachListenerHasItsOwnPort
+      - PappuRuntimeTests/authCompletesAgainstALoopbackFlowAndTheSecretIsScopedToTheExtension
+      - PappuRuntimeTests/aTimedOutFlowFailsCleanly
+      - PappuRuntimeTests/aCancelledFlowFailsCleanly
+      - PappuRuntimeTests/aCallbackWithoutTheExpectedParameterFails
+      - PappuRuntimeTests/otherHostMethodsAreRefused
+      - PappuRuntimeTests/httpRequestFollowsTheExtensionsNetworkRules
+      - PappuSettingsTests/signingInAndOut
+      - manual:docs/checklists/m3-manual.md
       - PappuAppTests/aModuleWithoutAnApprovalIsNeverRun
   JS-13: { priority: P1, milestone: M3, tests: [] }
   JS-14:

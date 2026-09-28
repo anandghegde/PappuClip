@@ -99,7 +99,13 @@ public final class ExtensionHost: Sendable {
         let secrets = installed.instance.map {
             self.secrets.secrets(for: installed.manifest.options, of: $0, owner: installed.identity)
         } ?? [:]
-        return OptionValues.effective(installed.manifest.options, stored: installed.storedOptions, secrets: secrets)
+        var options = OptionValues.effective(installed.manifest.options, stored: installed.storedOptions, secrets: secrets)
+        // §8.10: what `auth` stored, for this identity and instance only (SEC-8a).
+        if installed.signsIn, let instance = installed.instance,
+           let secret = self.secrets.authSecret(of: instance, owner: installed.identity) {
+            options[AuthSecret.option] = secret
+        }
+        return options
     }
 
     // MARK: Changing

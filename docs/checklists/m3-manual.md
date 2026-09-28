@@ -102,3 +102,18 @@ Fixtures:
 | 36 | Press Hog twice more (after launchd's 10 s each time) | A "Crashed too often…" line; Hog leaves the bar; Extension Info shows it as "Stopped" with the sentence saying why and a Resume button. Press Resume: Hog is back on the bar and runs (and is stopped) again | |
 | 37 | Let an extension be suspended as in row 36, then quit PappuClip and start it again | It is still "Stopped" in Extension Info and is not on the bar | |
 | 38 | Install N, press Fetch and while it waits leave it for a minute with a slow or offline network | Not stopped by the watchdog; it ends only when the request does | |
+
+## Sign-in (§8.10, SEC-8a)
+
+Fixture **G**: a module snippet, `// #popclip` / `// name: Sign` / `// after: show-result` followed by `exports.auth = async (info, flow) => (await flow('https://example.com/', { redirect_uri: info.redirect }, ['code'])).code; exports.action = (input, options) => options.authsecret;`.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| G1 | Install and approve G, open its Extension Info | An Account section with "Not signed in to Sign." and Sign In… | |
+| G2 | Press Sign In… | example.com opens in the browser with `redirect_uri=http://127.0.0.1:<port>/callback`; Info shows "Finish signing in in your browser." and Cancel Sign-In | |
+| G3 | Visit `http://127.0.0.1:<port>/callback?code=abc` | The tab says it can be closed; Info shows "Signed in to Sign." and Sign Out; Keychain Access has an `app.pappuclip.extension-secret` item whose account ends `/#authsecret` | |
+| G4 | Select a word and press Sign | `abc`; the Debug Console does not show `abc` for the sign-in | |
+| G5 | Visit the same callback address again | The browser cannot connect: the listener took one callback | |
+| G6 | Sign Out, then press Sign | The Debug Console has "Not signed in" | |
+| G7 | Press Sign In…, then Cancel Sign-In | Info goes back to Sign In…; `lsof -iTCP -sTCP:LISTEN -a -c PappuClip` shows no listener left | |
+| G8 | Install G again as a separate extension (change its identifier), sign the first in and press the second's action | "Not signed in": the second cannot read the first's secret | |

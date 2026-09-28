@@ -141,6 +141,20 @@
 "extensions.info.unreadable" = "Its files could not be read: %@";
 "extensions.failed" = "That did not work: %@";
 
+/* Signing in to an extension's service (§8.10). */
+"extensions.signIn" = "Account";
+"extensions.signIn.button" = "Sign In\U2026";
+"extensions.signIn.signOut" = "Sign Out";
+"extensions.signIn.cancel" = "Cancel Sign-In";
+"extensions.signIn.waiting" = "Finish signing in in your browser.";
+"extensions.signIn.unavailable" = "Approve the extension to sign in.";
+"extensions.signIn.timedOut" = "The sign-in timed out. Try again.";
+/* %@ is the service's name. */
+"extensions.signIn.signedIn" = "Signed in to %@.";
+"extensions.signIn.notSignedIn" = "Not signed in to %@.";
+/* %@ is the reason. */
+"extensions.signIn.failed" = "Sign-in did not work: %@";
+
 /* The options sheet (ALM-6, §8.9). */
 "extensions.options" = "Options";
 "extensions.options.button" = "Options\U2026";
