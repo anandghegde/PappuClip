@@ -39,6 +39,10 @@ public struct AttemptPresentation: Sendable {
     /// BAR-3 places a multi-line selection by the direction the user dragged.
     public var dragDirection: DragDirection?
     public var strategy: SelectionStrategyKind?
+    /// The attempt's own clock, for the work the bar's side does inside the budget: dynamic population
+    /// (JS-16) is given what is left of its stage, and skipped once the target is spent. Nil when the
+    /// presentation was made without one, as tests make them.
+    public var clock: AttemptClock?
 
     public init(
         attempt: AttemptID,
@@ -50,7 +54,8 @@ public struct AttemptPresentation: Sendable {
         bounds: CGRect? = nil,
         pointer: CGPoint? = nil,
         dragDirection: DragDirection? = nil,
-        strategy: SelectionStrategyKind? = nil
+        strategy: SelectionStrategyKind? = nil,
+        clock: AttemptClock? = nil
     ) {
         self.attempt = attempt
         self.route = route
@@ -62,6 +67,7 @@ public struct AttemptPresentation: Sendable {
         self.pointer = pointer
         self.dragDirection = dragDirection
         self.strategy = strategy
+        self.clock = clock
     }
 }
 
@@ -110,6 +116,9 @@ public struct AttemptRecord: Sendable, Equatable {
     public var fault: AXFault?
     public var invalidation: AttemptInvalidation?
     public var showedBar = false
+    /// JS-13, JS-16: what dynamic population did, when there was a dynamic extension to ask. A cold
+    /// helper, a spent budget and a late answer are all said here (architecture §10.6).
+    public var population: PopulationRecord?
     /// From the start of the attempt to the end of it, on the attempt's own clock.
     public var elapsed: Duration = .zero
 

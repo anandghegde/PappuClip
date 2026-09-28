@@ -4,7 +4,7 @@ This page covers what M3 needs from a person. The tests do not cover it.
 
 The helper's isolation and lifecycle are tested in-process (`PappuJSHostTests`), and the client's crash handling is tested against a helper that can be made to crash (`PappuRuntimeTests`). `PappuClip --check-js-host` runs the same things against the real, sandboxed `PappuClipJSHost.xpc`. What is left here is the sandbox as the system enforces it, and the Debug Console as a person reads it.
 
-**Status: weeks 1 to 4; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
+**Status: weeks 1 to 5; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
 
 Fixtures:
 - **J**: a JavaScript snippet, `#popclip` / `name: Shout JS` / `javascript: print(popclip.input.text); return popclip.input.text.toUpperCase()`, with `after: paste-result`.
@@ -21,6 +21,9 @@ Fixtures:
 - **N2**: N with its URL changed to `https://example.com/`.
 - **X**: a JavaScript snippet, `#popclip` / `name: Scripts` / `entitlements: [script]` / `after: show-result` / `javascript: return (await $`sw_vers -productVersion`) + ' ' + (await popclip.runAppleScript('return name of application "Finder"'))`.
 - **Y**: a JavaScript snippet, `#popclip` / `name: Alias` / `entitlements: [script]` / `javascript: const p = globalThis['pop' + 'clip']; p.runShellScript('echo hi')`.
+- **D**: a module snippet, `// #popclip` / `// name: Dynamo` / `// entitlements: [dynamic]` / `defineExtension({ actions: (input) => input.text.length < 20 ? [{ title: 'Echo ' + input.text, code: (i) => popclip.showText(i.text) }] : [] })`.
+- **D2**: D with `actions: () => { setTimeout(() => {}, 1); return []; }`.
+- **D3**: D with `actions: () => { while (true) {} }`.
 
 ## The helper (SEC-1a, SEC-1b, SEC-1d)
 
@@ -91,3 +94,15 @@ Fixtures:
 | 31 | Install X, approving it with "Can run scripts", and press Scripts | The macOS version and `Finder`; the first AppleScript may ask to control Finder, and the Debug Console names what failed if it is refused | |
 | 32 | Make a Shortcut named `Echo` that returns its input, then in X call `popclip.runShortcut('Echo', 'hi')` and press Scripts | `hi` | |
 | 33 | Install Y | Switches for scripts and for typing keys, and one "Runs code whose reach this version of PappuClip cannot check, and which can call…" switch whose sentence lists the methods, `runShellScript` and `pressKey` among them; no switch per method | |
+
+## Dynamic population and the warm helper (JS-13, JS-16, JS-19)
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| 34 | Quit PappuClip, install D, approve it, quit again, then launch and within a second check Activity Monitor | `PappuClipJSHost` is running before any selection is made | |
+| 35 | Select `hello` in TextEdit | The bar has "Echo hello" after the static actions, on the first selection after launch; pressing it shows `hello` | |
+| 36 | Select a sentence longer than 20 characters | No "Echo" item | |
+| 37 | `kill -9` the `PappuClipJSHost` process, then press the mouse once in TextEdit without selecting | A new `PappuClipJSHost` process is running within a second; the next selection has "Echo …" again, or at worst the one straight after | |
+| 38 | Install D2, approve it and select a word | No item from D2; the Debug Console has "A timer is not available in a population function." | |
+| 39 | Install D3, approve it and select a word | The bar appears as fast as without D3, with no item from D3 (a population that never returns is ended only by the watchdog, §10.7) | |
+

@@ -96,6 +96,10 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
     private let locale: @Sendable () -> Locale
     private let sleeper: any InvocationSleeping
     private let timing: BridgeTiming
+    /// JS-13, JS-16: asks the dynamic extensions for their actions inside the attempt's deadline.
+    private let populator: DynamicPopulator?
+    /// Where what population did is left for the attempt's trace record.
+    private let populations: PopulationLog?
 
     private weak var reporter: (any InvocationReporting)?
     private weak var attention: (any AttentionPresenting)?
@@ -123,8 +127,12 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
         runtimeOptions: @escaping @Sendable (CatalogAction) -> [String: String] = { _ in [:] },
         locale: @escaping @Sendable () -> Locale = { .current },
         sleeper: any InvocationSleeping = SystemInvocationSleep(),
-        timing: BridgeTiming = .initial
+        timing: BridgeTiming = .initial,
+        populator: DynamicPopulator? = nil,
+        populations: PopulationLog? = nil
     ) {
+        self.populator = populator
+        self.populations = populations
         self.catalog = catalog
         self.options = options
         self.runtimeOptions = runtimeOptions
@@ -185,13 +193,14 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
 
         let context = await probe.probe(permit)
         let selection = analyzer.analyze(text)
-        let resolution = resolver.resolve(
+        var resolution = resolver.resolve(
             catalog(),
             selection: selection,
             context: context,
             conditions: conditions(),
             options: options()
         )
+        await populate(&resolution, for: presentation, selection: selection, context: context)
 
         // First, not last: the bar drops whatever does not fit, and the one thing this selection is
         // plainly for should not be what falls off the end.
@@ -209,6 +218,32 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
         var content = BarContent(actions: resolution.actions.map(\.action), locale: locale())
         if let offer { content.items.insert(BarItem(offer), at: 0) }
         return content
+    }
+
+    /// JS-13, JS-16: step 6 of §6.3. The dynamic extensions' actions follow the static ones, and are
+    /// resolved as they are. Population is given what is left of its stage on the attempt's clock, or
+    /// the stage's own budget when there is none, and never runs past the target budget; what it did is
+    /// left for the attempt's trace record, a cold helper and a skip included.
+    private func populate(
+        _ resolution: inout ActionResolver.Resolution,
+        for presentation: AttemptPresentation,
+        selection: AnalyzedSelection,
+        context: SelectionContext
+    ) async {
+        guard let populator, !selection.text.isEmpty else { return }
+        let path = presentation.strategy?.path ?? .accessibility
+        let deadline = presentation.clock.map { DynamicPopulator.Deadline.of($0, on: path) } ?? .stage(on: path)
+        let result = await populator.populate(
+            attempt: presentation.attempt,
+            deadline: deadline,
+            selection: selection,
+            context: context,
+            conditions: conditions(),
+            matchingOptions: options()
+        )
+        let known = Set(resolution.actions.map(\.key))
+        resolution.actions += result.actions.filter { !known.contains($0.key) }
+        if let record = result.record { populations?.record(record, for: presentation.attempt) }
     }
 
     /// FLT-4: HTML and RTF are captured only when an action on this bar asks for them. The styled text

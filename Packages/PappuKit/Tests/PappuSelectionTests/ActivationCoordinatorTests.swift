@@ -118,13 +118,15 @@ private func harness(
     focused: FakeAXWorld.Node? = FakeAXWorld.Node(role: "AXTextArea", selectedRange: caret),
     underPointer: FakeAXWorld.Node? = FakeAXWorld.Node(role: "AXTextArea"),
     frontmost: TargetApp? = target,
-    traceCapacity: Int = 64
+    traceCapacity: Int = 64,
+    presenter: FakeBarPresenter = FakeBarPresenter(),
+    populations: PopulationLog? = nil,
+    onMouseDown: @escaping @Sendable () -> Void = {}
 ) async -> Harness {
     let world = FakeAXWorld()
     world.setFocused(focused, in: target.pid)
     world.setUnderPointer(underPointer, at: pressed)
     let reader = FakeSelectionReader(read)
-    let presenter = FakeBarPresenter()
     let timing = FakeActivationTiming()
     let time = ManualTimeSource()
     let surroundings = Surroundings(frontmost: frontmost)
@@ -138,7 +140,9 @@ private func harness(
         secureInputIsActive: { surroundings.secureInputIsActive },
         timing: timing,
         now: time.reader,
-        configuration: ActivationCoordinator.Configuration(traceCapacity: traceCapacity)
+        configuration: ActivationCoordinator.Configuration(traceCapacity: traceCapacity),
+        populations: populations,
+        onMouseDown: onMouseDown
     )
     return Harness(
         world: world,
@@ -168,6 +172,43 @@ private func harness(
         #expect(harness.presenter.last?.dragDirection == .downwards)
         #expect(await harness.coordinator.lastAttempt?.showedBar == true)
         #expect(await harness.coordinator.lastAttempt?.strategy == .ax)
+    }
+
+    // MARK: Dynamic population and the warm helper (JS-13, JS-16)
+
+    /// The bar's side is handed the attempt's clock, and what population did lands in the attempt's
+    /// trace record: the done-when's "a cold helper skips population and says so".
+    @Test func whatPopulationDidIsInTheAttemptsRecord() async {
+        let populations = PopulationLog()
+        let presenter = FakeBarPresenter { presentation in
+            #expect(presentation.clock != nil)
+            populations.record(
+                PopulationRecord(entries: [PopulationRecord.Entry(owner: "ext", outcome: .cold)]),
+                for: presentation.attempt
+            )
+        }
+        let harness = await harness(presenter: presenter, populations: populations)
+        await harness.dragSelect()
+
+        let record = await harness.coordinator.lastAttempt
+        #expect(record?.showedBar == true)
+        #expect(record?.population?.sawColdHelper == true)
+    }
+
+    @Test func anAttemptWithNothingToPopulateHasNoPopulationRecord() async {
+        let harness = await harness(populations: PopulationLog())
+        await harness.dragSelect()
+        #expect(await harness.coordinator.lastAttempt?.population == nil)
+    }
+
+    /// JS-16: every mouse-down wakes the helper, whether or not it becomes an attempt.
+    @Test func aMouseDownPingsTheHelper() async {
+        let pings = Mutex(0)
+        let harness = await harness(onMouseDown: { pings.withLock { $0 += 1 } })
+        await harness.dragSelect()
+        await harness.coordinator.handle(.pointer(event(.down, x: pressed.x, y: pressed.y, ms: 400, .command)))
+        await harness.settle()
+        #expect(pings.withLock { $0 } == 2)
     }
 
     @Test func noBarAppearsWhileTheButtonIsStillDown() async {

@@ -67,6 +67,8 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
     private let state = Mutex(State())
     /// Extension names by owner, for the lines the helper sends with only an owner on them.
     private let names = Mutex<[String: String]>([:])
+    /// JS-16, JS-19: what is kept loaded, and whether that is being done (see "The warm helper" below).
+    private let warmth = Mutex(Warmth())
 
     public init(
         transport: any JSHostTransport = XPCJSHostTransport(),
@@ -368,6 +370,8 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
             return (running, state.killed)
         }
         connection.close()
+        // JS-19: the helper is re-created for the extensions that populate, whatever took it down.
+        rewarm()
         guard !killed else { return }
         let owners = Set(charged.filter { !$0.wasCancelled }.map(\.request.owner))
         for owner in owners.sorted() {
@@ -631,5 +635,146 @@ final class XPCJSHostConnection: JSHostConnection, @unchecked Sendable {
 
     func close() {
         session.cancel(reason: "Closed.")
+    }
+}
+
+// MARK: - The warm helper and population (JS-13, JS-16, JS-19, architecture §10.6)
+
+/// What the client keeps loaded for population.
+private struct Warmth {
+    var modules: [String: WarmModule] = [:]
+    /// A warm-up is running; another is not started beside it.
+    var warming = false
+    /// Something asked for a warm-up while one ran: it goes round again when it finishes.
+    var again = false
+}
+
+extension JSHostClient: ModulePopulating, HelperWarming {
+    /// JS-16: the helper is started, and these extensions loaded into it, now and after every loss of
+    /// it, so that population never waits for either. An empty list starts nothing: a helper with no
+    /// dynamic extension to hold starts when an action first needs it, as before.
+    public func keepWarm(_ modules: [WarmModule]) {
+        let kept = Dictionary(modules.map { ($0.owner, $0) }, uniquingKeysWith: { first, _ in first })
+        names.withLock { names in for module in modules { names[module.owner] = module.extensionName } }
+        warmth.withLock { $0.modules = kept }
+        rewarm()
+    }
+
+    /// JS-16: a mouse-down. A running helper is sent `ping`, which it answers at once and which finds out
+    /// early that it has gone; a helper that is not running is started and loaded. Nothing waits.
+    public func ping() {
+        guard warmth.withLock({ !$0.modules.isEmpty }) else { return }
+        if let connection = state.withLock({ $0.connection }) {
+            connection.send(.ping) { [weak self] reply in
+                if case .failure = reply { self?.lost(connection) }
+            }
+        }
+        rewarm()
+    }
+
+    /// Whether `owner`'s world at `generation` is loaded on a running helper: what population needs to be
+    /// asked at all.
+    public func isWarm(_ owner: String, generation: String) -> Bool {
+        state.withLock { $0.connection != nil && $0.loaded[owner] == generation }
+    }
+
+    /// JS-13: the population function of one extension, answered within `limit` or not at all.
+    ///
+    /// A cold helper is not waited for: the answer is `cold` at once and a warm-up starts for the next
+    /// attempt. A reply after `limit` is dropped by `ask`, which has already answered `late`. Host calls
+    /// are refused in the helper for as long as a population function runs, and could not reach a run
+    /// here anyway: a population is not a `Job`, so `served` finds nothing to hand them to.
+    public func populate(_ request: PopulationRequest, within limit: Duration) async -> PopulationAnswer {
+        names.withLock { $0[request.owner] = request.extensionName }
+        guard !isSuspended(request.owner) else { return .suspended }
+        let connection = state.withLock { state in
+            state.connection != nil && state.loaded[request.owner] == request.generation ? state.connection : nil
+        }
+        guard let connection else {
+            rewarm()
+            return .cold
+        }
+        guard limit > .zero else { return .late }
+        let entry: JSInvoke.Entry = switch request.module.source {
+        case .inline(let text): .inline(text)
+        case .file(let path): .file(path)
+        }
+        let message = JSHostRequest.populate(JSPopulate(
+            attempt: request.attempt.rawValue,
+            extensionName: request.owner,
+            generation: request.generation,
+            entry: entry,
+            typeScript: request.module.isTypeScript,
+            input: request.input,
+            context: request.context,
+            options: request.options,
+            booleanOptions: request.booleanOptions
+        ))
+        switch await ask(connection, message, within: limit) {
+        case .answered(.success(.populated(let population))):
+            return .offered(population.actions)
+        case .answered(.success(.threw(let why))):
+            console?.add(.threw, from: request.extensionName, why)
+            return .failed(why)
+        case .answered(.success(.notLoaded)):
+            forgetWorld(of: request.owner, on: connection)
+            rewarm()
+            return .cold
+        case .answered(.success):
+            return .failed("The helper did not run the population function.")
+        case .answered(.failure):
+            lost(connection)
+            return .failed("The JavaScript helper stopped.")
+        case .timedOut:
+            return .late
+        }
+    }
+
+    /// Starts a warm-up unless one is running, in which case that one goes round again.
+    fileprivate func rewarm() {
+        let start = warmth.withLock { warmth -> Bool in
+            guard !warmth.modules.isEmpty else { return false }
+            guard !warmth.warming else {
+                warmth.again = true
+                return false
+            }
+            warmth.warming = true
+            return true
+        }
+        guard start else { return }
+        Task { await self.warmUp() }
+    }
+
+    private func warmUp() async {
+        while true {
+            let modules = warmth.withLock { Array($0.modules.values) }
+                .filter { !isSuspended($0.owner) }
+                .sorted { $0.owner < $1.owner }
+            if !modules.isEmpty, let connection = await connect() {
+                for module in modules where !isWarm(module.owner, generation: module.generation) {
+                    _ = await load(
+                        owner: module.owner,
+                        generation: module.generation,
+                        extensionName: module.extensionName,
+                        directory: module.directory,
+                        on: connection
+                    )
+                }
+            }
+            let done = warmth.withLock { warmth -> Bool in
+                guard warmth.again else {
+                    warmth.warming = false
+                    return true
+                }
+                warmth.again = false
+                return false
+            }
+            if done { return }
+        }
+    }
+
+    /// For the tests: whether a warm-up is under way.
+    public var isWarming: Bool {
+        warmth.withLock { $0.warming }
     }
 }

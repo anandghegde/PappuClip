@@ -29,6 +29,10 @@ public enum JSHostRequest: Codable, Sendable, Equatable {
     /// EXM-5f: parse these sources and say which sensitive host methods they reach. Nothing is run, so
     /// this is sent before an extension is approved, for the review sheet.
     case scan(JSScan)
+    /// JS-13: run a module's population function for one attempt, and answer the actions it offered.
+    case populate(JSPopulate)
+    /// JS-16: nothing to do; answered `pong` at once. The app sends it on mouse-down to wake the helper.
+    case ping
 }
 
 /// EXM-5f: an extension's JavaScript, to be read rather than run.
@@ -159,6 +163,60 @@ public struct JSDescribe: Codable, Sendable, Equatable {
         self.generation = generation
         self.entry = entry
         self.typeScript = typeScript
+    }
+}
+
+/// JS-13: one attempt's population of a module extension (architecture §10.6).
+///
+/// Everything a population function is given is here, and nothing that would let it act: no
+/// modifiers, because nothing was clicked, and no secrets, because population runs for every
+/// selection whether or not the person meant to use the extension.
+public struct JSPopulate: Codable, Sendable, Equatable {
+    /// The attempt it runs for. The actions it offers are kept under it, and an action invoked later
+    /// names it in its export (`populated.<attempt>.<index>`).
+    public var attempt: UInt64
+    public var extensionName: String
+    public var generation: String
+    /// The module, as `JSDescribe.entry`.
+    public var entry: JSInvoke.Entry
+    public var typeScript: Bool
+    public var input: JSInput
+    public var context: JSSelectionContext
+    /// The option values without the secret ones, as `JSInvoke.options`.
+    public var options: [String: String]
+    public var booleanOptions: [String]
+
+    public init(
+        attempt: UInt64,
+        extensionName: String,
+        generation: String,
+        entry: JSInvoke.Entry,
+        typeScript: Bool = false,
+        input: JSInput,
+        context: JSSelectionContext = JSSelectionContext(),
+        options: [String: String] = [:],
+        booleanOptions: [String] = []
+    ) {
+        self.attempt = attempt
+        self.extensionName = extensionName
+        self.generation = generation
+        self.entry = entry
+        self.typeScript = typeScript
+        self.input = input
+        self.context = context
+        self.options = options
+        self.booleanOptions = booleanOptions
+    }
+}
+
+/// JS-13: what a population function offered.
+public struct JSPopulation: Codable, Sendable, Equatable {
+    /// A JSON array of actions, each described as `JSModuleDescription.exports` describes one: data,
+    /// with `"code": true` where the action's code is a function.
+    public var actions: String
+
+    public init(actions: String) {
+        self.actions = actions
     }
 }
 
@@ -377,6 +435,10 @@ public enum JSHostReply: Codable, Sendable, Equatable {
     case dropped
     case unloaded
     case badRequest(String)
+    /// JS-13: what a population function offered, described as `describe` describes a module's actions.
+    case populated(JSPopulation)
+    /// JS-16: the answer to `ping`.
+    case pong
 }
 
 /// What the helper says without being asked (architecture §10.2), on the session the app opened.
