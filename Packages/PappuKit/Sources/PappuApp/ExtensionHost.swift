@@ -51,6 +51,8 @@ public final class ExtensionHost: Sendable {
     private let modules: (any ModuleDescribing)?
     private let console: DebugConsole?
     private let invalidate: @Sendable (String) async -> Void
+    /// JS-16: what keeps the helper warm for the extensions that populate.
+    private let warmer: (any HelperWarming)?
     private let state: Mutex<Snapshot>
     /// JS-12: modules asked about, by owner and digest, so that each set of bytes is asked about once.
     private let asked = Mutex<Set<String>>([])
@@ -68,8 +70,10 @@ public final class ExtensionHost: Sendable {
         builtins: [ActionCatalog.Entry],
         modules: (any ModuleDescribing)? = nil,
         console: DebugConsole? = nil,
+        warmer: (any HelperWarming)? = nil,
         invalidate: @escaping @Sendable (String) async -> Void
     ) {
+        self.warmer = warmer
         self.library = library
         self.secrets = secrets
         self.builtins = builtins
@@ -127,6 +131,7 @@ public final class ExtensionHost: Sendable {
         let next = Self.snapshot(builtins: builtins, installed: installed.extensions)
         state.withLock { $0 = next }
         describeModules(installed.extensions)
+        warmer?.keepWarm(populationSources.map(Self.warm))
     }
 
     /// JS-12: asks what each approved module extension's module exported, where nobody has for these
@@ -236,5 +241,57 @@ public final class ExtensionHost: Sendable {
             byOwner[installed.identity.description] = installed
         }
         return Snapshot(catalog: ActionCatalog(entries: entries), approvals: approvals, options: options, installed: byOwner)
+    }
+}
+
+// MARK: - Dynamic population (JS-13, JS-16)
+
+extension ExtensionHost {
+    /// The extensions whose population function the bar asks: enabled, approved for their current
+    /// bytes, with the `dynamic` entitlement, and a module that exports `actions` as a function. Read
+    /// from the snapshot, so the answer changes with a reload and at no other time.
+    public var populationSources: [DynamicPopulator.Source] {
+        let snapshot = snapshot
+        return snapshot.catalogEntries.compactMap { entry in
+            guard let owner = entry.owner,
+                  let installed = snapshot.installed[owner],
+                  installed.record.state != .disabled,
+                  installed.manifest.entitlements.contains(.dynamic),
+                  installed.moduleExports?.functions.contains("actions") == true,
+                  let module = installed.manifest.moduleSource,
+                  let digest = installed.approval?.digest
+            else { return nil }
+            return DynamicPopulator.Source(entry: entry, owner: owner, generation: digest.hex, module: module)
+        }
+    }
+
+    /// What a population function is given of its options: never a secret (architecture §10.6).
+    public func populationOptions(for source: DynamicPopulator.Source) -> [String: String] {
+        options[source.entry.manifest.identifier] ?? [:]
+    }
+
+    static func warm(_ source: DynamicPopulator.Source) -> WarmModule {
+        WarmModule(
+            owner: source.owner,
+            generation: source.generation,
+            extensionName: source.entry.manifest.name.english,
+            directory: source.entry.directory ?? URL(fileURLWithPath: "/")
+        )
+    }
+}
+
+extension ExtensionHost.Snapshot {
+    /// Each installed extension as the catalog was built from it, in the store's order.
+    var catalogEntries: [ActionCatalog.Entry] {
+        installed.values.sorted { $0.identity.description < $1.identity.description }.map { installed in
+            ActionCatalog.Entry(
+                manifest: installed.manifest,
+                origin: .installed,
+                isEnabled: installed.record.state != .disabled,
+                directory: installed.directory,
+                owner: installed.identity.description,
+                scan: installed.codeScan
+            )
+        }
     }
 }

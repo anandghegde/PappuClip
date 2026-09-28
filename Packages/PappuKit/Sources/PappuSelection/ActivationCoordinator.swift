@@ -61,6 +61,11 @@ public actor ActivationCoordinator {
     private var invalidations: [AttemptID: AttemptInvalidation] = [:]
     private var trace: AttemptTrace
     private var current: AttemptID?
+    /// JS-13, JS-16: where the bar's side leaves what population did, read into the trace at `finish`.
+    private let populations: PopulationLog?
+    /// JS-16: told at every mouse-down, off the budget, so a helper that has gone cold is warm by the
+    /// time the gesture becomes an attempt.
+    private let onMouseDown: @Sendable () -> Void
 
     /// - Parameters:
     ///   - frontmost: The app a bar would be about. `NSWorkspace.frontmostApplication` in the app; there
@@ -82,8 +87,12 @@ public actor ActivationCoordinator {
         timing: any ActivationTiming = SystemActivationTiming(),
         now: @escaping @Sendable () -> ContinuousClock.Instant = { ContinuousClock.now },
         ids: IDSource<AttemptID> = IDSource(),
-        configuration: Configuration = Configuration()
+        configuration: Configuration = Configuration(),
+        populations: PopulationLog? = nil,
+        onMouseDown: @escaping @Sendable () -> Void = {}
     ) {
+        self.populations = populations
+        self.onMouseDown = onMouseDown
         self.gate = gate
         self.policies = policies
         self.probe = probe
@@ -311,7 +320,8 @@ public actor ActivationCoordinator {
             bounds: read.bounds,
             pointer: candidate?.releaseLocation,
             dragDirection: candidate?.gesture.dragDirection,
-            strategy: read.strategy
+            strategy: read.strategy,
+            clock: clock
         )
         await presenter.show(presentation, permit: AppearancePermit(
             attempt: attempt,
@@ -326,6 +336,7 @@ public actor ActivationCoordinator {
     private func finish(_ record: AttemptRecord, _ clock: AttemptClock) async {
         var record = record
         record.elapsed = clock.elapsed
+        if let population = populations?.take(for: record.attempt) { record.population = population }
         invalidations[record.attempt] = nil
         inFlight[record.attempt] = nil
         trace.append(record)
@@ -335,6 +346,7 @@ public actor ActivationCoordinator {
     // MARK: Mouse-down pre-work
 
     private func startPreWork(at event: PointerEvent) {
+        onMouseDown()
         preWork = Task { [weak self] in await self?.makePending(at: event) ?? nil }
     }
 

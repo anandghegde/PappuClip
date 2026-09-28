@@ -1876,8 +1876,8 @@ requirements:
     note: >-
       The helper describes an approved module (defineExtension, default or named exports, CommonJS; LZFSE
       files decompressed) as data with its code marked, ManifestBuilder reads that with a config's rules,
-      and each action calls its export as code(input, options, context). Population functions (JS-13) are
-      week 5, and one module with a submenu waits for M4. `auth(info, flow)` (§8.10, week 5) runs from
+      and each action calls its export as code(input, options, context). Population functions are JS-13
+      (week 5), and one module with a submenu waits for M4. `auth(info, flow)` (§8.10, week 5) runs from
       Settings' Sign In: `flow` opens the browser and a one-shot loopback listener on 127.0.0.1 takes the
       callback, and the secret goes to the Keychain under the extension's identity and instance, reaching
       its actions as `options.authsecret`.
@@ -1916,7 +1916,30 @@ requirements:
       - PappuSettingsTests/signingInAndOut
       - manual:docs/checklists/m3-manual.md
       - PappuAppTests/aModuleWithoutAnApprovalIsNeverRun
-  JS-13: { priority: P1, milestone: M3, tests: [] }
+  JS-13:
+    priority: P1
+    milestone: M3
+    note: >-
+      An enabled, approved extension with the dynamic entitlement and an `actions` function is asked at
+      each attempt. The function runs with a methodless popclip, no timers and no host calls, and must
+      return its actions, not a promise; they are read with a module action's rules, resolved with the
+      same approvals and facts, and run the code the helper keeps for that attempt. The 16 KB input cap
+      and module-level defaults are not yet applied.
+    tests:
+      - PappuJSHostTests/theActionsOfferedAreDescribedAsData
+      - PappuJSHostTests/anOfferedActionRunsTheCodeKeptForItsAttempt
+      - PappuJSHostTests/onlyTheLastFewAttemptsAreKept
+      - PappuJSHostTests/aPopulationFunctionCannotActOrWait
+      - PappuJSHostTests/aPromiseIsNotActions
+      - PappuJSHostTests/oneActionOrNoneIsAList
+      - PappuJSHostTests/aThrowAndAMissingFunctionSayWhy
+      - PappuCoreTests/aDynamicExtensionsPopulationFunctionIsNotAWarning
+      - PappuCoreTests/populatedActionsRunTheCodeKeptForTheirAttempt
+      - PappuRuntimeTests/offeredActionsAreResolvedAndRunTheirAttemptsCode
+      - PappuRuntimeTests/anActionTheApprovalDoesNotCoverIsRefused
+      - PappuRuntimeTests/aPopulationThatThrowsIsInTheConsole
+      - PappuRuntimeTests/lateFailedAndSuspendedAreRecordedAndOfferNothing
+      - manual:docs/checklists/m3-manual.md
   JS-14:
     priority: P1
     milestone: M3
@@ -1944,10 +1967,39 @@ requirements:
       - PappuRuntimeTests/aPromiseThatResolvesAfterCancelHasNoEffect
       - PappuRuntimeTests/aCallAfterCancellationHasNoEffect
       - PappuJSHostTests/aDropEndsAWaitingCall
-  JS-16: { priority: P1, milestone: M3, tests: [] }
+  JS-16:
+    priority: P1
+    milestone: M3
+    note: >-
+      Population is given what is left of its stage on the attempt's clock, at most the per-function
+      budget, and nothing past the target budget. A cold helper is never waited for: the extension is
+      skipped, the attempt's record says so, and a warm-up starts. The helper is started and loaded at
+      launch for the dynamic extensions, and every mouse-down pings it, off the budget.
+    tests:
+      - PappuRuntimeTests/pastTheTargetBudgetNothingIsAsked
+      - PappuRuntimeTests/withTheStageSpentNothingIsAsked
+      - PappuRuntimeTests/eachFunctionIsGivenNoMoreThanWhatIsLeft
+      - PappuRuntimeTests/aColdHelperIsRecorded
+      - PappuRuntimeTests/aColdHelperIsNotWaitedForButIsWarmedForNextTime
+      - PappuRuntimeTests/keepingNothingWarmStartsNothing
+      - PappuRuntimeTests/noTimeIsLate
+      - PappuRuntimeTests/noDynamicExtensionIsNoRecord
+      - PappuSelectionTests/whatPopulationDidIsInTheAttemptsRecord
+      - PappuSelectionTests/aMouseDownPingsTheHelper
+      - PappuJSHostTests/aPingIsAnsweredAtOnce
+      - manual:docs/checklists/m3-manual.md
   JS-17: { priority: P1, milestone: M3, tests: [] }
   JS-18: { priority: P1, milestone: M3, tests: [] }
-  JS-19: { priority: P1, milestone: M3, tests: [] }
+  JS-19:
+    priority: P1
+    milestone: M3
+    note: >-
+      Whatever takes the helper down — a crash, a kill, or a cancel that had to stop it — the client
+      re-creates it and loads the dynamic extensions again, at once and at the next mouse-down.
+    tests:
+      - PappuRuntimeTests/aCrashedHelperIsRecreatedAndLoadedAgain
+      - PappuRuntimeTests/aCrashDuringPopulationWarmsTheNextHelper
+      - manual:docs/checklists/m3-manual.md
 
   # Configuration export and import
   CFG-1: { priority: P1, milestone: M4, tests: [] }
@@ -2079,6 +2131,8 @@ requirements:
       - PappuSelectionTests/holdingCommandThroughAGestureReadsNothingAtAll
       - PappuSelectionTests/anAppThatWillNotBeWatchedIsRecordedAndItsAttemptsRunUnwatched
       - PappuSelectionTests/noRecordCanHoldTheSelection
+      - PappuSelectionTests/whatPopulationDidIsInTheAttemptsRecord
+      - PappuSelectionTests/anAttemptWithNothingToPopulateHasNoPopulationRecord
   DIA-3: { priority: P1, milestone: M3, tests: [] }
   DIA-4: { priority: P1, milestone: M3, tests: [] }
 

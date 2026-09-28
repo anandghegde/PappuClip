@@ -22,6 +22,9 @@ Fixtures:
 - **X**: a JavaScript snippet, `#popclip` / `name: Scripts` / `entitlements: [script]` / `after: show-result` / `javascript: return (await $`sw_vers -productVersion`) + ' ' + (await popclip.runAppleScript('return name of application "Finder"'))`.
 - **Y**: a JavaScript snippet, `#popclip` / `name: Alias` / `entitlements: [script]` / `javascript: const p = globalThis['pop' + 'clip']; p.runShellScript('echo hi')`.
 - **W**: a JavaScript snippet, `#popclip` / `name: Hog` / `javascript: const a=[]; while(true) a.push(new Array(1e6).fill(1))`.
+- **D**: a module snippet, `// #popclip` / `// name: Dynamo` / `// entitlements: [dynamic]` / `defineExtension({ actions: (input) => input.text.length < 20 ? [{ title: 'Echo ' + input.text, code: (i) => popclip.showText(i.text) }] : [] })`.
+- **D2**: D with `actions: () => { setTimeout(() => {}, 1); return []; }`.
+- **D3**: D with `actions: () => { while (true) {} }`.
 
 ## The helper (SEC-1a, SEC-1b, SEC-1d)
 
@@ -117,3 +120,15 @@ Fixture **G**: a module snippet, `// #popclip` / `// name: Sign` / `// after: sh
 | G6 | Sign Out, then press Sign | The Debug Console has "Not signed in" | |
 | G7 | Press Sign In…, then Cancel Sign-In | Info goes back to Sign In…; `lsof -iTCP -sTCP:LISTEN -a -c PappuClip` shows no listener left | |
 | G8 | Install G again as a separate extension (change its identifier), sign the first in and press the second's action | "Not signed in": the second cannot read the first's secret | |
+
+## Dynamic population and the warm helper (JS-13, JS-16, JS-19)
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| 39 | Quit PappuClip, install D, approve it, quit again, then launch and within a second check Activity Monitor | `PappuClipJSHost` is running before any selection is made | |
+| 40 | Select `hello` in TextEdit | The bar has "Echo hello" after the static actions, on the first selection after launch; pressing it shows `hello` | |
+| 41 | Select a sentence longer than 20 characters | No "Echo" item | |
+| 42 | `kill -9` the `PappuClipJSHost` process, then press the mouse once in TextEdit without selecting | A new `PappuClipJSHost` process is running within a second; the next selection has "Echo …" again, or at worst the one straight after | |
+| 43 | Install D2, approve it and select a word | No item from D2; the Debug Console has "A timer is not available in a population function." | |
+| 44 | Install D3, approve it and select a word | The bar appears as fast as without D3, with no item from D3 (a population that never returns is ended only by the watchdog, §10.7) | |
+

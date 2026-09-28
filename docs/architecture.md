@@ -1115,6 +1115,26 @@ A module that exports `auth(info, flow)` gets an Account section in Extension In
 - Parameters in the URL fragment never reach the listener, since browsers do not send fragments.
 - A failure inside `auth` shows only "The Debug Console says why" in the sheet; the thrown message is in the Debug Console.
 
+#### Population and the warm helper as built (M3 week 5)
+
+**Population (JS-13).** An extension is asked for its actions when it is enabled, approved for its current bytes, has the `dynamic` entitlement, and its module exports `actions` as a function (`ExtensionHost.populationSources`). `ManifestBuilder` no longer warns about such a function for a dynamic extension; for one without the entitlement it still says the function is never run. `JSHostRequest.populate` carries the attempt number, the selection as `popclip.input`, the context, and the option values without secrets. The prelude's `populate`:
+- runs `actions(input, options, context)` with a frozen `popclip` that has the input, context, options and modifiers but no methods;
+- sets `populating`, which makes every timer, host call and pasteboard access throw "… is not available in a population function." — a `popclip` saved by an earlier action is refused the same way, in the helper, so nothing reaches the app;
+- refuses a promise ("A population function must return its actions, not a promise."); `undefined` is no actions and one object is one action;
+- describes each action as the module describer does, and keeps the list for the attempt (the last four attempts per world).
+`ManifestBuilder.populatedActions` reads that data with a module action's rules; each action runs export `populated.<attempt>.<index>`, which the prelude looks up among the kept lists or refuses with "The action is no longer offered.". `DynamicPopulator` catalogues them under their extension's manifest, keyed `populated.<identifier or index>` so they cannot collide with static actions, and resolves them with the same `ActionResolver`, facts and approvals. `SelectionBridge` appends them after the static actions.
+
+**The deadline (JS-16).** `AttemptPresentation` now carries the attempt's `AttemptClock`. Past the target budget nothing is asked (`skipped: pastTargetBudget`); with the population stage spent nothing is asked (`noTimeLeft`). Otherwise every extension is asked at once, each within `min(populationPerFunction, what is left of the stage)`, so the stage costs its slowest answer and never more. A late answer is dropped by `JSHostClient.ask`'s `Once`. What happened is a `PopulationRecord` of codes, owners and counts — offered(n), cold, late, failed, suspended — which the bridge leaves in a `PopulationLog` and `ActivationCoordinator.finish` puts in the attempt's `AttemptRecord.population` (DIA-2).
+
+**The warm helper (JS-16, JS-19).** `JSHostClient` is `HelperWarming`. `ExtensionHost.reload` hands it the population sources with `keepWarm`, which at launch starts the helper and loads those extensions. A population never waits for either: a helper that is not running, or has not loaded that world at that generation, answers `cold` at once, and the attempt's record says so, and a warm-up starts for the next attempt. Every mouse-down calls `ping`, off the budget: a running helper is sent `.ping`, which finds a dead connection early, and a missing one is started and loaded. `lost` re-warms after any teardown — a crash, a kill, or a cancel that had to stop the helper. One warm-up runs at a time; a request during one makes it go round again. With no dynamic extension, nothing is started early.
+
+**Known gaps:**
+- The 16 KB cap on the text given to a population function is not applied; it is given the whole selection.
+- A population function that never returns holds its world's queue until the watchdog (§10.7) stops the helper; until then that extension answers `late`.
+- Module-level defaults (icon, `after`, requirements set at the top of the module) are not applied to populated actions.
+- Populated actions follow the static ones; their place in the user's order is ALM's (M4). A populated submenu waits for M4.
+- The attempt trace has no inspector yet (M4), so a cold-helper skip is visible only in tests and the record.
+
 ---
 
 ## 11. Storage and data model

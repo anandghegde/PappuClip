@@ -91,6 +91,14 @@ public final class JSHost: Sendable {
             guard let machine, machine.generation == request.generation else { return reply(.notLoaded) }
             machine.queue.async { reply(machine.describeModule(request)) }
 
+        case .populate(let request):
+            let machine = machines.withLock { $0[request.extensionName] }
+            guard let machine, machine.generation == request.generation else { return reply(.notLoaded) }
+            machine.queue.async { reply(machine.populate(request)) }
+
+        case .ping:
+            reply(.pong)
+
         case .drop(let id):
             guard let machine = running.withLock({ $0.removeValue(forKey: id) }) else { return reply(.dropped) }
             machine.interrupt(id)
