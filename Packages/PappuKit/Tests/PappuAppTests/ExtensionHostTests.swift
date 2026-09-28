@@ -205,6 +205,26 @@ import Testing
         try? FileManager.default.removeItem(at: root)
     }
 
+    /// SEC-1d, SEC-2: a suspension from the JavaScript client is kept in the store and takes the
+    /// approval away; Resume gives it back.
+    @Test func aSuspensionTakesTheApprovalAwayUntilResumed() async throws {
+        let identity = try await install(Self.search)
+        let host = host()
+        await host.reload()
+        let action = try #require(host.catalog.actions.first)
+        #expect(host.approval(for: action) != nil)
+
+        await host.suspend(owner: identity.description)
+        #expect(host.approval(for: action) == nil)
+        #expect(try await library.store.extension(identity)?.state == .suspended)
+
+        try await library.store.resume(identity)
+        await host.handle(.resumed(identity))
+        #expect(host.approval(for: action) != nil)
+        #expect(invalidated.all.isEmpty)
+        try? FileManager.default.removeItem(at: root)
+    }
+
     @Test func anOptionChangeDoesNotStopAnything() async throws {
         let identity = try await install(Self.search)
         let host = host()

@@ -121,8 +121,11 @@
 /* An action ignored a cancel and the helper was restarted. */
 "console.kind.hung" = "Did not stop when asked; the JavaScript helper was restarted";
 
-/* SEC-1d: the extension is suspended until the app restarts. */
-"console.kind.suspended" = "Crashed too often and will not run until PappuClip restarts";
+/* SEC-1d: the extension is suspended until it is resumed in Extension Info. */
+"console.kind.suspended" = "Crashed too often and will not run until it is resumed in Extension Info";
+
+/* SEC-2: the helper used too much CPU or memory while this extension's code ran; the text says which. */
+"console.kind.overran" = "Stopped by the watchdog";
 
 /* SEC-7b: beside a host call an extension made that was refused, and why. */
 "console.kind.refused" = "Not allowed";

@@ -155,6 +155,14 @@ public enum ExtensionStrings {
 
     public static var pendingHelp: String { localized("extensions.info.pending", "It will not run until you approve it.") }
     public static var uninstall: String { localized("extensions.info.uninstall", "Uninstall") }
+    public static var resume: String { localized("extensions.info.resume", "Resume") }
+
+    public static var suspendedHelp: String {
+        localized(
+            "extensions.info.suspended",
+            "PappuClip stopped it after it crashed the JavaScript helper or used too much CPU or memory. The Debug Console says when. It will not run until you resume it."
+        )
+    }
 
     public static func version(_ digest: String) -> String {
         String(localized: "extensions.info.version", defaultValue: "Installed version \(digest)", bundle: .module,
@@ -231,6 +239,8 @@ public enum ExtensionStrings {
         "extensions.info.revoke.help",
         "extensions.info.pending",
         "extensions.info.uninstall",
+        "extensions.info.resume",
+        "extensions.info.suspended",
         "extensions.info.version",
         "extensions.info.unreadable",
         "extensions.failed",

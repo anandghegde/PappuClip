@@ -1430,14 +1430,39 @@ requirements:
     priority: P1
     milestone: M3
     note: >-
-      A crash fails what was in flight and nothing else; the next action reconnects and launchd starts a new helper. The crash is charged to the extensions that had code running and were not being cancelled, and three within ten minutes suspend the extension until the app restarts. The explanation is in the Debug Console; Extension Info showing `suspended` is still to come. The process-level watchdog (§10.7) is SEC-2's.
+      A crash fails what was in flight and nothing else; the next action reconnects and launchd starts a new helper. The crash is charged to the extensions that had code running and were not being cancelled, and three within ten minutes suspend the extension. Since week 5 an extension whose code was loading or being described when the helper crashed is suspended on that first crash (§10.7), and a suspension is kept in the store and shown in Extension Info, whose Resume clears it (see SEC-2). The explanation is in the Debug Console.
     tests:
       - PappuRuntimeTests/aCrashFailsTheRunningActionAndTheNextOneRuns
       - PappuRuntimeTests/aCrashIsChargedOnlyToWhatWasRunning
       - PappuRuntimeTests/anExtensionThatKeepsCrashingIsSuspended
       - PappuRuntimeTests/cancelKillsTheHelperForAScriptThatWillNotYield
+      - PappuRuntimeTests/aCrashWhileLoadingSuspendsAtOnce
       - manual:docs/checklists/m3-manual.md
-  SEC-2: { priority: P1, milestone: M3, tests: [] }
+  SEC-2:
+    priority: P1
+    milestone: M3
+    note: >-
+      While extension code runs, loads or is described, JSHostClient samples the helper's CPU time and physical
+      footprint (proc_pid_rusage) every 0.5 s. A footprint over 1.5 GB, or a core kept at least 90% busy for 30 s
+      without a break, kills the helper; each extension with code in it gets a Debug Console line naming the limit
+      and is charged a crash, which counts toward SEC-1d's suspension. A script that waits is never stopped: there
+      is no fixed timeout. A suspension is written to the store (state suspended), so the bar drops the extension
+      until Extension Info's Resume, across restarts.
+    tests:
+      - PappuRuntimeTests/memoryOverTheLimitIsAnOverrunAtOnce
+      - PappuRuntimeTests/aCoreKeptBusyForTheSpanIsAnOverrun
+      - PappuRuntimeTests/waitingOrTakingABreakIsNotAnOverrun
+      - PappuRuntimeTests/theExplanationSaysWhichLimitAndNothingElse
+      - PappuRuntimeTests/theProcessSamplerReadsAProcess
+      - PappuRuntimeTests/aRunawayIsKilledAndChargedToWhatWasRunning
+      - PappuRuntimeTests/threeAttributedOverrunsSuspendTheExtension
+      - PappuRuntimeTests/aBusyHelperIsKilledAndAWaitingOneIsNot
+      - PappuRuntimeTests/aCancelledRunIsNotCharged
+      - PappuExtensionsTests/aSuspendedExtensionHasNoApprovalUntilItIsResumed
+      - PappuExtensionsTests/onlyAnEnabledExtensionIsSuspended
+      - PappuAppTests/aSuspensionTakesTheApprovalAwayUntilResumed
+      - PappuSettingsTests/aSuspendedExtensionIsShownAndCanBeResumed
+      - manual:docs/checklists/m3-manual.md
   SEC-3: { priority: P1, milestone: M3, tests: [] }
   SEC-4a:
     priority: P0

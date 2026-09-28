@@ -17,7 +17,15 @@ import XPC
 /// connection is answered with a failure the moment the helper goes, the connection is forgotten,
 /// and the next action opens another; launchd starts a new helper for it. Each extension that had
 /// code running is charged with the crash in the Debug Console, and one that crashes the helper
-/// `suspensionThreshold` times inside `suspensionWindow` is not run again until the app restarts.
+/// `suspensionThreshold` times inside `suspensionWindow` is suspended. One whose code was loading when
+/// the helper crashed is suspended at once: a crash while loading is a crash every time it loads. (Not
+/// when the watchdog killed it: another extension's runaway may have been the cause.)
+///
+/// **A runaway is a crash the app causes** (SEC-2). While extension code runs, loads or is described,
+/// the helper's CPU and memory are sampled (`JSHostWatchdog`). An overrun kills the helper, says why in
+/// the Debug Console against each extension that had code in it, and is charged as a crash. A
+/// suspension is handed to `whenSuspended`, which in the app writes it to the store, where it lasts
+/// until Extension Info's Resume, which calls `resume(_:)`.
 ///
 /// **Cancelling is a drop, then a kill.** The helper is asked to stop waiting for the invocation,
 /// which it does at once unless the script is busy on its world's queue — a loop that never yields.
@@ -46,6 +54,14 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
 
     private struct State {
         var connection: (any JSHostConnection)?
+        /// Owners whose code is loading or being described on `connection`, and how many times over.
+        var loading: [String: Int] = [:]
+        /// SEC-2: a watch is running on `connection`.
+        var watching = false
+        /// SEC-2: the watchdog killed the helper. What was loading is charged as an ordinary crash, not
+        /// suspended at once: another extension's runaway may have been what took it down.
+        var overran = false
+        var whenSuspended: (@Sendable (String) async -> Void)?
         /// What is loaded on `connection`, by owner: the generation.
         var loaded: [String: String] = [:]
         /// The jobs in flight on `connection`.
@@ -64,6 +80,8 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
     private let moduleLimit: Duration
     private let sleeper: any InvocationSleeping
     private let now: @Sendable () -> ContinuousClock.Instant
+    private let limits: JSHostWatchdog.Limits
+    private let sampler: any JSHostUsageSampling
     private let state = Mutex(State())
     /// Extension names by owner, for the lines the helper sends with only an owner on them.
     private let names = Mutex<[String: String]>([:])
@@ -74,8 +92,12 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
         grace: Duration = .milliseconds(500),
         describeLimit: Duration = JSHostClient.describeLimit,
         sleeper: any InvocationSleeping = SystemInvocationSleep(),
-        now: @escaping @Sendable () -> ContinuousClock.Instant = { ContinuousClock.now }
+        now: @escaping @Sendable () -> ContinuousClock.Instant = { ContinuousClock.now },
+        watchdog: JSHostWatchdog.Limits = .standard,
+        sampler: any JSHostUsageSampling = ProcessUsageSampler()
     ) {
+        limits = watchdog
+        self.sampler = sampler
         self.transport = transport
         self.console = console
         self.grace = grace
@@ -110,6 +132,7 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
             return run
         }
         guard let started else { return nil }
+        watch(connection)
         connection.send(.invoke(JSInvoke(
             invocation: started.id,
             extensionName: job.owner,
@@ -178,6 +201,9 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
             entry: entry,
             typeScript: module.module.isTypeScript
         ))
+        // Still loading while a lost helper is charged below, so the charge knows it was.
+        loading(module.owner, on: connection, true)
+        defer { loading(module.owner, on: connection, false) }
         switch await ask(connection, request, within: moduleLimit) {
         case .answered(.success(.described(let description))):
             do {
@@ -286,6 +312,19 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
         state.withLock { $0.suspended.contains(owner) }
     }
 
+    /// Called with the owner of each extension the client suspends, once each time.
+    public func whenSuspended(_ handler: @escaping @Sendable (String) async -> Void) {
+        state.withLock { $0.whenSuspended = handler }
+    }
+
+    /// Extension Info's Resume: `owner` may run again, with no crashes held against it.
+    public func resume(_ owner: String) {
+        state.withLock { state in
+            state.suspended.remove(owner)
+            state.crashes[owner] = nil
+        }
+    }
+
     // MARK: Connecting and loading
 
     private func connect() async -> (any JSHostConnection)? {
@@ -306,6 +345,9 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
             }
             state.connection = opened
             state.loaded = [:]
+            state.loading = [:]
+            state.watching = false
+            state.overran = false
             state.killed = false
             return opened
         }
@@ -328,6 +370,8 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
             console?.add(.loadFailed, from: extensionName)
             return false
         }
+        loading(owner, on: connection, true)
+        defer { loading(owner, on: connection, false) }
         let reply = await withCheckedContinuation { continuation in
             connection.send(.load(JSLoad(extensionName: owner, generation: generation, files: files))) {
                 continuation.resume(returning: $0)
@@ -359,34 +403,111 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
 
     /// Forgets a connection that has gone, and charges the extensions that were running in it.
     fileprivate func lost(_ connection: any JSHostConnection) {
-        let (charged, killed) = state.withLock { state -> ([Job], Bool) in
-            guard state.connection === connection else { return ([], true) }
+        let (charged, loading, killed, overran) = state.withLock { state -> ([Job], Set<String>, Bool, Bool) in
+            guard state.connection === connection else { return ([], [], true, false) }
             state.connection = nil
             state.loaded = [:]
             let running = Array(state.running.values)
             state.running = [:]
-            return (running, state.killed)
+            let loading = Set(state.loading.keys)
+            state.loading = [:]
+            return (running, loading, state.killed, state.overran)
         }
         connection.close()
         guard !killed else { return }
-        let owners = Set(charged.filter { !$0.wasCancelled }.map(\.request.owner))
+        let owners = Set(charged.filter { !$0.wasCancelled }.map(\.request.owner)).union(loading)
         for owner in owners.sorted() {
-            charge(owner, name: charged.first { $0.request.owner == owner }?.request.extensionName ?? owner)
+            let name = charged.first { $0.request.owner == owner }?.request.extensionName
+                ?? names.withLock { $0[owner] } ?? owner
+            charge(owner, name: name, whileLoading: loading.contains(owner) && !overran)
         }
     }
 
-    private func charge(_ owner: String, name: String) {
+    /// SEC-1d: `suspensionThreshold` crashes inside `suspensionWindow`, or one while loading (§10.7).
+    private func charge(_ owner: String, name: String, whileLoading: Bool) {
         console?.add(.crashed, from: name)
         let at = now()
-        let suspended = state.withLock { state -> Bool in
+        let (suspended, handler) = state.withLock { state -> (Bool, (@Sendable (String) async -> Void)?) in
             var recent = (state.crashes[owner] ?? []).filter { $0.duration(to: at) < Self.suspensionWindow }
             recent.append(at)
             state.crashes[owner] = recent
-            guard recent.count >= Self.suspensionThreshold, !state.suspended.contains(owner) else { return false }
+            guard recent.count >= Self.suspensionThreshold || whileLoading, !state.suspended.contains(owner) else {
+                return (false, nil)
+            }
             state.suspended.insert(owner)
+            return (true, state.whenSuspended)
+        }
+        guard suspended else { return }
+        console?.add(.suspended, from: name)
+        if let handler { Task { await handler(owner) } }
+    }
+
+    private func loading(_ owner: String, on connection: any JSHostConnection, _ started: Bool) {
+        state.withLock { state in
+            guard state.connection === connection else { return }
+            let count = state.loading[owner, default: 0] + (started ? 1 : -1)
+            state.loading[owner] = count > 0 ? count : nil
+        }
+        if started { watch(connection) }
+    }
+
+    // MARK: The watchdog (SEC-2)
+
+    /// Samples the helper for as long as code is running, loading or being described in it. One watch
+    /// per connection; it ends when the connection goes, when nothing is running, or when the helper
+    /// cannot be sampled at all.
+    private func watch(_ connection: any JSHostConnection) {
+        let begin = state.withLock { state -> Bool in
+            guard state.connection === connection, !state.watching else { return false }
+            state.watching = true
             return true
         }
-        if suspended { console?.add(.suspended, from: name) }
+        guard begin else { return }
+        let sleeper = self.sleeper, limits = self.limits, sampler = self.sampler, now = self.now
+        Task { [weak self] in
+            var meter = JSHostWatchdog.Meter(limits: limits)
+            while true {
+                guard let usage = sampler.usage(of: connection) else { break }
+                guard let self else { return }
+                if let overrun = meter.observe(usage, at: now()) {
+                    self.overran(connection, overrun)
+                    return
+                }
+                await sleeper.sleep(for: limits.interval)
+                // Still ours and still busy, or the watch ends; checked under the lock that `start` and
+                // `load` take, so work that begins as this ends starts a new watch.
+                let goOn = self.state.withLock { state -> Bool in
+                    // A connection that has gone is not ours to say anything about: `connect` reset it.
+                    guard state.connection === connection else { return false }
+                    let busy = !state.running.isEmpty || !state.loading.isEmpty
+                    if !busy { state.watching = false }
+                    return busy
+                }
+                guard goOn else { return }
+            }
+            self?.state.withLock { state in
+                if state.connection === connection { state.watching = false }
+            }
+        }
+    }
+
+    /// SEC-2: the helper is killed, and what had code in it is charged as for a crash.
+    private func overran(_ connection: any JSHostConnection, _ overrun: JSHostWatchdog.Overrun) {
+        let owners = state.withLock { state -> [String: String] in
+            guard state.connection === connection else { return [:] }
+            var owners: [String: String] = [:]
+            for job in state.running.values where !job.wasCancelled { owners[job.request.owner] = job.request.extensionName }
+            for owner in state.loading.keys where owners[owner] == nil { owners[owner] = owner }
+            if !owners.isEmpty { state.overran = true }
+            return owners
+        }
+        guard !owners.isEmpty else { return }
+        for (owner, name) in owners.sorted(by: { $0.key < $1.key }) {
+            let shown = name == owner ? (names.withLock { $0[owner] } ?? owner) : name
+            console?.add(.overran, from: shown, overrun.explanation)
+        }
+        connection.kill()
+        lost(connection)
     }
 
     fileprivate func kill(_ connection: any JSHostConnection, name: String) {
@@ -599,9 +720,10 @@ public struct XPCJSHostTransport: JSHostTransport {
     }
 }
 
-final class XPCJSHostConnection: JSHostConnection, @unchecked Sendable {
+final class XPCJSHostConnection: JSHostConnection, JSHostProcess, @unchecked Sendable {
     private let session: XPCSession
     let processID = Mutex<pid_t>(0)
+    var processIdentifier: pid_t { processID.withLock { $0 } }
 
     init(session: XPCSession) {
         self.session = session

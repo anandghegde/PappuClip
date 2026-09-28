@@ -153,6 +153,42 @@ import Testing
         #expect(try await store.approval(for: identity) == nil)
     }
 
+    // MARK: SEC-1d, SEC-2: suspension
+
+    /// A suspended extension has no approval, keeps its grants, and resumes with them.
+    @Test func aSuspendedExtensionHasNoApprovalUntilItIsResumed() async throws {
+        let library = try ExtensionLibrary(paths: scratch.paths)
+        let (identity, _) = try await install(Self.shell, in: library) { _ in .install(granting: [.script]) }
+        let store = library.store
+
+        #expect(try await store.suspend(identity))
+        #expect(try await store.extension(identity)?.state == .suspended)
+        #expect(try await store.approval(for: identity) == nil)
+        #expect(try await !store.grants(of: identity).isEmpty)
+
+        try await store.resume(identity)
+        #expect(try await store.extension(identity)?.state == .enabled)
+        #expect(try await store.approval(for: identity)?.gates == [.script])
+    }
+
+    /// Only an enabled extension is suspended; one waiting for approval stays waiting, and a built-in
+    /// is never suspended.
+    @Test func onlyAnEnabledExtensionIsSuspended() async throws {
+        let library = try ExtensionLibrary(paths: scratch.paths)
+        let (identity, _) = try await install(Self.shell, in: library) { _ in .install(granting: [.script]) }
+        let store = library.store
+        try await store.revoke(identity)
+        #expect(try await !store.suspend(identity))
+        #expect(try await store.extension(identity)?.state == .pendingApproval)
+        try await store.resume(identity)
+        #expect(try await store.extension(identity)?.state == .pendingApproval)
+
+        let builtins = try ExtensionStore(at: nil)
+        let copy = try #require(try await builtins.seedBuiltins(ExtensionStoreTests.builtins()).first)
+        #expect(try await !builtins.suspend(copy))
+        #expect(try await builtins.approval(for: copy) != nil)
+    }
+
     @Test func uninstallingTakesTheGrantsWithIt() async throws {
         let library = try ExtensionLibrary(paths: scratch.paths)
         let (identity, _) = try await install(Self.shell, in: library) { _ in .install(granting: [.script]) }
