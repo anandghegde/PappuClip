@@ -62,6 +62,9 @@ targets:
         # As for SpikeLab: the debug dylib cannot be loaded under the hardened runtime when the
         # signature has no Team ID, which is the case for the local development certificate.
         ENABLE_DEBUG_DYLIB: NO
+        # DIA-4: beta diagnostics are offered only when this is `beta` (Info.plist PappuReleaseChannel).
+        # The release pipeline sets it per channel; until then every build is a beta build.
+        PAPPU_RELEASE_CHANNEL: beta
     dependencies:
       - package: PappuKit
         product: PappuApp

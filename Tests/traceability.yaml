@@ -2265,8 +2265,50 @@ requirements:
       - PappuSelectionTests/noRecordCanHoldTheSelection
       - PappuSelectionTests/whatPopulationDidIsInTheAttemptsRecord
       - PappuSelectionTests/anAttemptWithNothingToPopulateHasNoPopulationRecord
-  DIA-3: { priority: P1, milestone: M3, tests: [] }
-  DIA-4: { priority: P1, milestone: M3, tests: [] }
+  DIA-3:
+    priority: P1
+    milestone: M3
+    note: >-
+      Opt-in crash reports, off by default: the app's own crashes from MetricKit at the next launch, the JavaScript helper's when it goes away under an extension. The payload types hold enum codes, version numbers, counts and binary UUIDs with offsets, and no String field. Sent once a day to the Info.plist endpoint, a placeholder until the service exists; turning the switch off discards what is held. Settings shows what would be sent.
+    tests:
+      - PappuDiagnosticsTests/payloadTypesHaveNoStringFieldAtAnyDepth
+      - PappuDiagnosticsTests/everyStringInTheEncodedPayloadIsACodeOrAUUID
+      - PappuDiagnosticsTests/noSelectionClipboardOptionOrAppReachesTheEncodedBytes
+      - PappuDiagnosticsTests/theCrashedThreadIsBinariesAndOffsetsOnly
+      - PappuDiagnosticsTests/bothSwitchesAreOffByDefaultAndNothingIsCollectedOrSent
+      - PappuDiagnosticsTests/turningASwitchOffDiscardsWhatItCollected
+      - PappuDiagnosticsTests/aHelperCrashIsAReportAndACount
+      - PappuDiagnosticsTests/crashReportsAreBounded
+      - PappuDiagnosticsTests/aFailedUploadIsKeptForTheNextDay
+      - PappuDiagnosticsTests/nothingIsSentWithoutAnEndpoint
+      - PappuDiagnosticsTests/theChannelAndEndpointsComeFromTheBundle
+      - PappuRuntimeTests/aCrashUnderAnExtensionIsReportedAndAKillIsNot
+      - PappuSettingsTests/bothSwitchesStartOff
+      - PappuSettingsTests/theSwitchesAreRemembered
+      - PappuSettingsTests/thePreviewShowsOnlyWhatIsOn
+      - PappuSettingsTests/everyDiagnosticsStringIsInItsTable
+      - manual:docs/checklists/m3-manual.md
+  DIA-4:
+    priority: P1
+    milestone: M3
+    note: >-
+      Opt-in beta diagnostics, off by default and offered only when the build's channel is beta: per day and build, the sessions started, the sessions that did not end cleanly, helper crashes and a fixed-bucket histogram of selection-to-bar latency taken from the attempt records. No identifier, app names, text or option values. Only finished days are sent, once a day; turning the switch off discards them.
+    tests:
+      - PappuDiagnosticsTests/payloadTypesHaveNoStringFieldAtAnyDepth
+      - PappuDiagnosticsTests/everyStringInTheEncodedPayloadIsACodeOrAUUID
+      - PappuDiagnosticsTests/noSelectionClipboardOptionOrAppReachesTheEncodedBytes
+      - PappuDiagnosticsTests/bothSwitchesAreOffByDefaultAndNothingIsCollectedOrSent
+      - PappuDiagnosticsTests/betaDiagnosticsAreOfferedOnlyInBetaBuilds
+      - PappuDiagnosticsTests/turningASwitchOffDiscardsWhatItCollected
+      - PappuDiagnosticsTests/aSessionLeftOpenIsCountedAsACrashAtTheNextLaunch
+      - PappuDiagnosticsTests/durationsFallIntoFixedBuckets
+      - PappuDiagnosticsTests/finishedDaysAreSentOnceADayAndThenForgotten
+      - PappuDiagnosticsTests/versionsAreNumbers
+      - PappuAppTests/anAttemptThatShowedABarIsOneDurationAndNoApp
+      - PappuAppTests/anAttemptWithoutABarRecordsNothing
+      - PappuSettingsTests/aReleaseBuildDoesNotOfferBetaDiagnostics
+      - PappuSettingsTests/thePreviewShowsOnlyWhatIsOn
+      - manual:docs/checklists/m3-manual.md
 
   # Developer tooling
   DEV-1:

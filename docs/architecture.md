@@ -1209,7 +1209,7 @@ Using one Swift code base for parsing and capability analysis in both the app an
 - **Onboarding (ONB-1–6).** Accessibility status uses `AXIsProcessTrusted` plus the distributed notification posted when the trust database changes, then verifies by creating the tap; a stale grant is detected when the process is trusted but tap creation fails (ONB-4). `CoexistenceMonitor` watches `NSWorkspace` launch and termination notifications for PopClip's bundle identifier and withholds `SyntheticCopyPermit` while it runs (ONB-6).
 - **Debug Console (DIA-1)** subscribes to the log stream from both helpers and the install pipeline.
 - **Inspector (DIA-2).** Every attempt writes an `AttemptTrace` — gesture, policy, gate decision, each strategy with outcome and duration, population skips, final outcome — into a small ring buffer. It holds no text.
-- **Crash reports and beta diagnostics (DIA-3, DIA-4).** Opt-in. Payload types have no field that could hold text, app names or option values; latency is reported as histogram buckets from `OSSignposter` intervals.
+- **Crash reports and beta diagnostics (DIA-3, DIA-4).** Opt-in. Payload types have no field that could hold text, app names or option values; latency is reported as histogram buckets from `OSSignposter` intervals. As built, the latency comes from the attempt records instead (§13.2).
 
 ### 13.1 The app as built (M1 week 5)
 
@@ -1230,6 +1230,38 @@ Using one Swift code base for parsing and capability analysis in both the app an
 **What Settings covers, and what it does not.** Two tabs: General — appear automatically, the shortcut recorder over `ShortcutStore`'s refusal (ACT-5), the bar's position, the Accessibility banner — and Actions, a flat list of the five built-ins from the same catalog the bar resolves against. Per-app rules are a sheet off General, and are two independent settings rather than one choice of three (ACT-17a). The outline with drag, drop and undo in the bullet above is M4's — renaming, reordering and per-action commands are ALM-2a, ALM-3a and ALM-5 — and there is nothing to reorder yet: the list is the catalogue in `BuiltinAction.allCases` order, which is PRD §7.4's. **The `.sdef`, the URL scheme, the Debug Console and the inspector are not in this build**; the traceability entries for SCR-1, SCR-2, DIA-1 and DIA-2 are not due until their milestones. `CoexistenceMonitor` is in it, but only its detection: it reads the running applications at launch and on every launch and termination notice, and the coordinator and the strategy chain read `Coexistence` from it, so PopClip running takes synthetic copy off the automatic path (ACT-10j) and a clipboard manager running lengthens the settle (ACT-10i). The explanation and the offer to pause are ONB-6's M3 half. Both identifier lists are unverified until the ACT-10i pass (`docs/checklists/clipboard-managers.md`) confirms them.
 
 **What an assembly is not.** The bundle builds, signs and passes every test in the package, and it has not been lived in. Nothing in §7.1's or §8.5's "still open" lists is closed by wiring: a bar nobody has watched appear, a paste nobody has undone and a grant nobody has revoked mid-session are still exactly as verified as the day before the app target existed. `docs/checklists/m1-manual.md` and the Tier A matrix are what change that, and they are M1's exit rather than this week's.
+
+### 13.2 Crash reports and beta diagnostics as built (M3 week 7)
+
+**Text-free by type, not by care.** Every payload type in `PappuDiagnostics/ReportPayloads.swift` is built from enums with fixed raw values, integers, `VersionTriple`s, `DayStamp`s and `UUID`s. None of them has a `String` field, so a selection, a clipboard, an option value, an app name or a path has nowhere to go. Two tests hold this: one walks populated batches with `Mirror` and finds no `String` at any depth, and one checks that every string in the encoded JSON is an enum code or a UUID.
+
+**What is kept of a crash (DIA-3).**
+- An app crash comes from MetricKit's `MXCrashDiagnostic`, delivered at a later launch, and only while the switch is on. The report keeps the exception type, exception code and signal, plus the crashed thread's frames as a binary UUID and text-segment offset each, up to 64 of them.
+- Symbolication happens off the Mac. Binary names, load addresses, `terminationReason`, `exceptionReason` and `virtualMemoryRegionInfo` can hold a path or text, so they are never decoded.
+- A JavaScript-helper crash is recorded when `JSHostClient` loses the helper while an extension was running or loading. It is not recorded when the helper was killed on purpose or overran the watchdog. The report has no frames and does not say which extension was running.
+
+**What is counted (DIA-4).**
+- The counts are kept per day and per build: sessions started, sessions that ended without a clean quit, helper crashes, and a fixed ten-bucket histogram of selection-to-bar latency.
+- A session that did not end cleanly is found from a session-open marker in the ledger. The next launch finds the marker still set and counts one crash, whether the cause was a crash, a force quit or a power loss.
+- Latency comes from `AttemptRecord.elapsed` for attempts that showed a bar, not from `OSSignposter` as §13 says: signpost intervals cannot be read back in-process. `DiagnosticsFeed` in PappuApp passes the record's duration and drops everything else in it, including the bundle ID, pid, route and character count.
+- There is no install or device identifier. The environment is the app version and build, the channel, the macOS version and the CPU architecture.
+
+**Switches.**
+- Both switches are off by default and stored in `SettingsStorage`.
+- Beta diagnostics are offered only when Info.plist's `PappuReleaseChannel` is `beta`; the build setting `PAPPU_RELEASE_CHANNEL` fills it in. In any other channel the stored switch is ignored and the control is not shown.
+- Turning a switch off discards what it collected, from memory and from storage.
+- Settings has a "Show What Is Sent…" sheet. It shows the exact JSON an upload would send, plus today's unfinished counts.
+
+**Sending.**
+- `DiagnosticsReporter.uploadIfDue()` runs hourly and sends at most once every 24 hours.
+- It sends crash reports and finished days only, one POST of JSON per kind, through `DiagnosticsUploading`. The app uses `URLSessionDiagnosticsUploader`, an ephemeral session with no cookies or cache. Tests use a recorder and make no network calls.
+- Data is forgotten only once it is sent. A failed upload is kept for the next day, within bounds of 20 crash reports and 14 days.
+
+**Endpoints.** They come from Info.plist: `PappuCrashReportURL` and `PappuDiagnosticsURL`, https only. **The shipped values are placeholders:**
+- `https://diagnostics.pappuclip.invalid/v1/crash-reports`
+- `https://diagnostics.pappuclip.invalid/v1/beta-diagnostics`
+
+`.invalid` never resolves (RFC 2606), and `DiagnosticsEndpoints(bundle:)` reads such a host as no endpoint. Until the service exists and the keys name it, nothing is looked up or sent; the data stays local and bounded. PRD §11.3's privacy policy must name the real endpoints before a build carries them.
 
 ---
 

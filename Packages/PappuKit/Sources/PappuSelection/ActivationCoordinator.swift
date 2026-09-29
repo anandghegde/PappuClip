@@ -66,6 +66,9 @@ public actor ActivationCoordinator {
     /// JS-16: told at every mouse-down, off the budget, so a helper that has gone cold is warm by the
     /// time the gesture becomes an attempt.
     private let onMouseDown: @Sendable () -> Void
+    /// DIA-4: every finished record, for the latency histograms. The record holds no text (DIA-2);
+    /// the app keeps only its duration.
+    private let onFinish: @Sendable (AttemptRecord) -> Void
 
     /// - Parameters:
     ///   - frontmost: The app a bar would be about. `NSWorkspace.frontmostApplication` in the app; there
@@ -89,9 +92,11 @@ public actor ActivationCoordinator {
         ids: IDSource<AttemptID> = IDSource(),
         configuration: Configuration = Configuration(),
         populations: PopulationLog? = nil,
-        onMouseDown: @escaping @Sendable () -> Void = {}
+        onMouseDown: @escaping @Sendable () -> Void = {},
+        onFinish: @escaping @Sendable (AttemptRecord) -> Void = { _ in }
     ) {
         self.populations = populations
+        self.onFinish = onFinish
         self.onMouseDown = onMouseDown
         self.gate = gate
         self.policies = policies
@@ -340,6 +345,7 @@ public actor ActivationCoordinator {
         invalidations[record.attempt] = nil
         inFlight[record.attempt] = nil
         trace.append(record)
+        onFinish(record)
         await watcher.disarm(record.attempt)
     }
 
