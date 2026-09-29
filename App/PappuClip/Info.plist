@@ -36,6 +36,10 @@
 			<string>Owner</string>
 			<key>LSTypeIsPackage</key>
 			<true/>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>app.pappuclip.extension</string>
+			</array>
 			<key>CFBundleTypeExtensions</key>
 			<array>
 				<string>pappuext</string>
@@ -48,6 +52,11 @@
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>app.pappuclip.extension.zipped</string>
+				<string>app.pappuclip.extension.text</string>
+			</array>
 			<key>CFBundleTypeExtensions</key>
 			<array>
 				<string>pappuextz</string>
@@ -63,6 +72,10 @@
 			<string>Alternate</string>
 			<key>LSTypeIsPackage</key>
 			<true/>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.pilotmoon.popclip.extension</string>
+			</array>
 			<key>CFBundleTypeExtensions</key>
 			<array>
 				<string>popclipext</string>
@@ -75,6 +88,11 @@
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.pilotmoon.popclip.extension.zipped</string>
+				<string>com.pilotmoon.popclip.extension.text</string>
+			</array>
 			<key>CFBundleTypeExtensions</key>
 			<array>
 				<string>popclipextz</string>
@@ -96,6 +114,120 @@
 				<string>ts</string>
 				<string>yaml</string>
 			</array>
+		</dict>
+	</array>
+	<!-- EXM-4: the types behind the document types above. PappuClip exports only its own. PopClip's
+	     are imported, never exported, and declared exactly as PopClip exports them, so the app that
+	     owns them stays their owner and PappuClip stays an alternate handler: listed under Open With,
+	     never the default. .popclipconfig and .popcliplicense are PopClip's own and not claimed. -->
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>app.pappuclip.extension</string>
+			<key>UTTypeDescription</key>
+			<string>PappuClip Extension Package</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.apple.package</string>
+				<string>public.directory</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>pappuext</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>app.pappuclip.extension.zipped</string>
+			<key>UTTypeDescription</key>
+			<string>PappuClip Extension</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>pappuextz</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>app.pappuclip.extension.text</string>
+			<key>UTTypeDescription</key>
+			<string>PappuClip Extension Text File</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.plain-text</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>pappucliptxt</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.pilotmoon.popclip.extension</string>
+			<key>UTTypeDescription</key>
+			<string>PopClip Extension Package</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.directory</string>
+				<string>com.apple.package</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>popclipext</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.pilotmoon.popclip.extension.zipped</string>
+			<key>UTTypeDescription</key>
+			<string>PopClip Extension</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>popclipextz</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.pilotmoon.popclip.extension.text</string>
+			<key>UTTypeDescription</key>
+			<string>PopClip Extension Text File</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.plain-text</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>popcliptxt</string>
+				</array>
+			</dict>
 		</dict>
 	</array>
 	<!-- PRD §12: an agent app. No Dock icon, no menu bar; the status item is the whole of the UI. -->

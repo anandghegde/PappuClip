@@ -214,6 +214,16 @@ public final class ExtensionHost: Sendable {
         return results
     }
 
+    /// Several at once, on one review sheet (EXM-15): Import from PopClip's route (EXM-11).
+    public func installBatch(
+        _ sources: [ExtensionLibrary.Source],
+        review: @escaping ExtensionLibrary.BatchReviewer
+    ) async throws -> [ExtensionLibrary.BatchEntry] {
+        let entries = try await library.installBatch(sources, review: review)
+        await reload()
+        return entries
+    }
+
     static func snapshot(builtins: [ActionCatalog.Entry], installed: [InstalledExtension]) -> Snapshot {
         var entries = builtins
         var approvals: [LocalIdentity: ExecutionApproval] = [:]

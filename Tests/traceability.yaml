@@ -780,7 +780,16 @@ requirements:
       - manual:docs/checklists/voiceover-bar.md
   BAR-15: { priority: P2, milestone: post-1.0, tests: [] }
   BAR-16: { priority: P1, milestone: M4, tests: [] }
-  BAR-17: { priority: P1, milestone: M3, completes: M4, tests: [], note: "Functional in M3; finished in M4." }
+  BAR-17:
+    priority: P1
+    milestone: M3
+    completes: M4
+    note: "Functional in M3; finished in M4. The rich result panel's Copy, Replace Selection, Insert and Close."
+    tests:
+      - PappuRuntimeTests/insertKeepsTheSelectionAndPutsTheResultAfterIt
+      - PappuRuntimeTests/replaceVerifiesAtTheClickAndCopyStaysAvailable
+      - PappuSurfacesTests/aWriteThatLandsClosesThePanelOnce
+      - manual:docs/checklists/m3-manual.md
 
   # Filtering (PRD §7.3)
   FLT-1:
@@ -1039,7 +1048,17 @@ requirements:
       - PappuExtensionsTests/aCodeFileWithNoMarkerIsRefused
       - PappuExtensionsTests/sourceFilesAreRecognisedByExtension
       - PappuAppTests/theIconTakesOnlyExtensionFiles
-  EXM-4: { priority: P1, milestone: M3, tests: [] }
+  EXM-4:
+    priority: P1
+    milestone: M3
+    note: >-
+      PappuClip claims PopClip's package, zipped and snippet types as an Alternate handler only, and
+      imports rather than exports their UTIs; Open With routes into the install review.
+    tests:
+      - PappuAppTests/popClipTypesAreClaimedOnlyAsAnAlternate
+      - PappuAppTests/popClipTypesAreImportedAndNeverExported
+      - PappuAppTests/pappuClipOwnsOnlyItsOwnTypes
+      - PappuAppTests/claimedSuffixesMatchTheProductIdentityAndOpenAsAnInstall
   EXM-5a:
     priority: P0
     milestone: M2
@@ -1148,14 +1167,68 @@ requirements:
       - PappuRuntimeTests/anInstalledAppOrOneNotCheckedLetsItRun
       - PappuRuntimeTests/onlyAWebPageIsOfferedAsTheLink
       - manual:docs/checklists/m3-manual.md
-  EXM-11: { priority: P1, milestone: M3, tests: [] }
+  EXM-11:
+    priority: P1
+    milestone: M3
+    note: >-
+      Offered once at a launch with nothing else to show, and from the menu bar item's menu (there is no
+      Tools menu yet) while PopClip's Extensions folder exists. Folders install as local, unsigned code
+      through the batch review; exclusions become appearance exclusions for apps with no rule yet. The
+      exclusion list's format (BlockedApps in com.pilotmoon.popclip.plist) is unverified and kept to one
+      reader tested on fixtures.
+    tests:
+      - PappuExtensionsTests/theBlockedAppsArrayIsReadInOrder
+      - PappuExtensionsTests/anotherShapeIsNoExclusions
+      - PappuExtensionsTests/entriesThatAreNotBundleIdentifiersAreDropped
+      - PappuExtensionsTests/withoutPopClipsFolderThereIsNothingToOffer
+      - PappuExtensionsTests/thePackageFoldersAreFoundInNameOrder
+      - PappuExtensionsTests/theExclusionsComeFromTheFirstPreferencesFileThere
+      - PappuExtensionsTests/findingChangesNothing
+      - PappuExtensionsTests/importedPackagesAreLocalAndUnsigned
+      - PappuAppTests/theFirstRunOfferIsMadeOnce
+      - PappuAppTests/decliningTheOfferImportsNothing
+      - PappuAppTests/exclusionsArriveAsAppearanceExclusionsWithoutOverridingRules
+      - PappuAppTests/cancellingTheReviewImportsNoExclusions
+      - PappuAppTests/importFromPopClipIsOfferedOnlyWhenThereIsSomethingToImport
+      - manual:docs/checklists/m3-manual.md
   EXM-12: { priority: P1, milestone: M5, tests: [], note: "The staged-package shape is built in M2; update activation lands in M5." }
   EXM-13: { priority: P1, milestone: M5, tests: [] }
   EXM-14: { priority: P1, milestone: M5, tests: [] }
-  EXM-15a: { priority: P1, milestone: M3, tests: [] }
-  EXM-15b: { priority: P1, milestone: M3, tests: [] }
-  EXM-15c: { priority: P1, milestone: M3, tests: [] }
-  EXM-15d: { priority: P1, milestone: M3, tests: [] }
+  EXM-15a:
+    priority: P1
+    milestone: M3
+    tests:
+      - PappuExtensionsTests/theSetIsReviewedOnceWithEveryCapability
+      - PappuSettingsTests/everyExtensionIsListedWithItsCapabilities
+      - PappuExtensionsTests/aBatchNeverOffersToReplace
+      - manual:docs/checklists/m3-manual.md
+  EXM-15b:
+    priority: P1
+    milestone: M3
+    tests:
+      - PappuSettingsTests/nothingSwitchedOnApprovesOnlyTheListedOnes
+      - PappuExtensionsTests/cancellingTheReviewInstallsNothing
+      - PappuExtensionsTests/anAnswerForADifferentSetInstallsNothing
+      - manual:docs/checklists/m3-manual.md
+  EXM-15c:
+    priority: P1
+    milestone: M3
+    tests:
+      - PappuSettingsTests/aSwitchApprovesItsOwnExtensionWithItsGates
+      - PappuSettingsTests/onlyAGatedRowsSwitchCounts
+      - PappuExtensionsTests/switchingOneOnApprovesThatOneAlone
+      - manual:docs/checklists/m3-manual.md
+  EXM-15d:
+    priority: P1
+    milestone: M3
+    note: >-
+      Done-when: an imported set with gated extensions arrives disabled until switched on. Left off, it is
+      installed pending approval with no grants at all, and Extension Info's Approve turns it on.
+    tests:
+      - PappuExtensionsTests/aGatedExtensionArrivesDisabledUntilSwitchedOn
+      - PappuExtensionsTests/oneLeftWaitingCanBeApprovedLater
+      - PappuAppTests/theImportReportsWhatIsWaiting
+      - manual:docs/checklists/m3-manual.md
 
   # Invocation runtime (safety spec)
   RUN-1a:
@@ -1250,6 +1323,13 @@ requirements:
     note: "Mechanism in M3; polish in M4. The re-verification it is built on is one call, and a run can make it twice."
     tests:
       - PappuRuntimeTests/theRecordSaysWhichTiersItReachedAndHowItEnded
+      - PappuRuntimeTests/replaceVerifiesAtTheClickAndCopyStaysAvailable
+      - PappuRuntimeTests/withoutPasteOnlyCopyIsOffered
+      - PappuSurfacesTests/copyStaysAvailableWhenReplaceAndInsertAreNot
+      - PappuSurfacesTests/aRefusedClickDisablesReplaceAndInsertAndSaysWhy
+      - PappuSurfacesTests/aClickThatFindsTheRunOverClosesThePanel
+      - PappuAppTests/everyDestinationFailureHasAnExplanation
+      - manual:docs/checklists/m3-manual.md
   RUN-2f:
     priority: P0
     milestone: M1
@@ -1988,8 +2068,48 @@ requirements:
       - PappuSelectionTests/aMouseDownPingsTheHelper
       - PappuJSHostTests/aPingIsAnsweredAtOnce
       - manual:docs/checklists/m3-manual.md
-  JS-17: { priority: P1, milestone: M3, tests: [] }
-  JS-18: { priority: P1, milestone: M3, tests: [] }
+  JS-17:
+    priority: P1
+    milestone: M3
+    note: >-
+      `pappuAfter: rich-result` and `showResult(text, {format})` open the functional result panel (Copy,
+      Replace Selection, Insert, Close) and write nothing to the clipboard until a button says so. The
+      invocation stays live while the panel is open; cancel, pause or revocation closes it. Markdown is
+      rendered inline with every link and image removed; the polished renderer is DIF-3's, in M4.
+    tests:
+      - PappuCoreTests/pappuAfterTakesRichResultAndNothingElse
+      - PappuRuntimeTests/pappuAfterRichResultOpensAPanelAndWritesNothing
+      - PappuRuntimeTests/showResultOpensThePanelWithItsFormat
+      - PappuRuntimeTests/anEmptyResultOpensNoPanel
+      - PappuRuntimeTests/showResultIsARequestOfTheRunAndNothingElse
+      - PappuRuntimeTests/cancellingOrPausingTheInvocationClosesThePanel
+      - PappuJSHostTests/showResultSendsTheTextAndItsFormat
+      - PappuJSHostTests/theEnvironmentSectionOfTheConformanceSuitePasses
+      - PappuSurfacesTests/everyStringThePanelsSayIsInTheCatalogue
+      - PappuSurfacesTests/aWriteThatLandsClosesThePanelOnce
+      - PappuSurfacesTests/theInvocationEndingClosesThePanelWithoutClosingItAgain
+      - PappuSurfacesTests/markdownKeepsEmphasisAndLosesEveryWayOut
+      - PappuSurfacesTests/plainTextIsShownAsWritten
+      - manual:docs/checklists/m3-manual.md
+  JS-18:
+    priority: P1
+    milestone: M3
+    note: >-
+      One labelled field with Submit and Cancel, only while an explicitly invoked action runs. Submit
+      resolves to the field, empty included; Cancel, Escape or closing cancels the invocation (RUN-3), and
+      an answer that arrives after a cancel has no effect.
+    tests:
+      - PappuRuntimeTests/promptTextResolvesToWhatWasSubmittedEvenEmpty
+      - PappuRuntimeTests/cancellingThePromptCancelsTheInvocation
+      - PappuRuntimeTests/cancellingTheInvocationClosesThePrompt
+      - PappuRuntimeTests/aPromptAnsweredAfterCancelHasNoEffect
+      - PappuRuntimeTests/promptTextIsRefusedDuringPopulationAndWithoutALabel
+      - PappuJSHostTests/promptTextResolvesToWhatWasEntered
+      - PappuJSHostTests/theEnvironmentSectionOfTheConformanceSuitePasses
+      - PappuSurfacesTests/submitAnswersWithTheFieldEvenEmpty
+      - PappuSurfacesTests/cancelEscapeAndCloseAnswerCancelledOnce
+      - PappuSurfacesTests/theInvocationEndingClosesThePromptWithoutAnAnswer
+      - manual:docs/checklists/m3-manual.md
   JS-19:
     priority: P1
     milestone: M3
@@ -2094,12 +2214,24 @@ requirements:
     priority: P1
     milestone: M3
     note: >-
-      The explanation and the offer are M3. Detection, and the clause the safety spec leans on — no
-      synthetic copy on the automatic path while PopClip runs — are in from M1.
+      Detection, and the clause the safety spec leans on — no synthetic copy on the automatic path while
+      PopClip runs — are in from M1, through an injectable watcher. M3 adds the explanation and the offer
+      (pause PappuClip's automatic appearance, or read how to turn PopClip's off), shown once each time
+      PopClip starts. Nothing touches PopClip: the notice has no handle on its process or preferences.
     tests:
       - PappuAppTests/popClipLaunchingAndQuittingLaterIsFollowed
       - PappuSelectionTests/popClipStopsSyntheticCopyOnTheAutomaticPathAndNowhereElse
       - PappuSelectionTests/popClipTakesTheFallbackAwayOnTheAutomaticPath
+      - PappuAppTests/theFlagTheChainReadsFollowsALateLaunch
+      - PappuAppTests/observersHearChangesOnly
+      - PappuAppTests/popClipStartingIsExplainedOnce
+      - PappuAppTests/aRestartIsExplainedAgain
+      - PappuAppTests/nothingIsSaidWhileAutomaticAppearanceIsOff
+      - PappuAppTests/pausingTurnsOffAutomaticAppearance
+      - PappuAppTests/howToShowsTheStepsAndChangesNothing
+      - PappuAppTests/dontShowAgainIsRemembered
+      - PappuAppTests/theMonitorsReadingsReachIt
+      - manual:docs/checklists/m3-manual.md
 
   # Diagnostics
   DIA-1:
@@ -2137,7 +2269,52 @@ requirements:
   DIA-4: { priority: P1, milestone: M3, tests: [] }
 
   # Developer tooling
-  DEV-1: { priority: P1, milestone: M3, tests: [] }
+  DEV-1:
+    priority: P1
+    milestone: M3
+    note: >-
+      A development folder is loaded and reloaded only with explicit approval; a reload that needs more
+      than was approved is reviewed again. Development mode shows a persistent warning, and verbose
+      logging and Safari Web Inspector reach only approved development folders. No consent, secure-input,
+      privacy or destination check is bypassed.
+    tests:
+      - PappuExtensionsTests/approvingAFolderReviewsItAsDevelopmentCodeAndRemembersIt
+      - PappuExtensionsTests/aCancelledApprovalInstallsNothing
+      - PappuExtensionsTests/aFileIsNotADevelopmentFolder
+      - PappuExtensionsTests/aDevelopmentFolderNeverReplacesAnInstalledExtension
+      - PappuExtensionsTests/reloadingUnchangedFilesDoesNothing
+      - PappuExtensionsTests/aChangeWithinWhatWasApprovedReloadsWithoutAReview
+      - PappuExtensionsTests/aNewCapabilityIsReviewedAndItsGateStartsOff
+      - PappuExtensionsTests/cancellingAReviewedReloadKeepsTheOldVersion
+      - PappuExtensionsTests/aSilentReloadKeepsOnlyGatesAlreadyGranted
+      - PappuExtensionsTests/aRevokedExtensionIsReviewedOnEveryReload
+      - PappuExtensionsTests/removingForgetsTheFolderAndLeavesItsFiles
+      - PappuExtensionsTests/anExtensionUninstalledElsewhereIsNoLongerADevelopmentFolder
+      - PappuExtensionsTests/developmentFoldersAreNeverRecognisedFromAFileAlone
+      - PappuExtensionsTests/exceedsComparesEveryPartOfWhatWasApproved
+      - PappuJSHostTests/onlyAWorldThatAsksIsInspectable
+      - PappuJSHostTests/aLoadFromAnOlderAppHasNoDebugging
+      - PappuJSHostTests/verboseLinesNameWhatHappenedAndNothingItCarried
+      - PappuJSHostTests/withoutDevelopmentOnlyTheScriptPrints
+      - PappuRuntimeTests/onlyADevelopmentOwnerIsVerbose
+      - PappuRuntimeTests/changingTheSettingReloadsALoadedWorld
+      - PappuRuntimeTests/anEmptySettingIsNoSetting
+      - PappuSettingsTests/everyDeveloperStringIsInItsTable
+      - PappuSettingsTests/theReviewSaysTheCodeIsAnUnreviewedDevelopmentFolder
+      - PappuSettingsTests/aWidenedReloadOffersOnlyUpdateOrCancel
+      - PappuSettingsTests/addingAFolderTurnsDevelopmentModeOnAndReportsTheChange
+      - PappuSettingsTests/aCancelledReviewAddsNothing
+      - PappuSettingsTests/reloadSaysWhatItDidAndOnlyRebuildsWhenSomethingLoaded
+      - PappuSettingsTests/removingTheLastFolderTurnsDevelopmentModeOff
+      - PappuSettingsTests/theSwitchesStartOffAndPersist
+      - PappuSettingsTests/everyReloadOutcomeHasAStatus
+      - PappuAppTests/withBothSwitchesOffNothingIsDebugged
+      - PappuAppTests/withoutAFolderNothingIsDebuggedWhateverTheSwitchesSay
+      - PappuAppTests/onlyTheNamedFoldersGetOnlyTheSwitchesTurnedOn
+      - PappuAppTests/thePreferencesAreReadTogetherWithTheFolders
+      - PappuAppTests/theMenuSaysDevelopmentModeIsOn
+      - PappuAppTests/theMenuSaysNothingAboutDevelopmentOtherwise
+      - PappuAppTests/aPauseIsStillSaidWhileDeveloping
   DEV-2: { priority: P1, milestone: M3, tests: [] }
   DEV-3: { priority: P1, milestone: M5, tests: [] }
   DEV-4: { priority: P1, milestone: M5, tests: [] }

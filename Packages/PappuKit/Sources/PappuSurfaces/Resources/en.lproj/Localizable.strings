@@ -36,3 +36,87 @@
 
 /* Why a selected extension cannot be installed. %@ is the reason. */
 "bar.install.unreadable" = "It could not be read: %@";
+
+/* JS-17: the rich result panel's title. */
+"panel.result.title" = "Result";
+
+/* JS-17: the result text, as VoiceOver names it. */
+"panel.result.text.label" = "Result text";
+
+/* JS-17: copies the whole result. */
+"panel.result.copy" = "Copy";
+
+/* JS-17: the Copy button's help. */
+"panel.result.copy.help" = "Copy the whole result to the clipboard";
+
+/* BAR-17: replaces the original selection with the result. */
+"panel.result.replace" = "Replace Selection";
+
+/* BAR-17: the Replace button's help. */
+"panel.result.replace.help" = "Replace the text the action was run on with the result";
+
+/* BAR-17: puts the result after the original selection. */
+"panel.result.insert" = "Insert";
+
+/* BAR-17: the Insert button's help. */
+"panel.result.insert.help" = "Put the result after the text the action was run on, keeping it";
+
+/* Closes a panel. */
+"panel.close" = "Close";
+
+/* JS-17: the result was copied. */
+"panel.result.copied" = "Copied";
+
+/* JS-17: the result could not be copied. */
+"panel.result.copyFailed" = "The clipboard would not take the result";
+
+/* BAR-17: Replace or Insert went through. */
+"panel.result.written" = "Done";
+
+/* BAR-17: Replace or Insert could not use the clipboard. */
+"panel.result.writeFailed" = "The clipboard could not be used to paste, so nothing was written";
+
+/* RUN-2e: the destination is being checked. */
+"panel.result.checking" = "Checking where the text came from…";
+
+/* RUN-2e: why Replace and Insert are unavailable. */
+"panel.destination.notEditable" = "The text the action was run on cannot be edited";
+
+/* RUN-2e: why Replace and Insert are unavailable. */
+"panel.destination.notFrontmost" = "The app the text came from is no longer in front";
+
+/* RUN-2e: why Replace and Insert are unavailable. */
+"panel.destination.moved" = "Focus has moved to a different window or field";
+
+/* RUN-2e: why Replace and Insert are unavailable. */
+"panel.destination.selectionChanged" = "The selection has changed since the action ran";
+
+/* RUN-2e: why Replace and Insert are unavailable (quiescence tier). */
+"panel.destination.input" = "There has been typing or clicking since the action ran, and this app cannot be checked any other way";
+
+/* RUN-2e: why Replace and Insert are unavailable. */
+"panel.destination.privacy" = "Your privacy settings do not allow writing into this app now";
+
+/* RUN-2e: why Replace and Insert are unavailable. */
+"panel.destination.unknown" = "The app the text came from could not be checked";
+
+/* RUN-2e: why Replace and Insert are unavailable. */
+"panel.destination.ended" = "The action is no longer running";
+
+/* RUN-2e: a disabled Replace or Insert says why. %@ is the reason. */
+"panel.result.unavailable" = "Replace and Insert are unavailable: %@";
+
+/* JS-18: the prompt's window title. */
+"panel.prompt.title" = "PappuClip";
+
+/* JS-18: submits the prompt. */
+"panel.prompt.submit" = "Submit";
+
+/* JS-18: cancels the prompt, and the action. */
+"panel.prompt.cancel" = "Cancel";
+
+/* JS-18: the Cancel button's help. */
+"panel.prompt.cancel.help" = "Cancel the action";
+
+/* JS-18: under a prompt's field, the extension that asked. %@ is its name. */
+"panel.prompt.source" = "Asked by %@";

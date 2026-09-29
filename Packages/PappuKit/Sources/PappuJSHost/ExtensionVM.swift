@@ -41,6 +41,8 @@ final class ExtensionVM: @unchecked Sendable {
     private let log: @Sendable (String) -> Void
     private let host: HostCaller
     private let transpiler: Transpiler
+    /// DEV-1: set only for a development folder's world. Nothing it turns on changes what runs.
+    private let debug: JSDebug
     /// Synchronous host calls in flight, which a `drop` may have to end from outside `queue`.
     private let waiting = BlockingCalls()
     /// Invocations a `drop` has reached from outside `queue`: whatever they settle to is `dropped`.
@@ -83,6 +85,7 @@ final class ExtensionVM: @unchecked Sendable {
         self.transpiler = transpiler
         self.host = host
         self.log = log
+        debug = load.debug ?? JSDebug()
         queue = DispatchQueue(label: "app.pappuclip.jshost.vm", qos: qos)
     }
 
@@ -92,6 +95,8 @@ final class ExtensionVM: @unchecked Sendable {
     func prepare() -> String? {
         guard let context = JSContext(virtualMachine: JSVirtualMachine()) else { return "No JavaScript context." }
         context.name = name
+        // DEV-1: Safari's Develop menu lists this world. Only ever a development folder's.
+        if debug.inspectable { context.isInspectable = true }
         var thrown: String?
         context.exceptionHandler = { _, value in thrown = value.map(Self.describe) }
 
@@ -180,6 +185,7 @@ final class ExtensionVM: @unchecked Sendable {
         // handler only sees what escapes that — which is nothing the prelude lets go.
         context.exceptionHandler = { _, _ in }
         self.context = context
+        verbose("loaded \(files.count) files, generation \(generation.prefix(12))")
         return nil
     }
 
@@ -308,9 +314,11 @@ final class ExtensionVM: @unchecked Sendable {
     /// The block the prelude settles an invocation through, with its reply owed until then.
     private func settler(for id: UInt64, reply: @escaping Reply) -> @convention(block) (String, JSValue) -> Void {
         pending[id] = reply
+        verbose("invocation \(id) started")
         return { [weak self] kind, value in
             guard let self, let reply = self.pending.removeValue(forKey: id) else { return }
             if self.dropping.withLock({ $0.remove(id) != nil }) { return reply(.dropped) }
+            self.verbose("invocation \(id) \(kind == "returned" ? "returned" : "threw")")
             switch kind {
             case "returned": reply(.returned(value.isString ? value.toString() : nil))
             default: reply(.threw(value.isString ? value.toString() : "An error was thrown."))
@@ -386,8 +394,10 @@ final class ExtensionVM: @unchecked Sendable {
     /// app answers. The extension's name is this world's, whatever the script did.
     private func ask(_ invocation: Double, call id: Double, method: String, arguments: String) {
         guard let invocation = UInt64(exactly: invocation) else { return deliver(id, .refused("No such action.")) }
+        verbose("invocation \(invocation) calls \(method)")
         host(JSHostCall(invocation: invocation, extensionName: name, method: method, arguments: arguments)) { [weak self] answer in
             guard let self else { return }
+            self.verbose("invocation \(invocation): \(method) \(Self.parts(of: answer)["kind"] ?? "")")
             self.queue.async { self.deliver(id, answer) }
         }
     }
@@ -404,11 +414,26 @@ final class ExtensionVM: @unchecked Sendable {
         guard let invocation = UInt64(exactly: invocation) else { return .refused("No such action.") }
         let wait = waiting.open(for: invocation)
         defer { waiting.close(wait) }
+        verbose("invocation \(invocation) calls \(method) and waits")
         host(JSHostCall(invocation: invocation, extensionName: name, method: method, arguments: arguments)) { answer in
             wait.fulfil(answer)
         }
-        return wait.answer(within: Self.blockingLimit) ?? .failed("PappuClip did not answer \(method) in time.")
+        let answer = wait.answer(within: Self.blockingLimit) ?? .failed("PappuClip did not answer \(method) in time.")
+        verbose("invocation \(invocation): \(method) \(Self.parts(of: answer)["kind"] ?? "")")
+        return answer
     }
+
+    /// DEV-1: a line in the debug console when the developer asked for them. It names what happened
+    /// and never carries an argument, an answer's value or the selected text.
+    private func verbose(_ line: @autoclosure () -> String) {
+        guard debug.verbose else { return }
+        log(Self.verbosePrefix + line())
+    }
+
+    static let verbosePrefix = "[development] "
+
+    /// Whether Safari may inspect this world. Read on `queue`, after `prepare`.
+    var isInspectable: Bool { context?.isInspectable ?? false }
 
     /// An answer as the prelude takes it: `kind` is `done`, `value`, or anything else for an error.
     static func parts(of answer: JSHostAnswer) -> [String: String] {
@@ -1648,6 +1673,20 @@ final class ExtensionVM: @unchecked Sendable {
               text: String(text),
               style: choice(options, 'style', ['compact', 'large'], 'compact'),
               preview: flag(options, 'preview', false),
+            });
+          },
+          // JS-17: the whole text in the rich result panel, as plain text or Markdown.
+          showResult: function showResult(text, options) {
+            tell('showResult', { text: String(text), format: choice(options, 'format', ['text', 'markdown'], 'text') });
+          },
+          // JS-18: one labelled field, answered with what was typed. Cancel cancels the whole action.
+          promptText: function promptText(options) {
+            const label = options === undefined || options === null ? undefined : options.label;
+            if (typeof label !== 'string' || label.trim() === '') throw new TypeError('promptText needs a label.');
+            return ask('promptText', {
+              label: label,
+              placeholder: optionalText(options, 'placeholder'),
+              defaultValue: optionalText(options, 'defaultValue'),
             });
           },
           showSuccess: function showSuccess() { tell('showSuccess', {}); },

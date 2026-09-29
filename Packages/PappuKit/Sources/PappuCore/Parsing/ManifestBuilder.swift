@@ -14,9 +14,9 @@ import Foundation
 ///   names its own action type drops the inherited one, so that a top-level `url` does not collide
 ///   with an entry's `shellScript`.
 /// - **One action type per action** (§8.4). Two is an error, not a choice.
-/// - **Refused rather than approximated:** `submenu` until the bar has submenus (M4) and `pappuAfter`
-///   until it has a rich result (M3). Flattening a submenu into buttons, or showing a rich result as a
-///   copied one, would run a manifest its author did not write.
+/// - **Refused rather than approximated:** `submenu` until the bar has submenus (M4). Flattening a
+///   submenu into buttons would run a manifest its author did not write. `pappuAfter` takes only
+///   `rich-result` (JS-17), and not alongside `after`.
 /// - **Gates:** `popclipVersion` above `APILevel.emulatedPopClip` (§8.1), `dynamic` with `network` or
 ///   `script` (§8.3), a `before` that is not an editing command (§8.6), a `regex` that does not
 ///   compile, a script file that is not in the package. Each fails the load with a message; the
@@ -368,8 +368,17 @@ public struct ManifestBuilder {
         if let found = reader.take("submenu") {
             error(reader.path(found), "Submenus arrive with the bar's submenu support (M4); until then this action cannot load as its author wrote it.")
         }
-        if let found = reader.take("pappu after") {
-            error(reader.path(found), "pappuAfter arrives with the rich result panel (M3).")
+        var pappuAfter: PappuAfter?
+        if let found = reader.take("pappu after"), let text = string(found, reader.path(found)) {
+            if let value = PappuAfter(rawValue: text.lowercased()) {
+                if after != nil {
+                    error(reader.path(found), "pappuAfter and after both say what to do with the result; use one.")
+                } else {
+                    pappuAfter = value
+                }
+            } else {
+                error(reader.path(found), "pappuAfter must be rich-result, not \"\(text)\".")
+            }
         }
         for key in ["wants initial display", "separator"] {
             if let found = reader.take(key) {
@@ -399,6 +408,7 @@ public struct ManifestBuilder {
             excludedApps: excludedApps,
             before: before,
             after: after,
+            pappuAfter: pappuAfter,
             wantsPrimaryDisplay: wantsPrimaryDisplay,
             stayVisible: stayVisible,
             captureHTML: captureHTML,

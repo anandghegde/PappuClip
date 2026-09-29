@@ -132,3 +132,77 @@ Fixture **G**: a module snippet, `// #popclip` / `// name: Sign` / `// after: sh
 | 43 | Install D2, approve it and select a word | No item from D2; the Debug Console has "A timer is not available in a population function." | |
 | 44 | Install D3, approve it and select a word | The bar appears as fast as without D3, with no item from D3 (a population that never returns is ended only by the watchdog, §10.7) | |
 
+
+## Import from PopClip and coexistence (EXM-11, EXM-15, ONB-6)
+
+Week 6. The fixtures are in `~/Library/Application Support/PopClip/Extensions`. Make the folder if PopClip is not installed. **PS** is a `Search.popclipext` folder with a URL action. **PX** is a `Shout.popclipext` folder whose `Config.json` has `"shellScript": "echo hi"`. Keep a copy of `~/Library/Preferences/com.pilotmoon.popclip.plist` if there is one. Compare it afterwards to confirm that nothing in PopClip changed.
+
+**The exclusion list's format is unverified.** PappuClip reads `BlockedApps` (an array of bundle IDs) from `com.pilotmoon.popclip.plist`. Row P1 checks that against a real PopClip.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| P1 | With a real PopClip, exclude Terminal in PopClip's settings, then run `defaults read com.pilotmoon.popclip BlockedApps` | Terminal's bundle ID in an array. If the key or the shape differs, note it here: `PopClipExclusions` is the one place to change | |
+| P2 | Put PS and PX in the folder, finish onboarding, relaunch PappuClip | "Import from PopClip?" with the extension and excluded-app counts; Not Now closes it, and it is not offered at the next launch | |
+| P3 | Open the menu bar item's menu | "Import from PopClip…" above Quit. Rename the Extensions folder, reopen the menu: it is gone | |
+| P4 | Choose Import from PopClip…, then Review and Import… | One "Review Extensions" window: the unsigned-files sentence; Search under "Approved together…"; Shout under "These ask for more…" with a switch that is off and the script sentence | |
+| P5 | With VoiceOver on, move to Shout's switch | It is read as "Approve “Shout”", then the script sentence | |
+| P6 | Press Install with Shout's switch off | The closing alert says Search is on and Shout is waiting; Settings › Extensions shows Shout as "Waiting for approval"; Shout is not on the bar; Terminal is under Settings › Apps as "Don't appear automatically" | |
+| P7 | Approve Shout in Extension Info | Shout is on the bar and runs | |
+| P8 | Uninstall both, import again, turn Shout's switch on and press Install | Both are on; Shout is approved for scripts | |
+| P9 | Import again and close the review window | Nothing is installed and no app rule is added; no closing alert | |
+| P10 | Compare PopClip's folder and preferences with the copy | Unchanged | |
+| P11 | With PappuClip running and "Appear automatically" on, start PopClip | "PopClip Is Running", which explains the two bars, with Keep Both, Turn Off PappuClip's Automatic Bar, How to Turn Off PopClip's, and "Don't show this again" | |
+| P12 | Choose How to Turn Off PopClip's | The steps. Check that they match PopClip's current menu; PopClip keeps running and its settings are unchanged | |
+| P13 | Quit and restart PopClip, then choose Turn Off PappuClip's Automatic Bar | The menu's "Appear Automatically" is unticked; the shortcut still brings the bar | |
+| P14 | Turn "Appear automatically" back on, tick "Don't show this again", restart PopClip twice | The notice appears once, then not again | |
+| P15 | With PopClip running, select text in an app with no Accessibility text (e.g. a canvas app with a copyable selection) | The automatic bar does not copy (the pasteboard's change count is unchanged); the shortcut still reads the selection | |
+| P16 | Launch PappuClip with PopClip already running | The notice appears at launch, unless it was suppressed | |
+
+## File types and development folders (EXM-4, DEV-1)
+
+Fixture **V**: a folder `Dev.popclipext` holding `Config.json` with `{"name": "Dev", "identifier": "com.example.dev", "actions": [{"title": "Search", "url": "https://example.com/?q=***"}]}`. For V2, add a second action `{"title": "Hi", "javascript": "popclip.showText('hi')"}`; for V3, add `{"title": "Shout", "shellScript": "echo hi"}`.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| FT1 | `plutil -p` the built app's `Contents/Info.plist` | `CFBundleDocumentTypes` names the three `com.pilotmoon.popclip.extension*` types with `LSHandlerRank` `Alternate`; they are under `UTImportedTypeDeclarations` and not under `UTExportedTypeDeclarations`; no type has rank `Default` | |
+| FT2 | With PopClip installed, Get Info on a `.popclipextz` in Finder | "Open with" still shows PopClip as the default; PappuClip is in the Open With list | |
+| FT3 | Open With → PappuClip on a `.popclipextz`, and again on a `.popcliptxt` | The install review appears for each; Cancel installs nothing | |
+| DV1 | Settings → Developer on a fresh install | No development-mode banner; "No development folders."; both switches off | |
+| DV2 | Add Folder… and choose V | The install review says "Development folder…" (unsigned, unreviewed); Install adds the row; the banner "Development mode is on" appears; the menu bar menu starts with "Development Mode On" | |
+| DV3 | Press Reload without changing V | "No changes to load." | |
+| DV4 | Change V's Search title and press Reload | "Reloaded." with no review; the bar shows the new title | |
+| DV5 | Make V into V3 and press Reload | The review appears again with the script switch off and Update / Cancel only; Cancel says "Not reloaded…" and the bar still has the old version | |
+| DV6 | Turn on "Allow Safari Web Inspector" with V2 approved, select text and open Safari → Develop → this Mac | The PappuClipJSHost context for Dev is listed; a JavaScript extension installed normally is not. Turn the switch off: it is gone after the next selection | |
+| DV7 | Turn on "Verbose extension logging" and press Hi | The Debug Console has `[development]` lines for the load, the run and the host call, with no selected text in them; other extensions write no such lines | |
+| DV8 | Press Remove on V's row | The row, banner and menu status line go; V's folder on disk is untouched | |
+
+## The rich result panel and the text prompt (JS-17, JS-18, RUN-2e, BAR-17)
+
+Fixtures:
+- **RR**: a JavaScript snippet, `#popclip` / `name: Rich Result` / `pappuAfter: rich-result` / `javascript: return popclip.input.text.toUpperCase() + '\n\nsecond line'`.
+- **MD**: a JavaScript snippet, `#popclip` / `name: Show MD` / `javascript: popclip.showResult('**bold** _it_ [link](https://example.com) <b>raw</b>', { format: 'markdown' })`.
+- **Q**: a JavaScript snippet, `#popclip` / `name: Ask` / `after: paste-result` / `javascript: return 'Hello, ' + await pappuclip.promptText({ label: 'Your name', placeholder: 'name', defaultValue: 'World' })`.
+
+The panels are the functional M3 ones; their look is M4's (DIF-1a, DIF-3). Replace Selection and Insert re-check the destination when clicked. A click on a PappuClip panel counts as input to apps that are checked only by quiescence (the unverifiable and quiescence tiers of §9.2), so there Replace and Insert are expected to be refused with an explanation, and Copy still works. That is the known M3 limitation, not a failure.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| 45 | Install and approve RR, select `hello` in TextEdit and press Rich Result | A panel near the selection shows `HELLO` and `second line` on two lines; TextEdit keeps focus (its caret still blinks); the clipboard is unchanged (`pbpaste`) | |
+| 46 | Press Copy | "Copied" in the panel; `pbpaste` gives the whole result; the panel stays open | |
+| 47 | Run RR again and press Replace Selection | `hello` is replaced with the result and the panel closes; the clipboard is what it was before | |
+| 48 | Run RR again and press Insert | `hello` stays, followed by the result; the panel closes | |
+| 49 | Run RR again, click elsewhere in the TextEdit document, then look at the panel and press Replace Selection | Replace Selection and Insert are disabled with "The selection has changed since the action ran" (or "Focus has moved…") under them and in their tooltips; nothing is written; Copy still works | |
+| 50 | Run RR again, switch to another app, then press Replace Selection | Refused with "The app the text came from is no longer in front"; Copy still works | |
+| 51 | Run RR in Safari's address bar or another quiescence-tier app and press Replace Selection | Either written, or refused with the typing-or-clicking explanation; never written somewhere else | |
+| 52 | Run RR and press Escape, then again and press Close, then again and click the window's close button | The panel goes each time; the Debug Console shows each invocation completed; nothing written | |
+| 53 | Run RR, then pause PappuClip from the menu bar while the panel is open | The panel closes at once | |
+| 54 | Install and approve MD and press Show MD | `bold` in bold, `it` in italics, `link` as plain text that opens nothing when clicked, and `<b>raw</b>` shown as written | |
+| 55 | With VoiceOver on, run RR and move through the panel | VoiceOver reads the result text, then Copy, Replace Selection, Insert and Close by name; a disabled Replace says why; pressing Copy announces "Copied" | |
+| 56 | Install and approve Q, select a word and press Ask | A prompt titled PappuClip shows "Your name", a field holding `World` with focus in it, "Asked by Ask" under it, and Submit and Cancel | |
+| 57 | Type `Ann` and press Return | The selection is replaced with `Hello, Ann` | |
+| 58 | Run Q, clear the field and press Submit | `Hello, ` is pasted: an empty answer is an answer | |
+| 59 | Run Q and press Escape; again and press Cancel; again and close the window | Nothing is pasted each time; the Debug Console shows the invocation cancelled | |
+| 60 | Run Q and, with the prompt up, pause PappuClip from the menu bar | The prompt closes; nothing is pasted | |
+| 61 | With VoiceOver on, run Q | VoiceOver announces the field as "Your name, edit text, World"; Tab reaches Cancel and Submit; Return submits and Escape cancels without the mouse | |
+| 62 | Install a dynamic extension whose population calls `pappuclip.promptText({ label: 'x' })`, approve it and select a word | No prompt appears; the Debug Console has "promptText is not available in a population function." | |
+

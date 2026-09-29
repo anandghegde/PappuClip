@@ -54,15 +54,17 @@ public enum ConsentPresenter {
         var collisions: [String] = []
         var choices: [Choice]
         var title = ExtensionStrings.installTitle(extensionName)
+        // DEV-1: a development folder is always its own identity, and a reload is always an update of it.
+        let isDevelopment = proposal.provenance.isDevelopmentFolder
         switch proposal.decision {
         case .replacementOffered:
             title = ExtensionStrings.updateTitle(extensionName)
-            choices = [.update, .installSeparately]
+            choices = isDevelopment ? [.update] : [.update, .installSeparately]
         case .separate(let found):
             choices = [.install]
             for collision in found {
                 collisions.append(ExtensionStrings.collision(name(collision.existing) ?? extensionName))
-                if collision.allowsTrustTransition { choices.append(.replace(collision.existing)) }
+                if collision.allowsTrustTransition, !isDevelopment { choices.append(.replace(collision.existing)) }
             }
         case .fresh, .alreadyInstalled:
             choices = [.install]
@@ -70,7 +72,9 @@ public enum ConsentPresenter {
         choices.append(.cancel)
 
         var provenance: String?
-        if case .local = proposal.provenance { provenance = ExtensionStrings.fromThisMac }
+        if case .local = proposal.provenance {
+            provenance = isDevelopment ? DeveloperStrings.consentProvenance : ExtensionStrings.fromThisMac
+        }
 
         return Review(
             title: title,
@@ -155,5 +159,13 @@ public enum ConsentPresenter {
 
     private static func list(_ items: [String]) -> String {
         ListFormatter.localizedString(byJoining: items)
+    }
+}
+
+extension Provenance {
+    /// DEV-1: code loaded from an approved development folder.
+    var isDevelopmentFolder: Bool {
+        if case .local(.developmentFolder, _) = self { return true }
+        return false
     }
 }

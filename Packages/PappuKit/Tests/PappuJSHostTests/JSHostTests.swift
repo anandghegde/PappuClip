@@ -502,6 +502,23 @@ import Testing
         #expect(tests.app.calls == [JSHostCall(invocation: 42, extensionName: "a", method: "pasteText", arguments: #"{"text":"x","restore":true}"#)])
     }
 
+    /// JS-17: `showResult` sends the whole text and its format, and does not wait for an answer.
+    @Test func showResultSendsTheTextAndItsFormat() async {
+        let tests = Harness()
+        #expect(await tests.run("pappuclip.showResult('# hi', { format: 'markdown' }); popclip.showResult(42); return 'ok'") == .returned("ok"))
+        #expect(tests.app.calls.map(\.arguments) == [##"{"text":"# hi","format":"markdown"}"##, #"{"text":"42","format":"text"}"#])
+        #expect(await tests.run("try { popclip.showResult('x', { format: 'html' }) } catch (e) { return e.name }") == .returned("TypeError"))
+    }
+
+    /// JS-18: `promptText` asks with a label and resolves to the string the app answers, empty included.
+    @Test func promptTextResolvesToWhatWasEntered() async {
+        let tests = Harness { call in call.method == "promptText" ? .value(#""""#) : nil }
+        let script = "const v = await pappuclip.promptText({ label: 'Name', placeholder: 'you', defaultValue: 'me' }); return typeof v + ':' + v"
+        #expect(await tests.run(script) == .returned("string:"))
+        #expect(tests.app.calls.map(\.arguments) == [#"{"label":"Name","placeholder":"you","defaultValue":"me"}"#])
+        #expect(await tests.run("try { await popclip.promptText({}) } catch (e) { return e.message }") == .returned("promptText needs a label."))
+    }
+
     @Test func aRefusalRejectsThePromise() async {
         let tests = Harness { _ in .refused("Not for you.") }
         #expect(await tests.run("try { await popclip.copyText('x') } catch (e) { return e.message }") == .returned("Not for you."))

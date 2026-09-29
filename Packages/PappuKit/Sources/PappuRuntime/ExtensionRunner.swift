@@ -108,6 +108,9 @@ public struct ExtensionRunner: Sendable {
         case reappear
         /// A script's `showFailure` (JS-4): the X, though the action ran.
         case failure
+        /// `pappuAfter: rich-result` and a script's `showResult` (JS-17): the whole result, in the rich
+        /// result panel. The report's `session` is what the panel acts through.
+        case richResult(RichResult)
     }
 
     /// Something a run asks of the user once it is over, beyond its tick or its X.
@@ -147,6 +150,9 @@ public struct ExtensionRunner: Sendable {
         public let keyPress: KeyPressReport?
         public let attention: Attention?
         public let problem: Problem?
+        /// JS-17: the rich result on screen, whose invocation is still live until the panel closes it.
+        /// Nil for every other ending.
+        public var session: RichResultSession? = nil
 
         public var ran: Bool { outcome == .done }
         public var block: DestinationBlock? {
@@ -230,6 +236,10 @@ public struct ExtensionRunner: Sendable {
         guard executed == .done else { return await finish(run, executed, at: .executor) }
 
         guard await manager.accepts(request.invocation) else { return await finish(run, .notRunning, at: .after) }
+        if manifest.pappuAfter == .richResult, let result = run.result, !result.isEmpty {
+            // JS-17: nothing is copied or pasted; the panel's buttons are the only way it goes anywhere.
+            run.display = .richResult(RichResult(text: result, format: .text))
+        }
         guard let after = manifest.after else { return await finish(run, .done, at: .after) }
         let outcome = await self.after(after, request, into: &run)
         return await finish(run, outcome, at: .after)
@@ -516,6 +526,7 @@ public struct ExtensionRunner: Sendable {
         case .copied?: run.display = .copied
         case .text(let text)?: run.display = .result(text)
         case .appear?: run.display = .reappear
+        case .rich(let result)?: run.display = result.text.isEmpty ? .status : .richResult(result)
         case nil: break
         }
     }
@@ -646,7 +657,7 @@ public struct ExtensionRunner: Sendable {
     }
 
     /// §8.6's 160 characters, with an ellipsis when something was cut.
-    static func preview(_ text: String) -> String {
+    public static func preview(_ text: String) -> String {
         guard text.count > previewLimit else { return text }
         return String(text.prefix(previewLimit - 1)) + "…"
     }
@@ -654,7 +665,30 @@ public struct ExtensionRunner: Sendable {
     // MARK: Ending
 
     private func finish(_ run: Run, _ outcome: Outcome, at stage: Stage) async -> Report {
+        // JS-17: a rich result keeps its invocation live for the panel's Replace and Insert (RUN-2e),
+        // and the session finishes it when the panel closes.
+        var session: RichResultSession?
+        if outcome == .done, case .richResult(let result) = run.display {
+            session = await RichResultSession.open(
+                result,
+                for: run.request.invocation,
+                canWrite: run.request.context.canPaste,
+                original: run.request.match.fullText,
+                target: run.request.target,
+                manager: manager,
+                mutator: mutator,
+                clipboard: clipboard
+            )
+            guard session != nil else {
+                // Cancelled on the way: what a late result always comes to (RUN-3c).
+                return Report(
+                    invocation: run.request.invocation, outcome: .notRunning, stage: stage, display: .status,
+                    returnedText: !(run.result ?? "").isEmpty, keyPress: run.keyPress, attention: run.attention, problem: run.problem
+                )
+            }
+        }
         switch outcome {
+        case .done where session != nil: break
         case .done: await manager.finish(run.request.invocation, outcome: .completed)
         case .blocked: await manager.finish(run.request.invocation, outcome: .blocked)
         case .notPerformed, .nothingToDo: await manager.finish(run.request.invocation, outcome: .failed)
@@ -668,7 +702,8 @@ public struct ExtensionRunner: Sendable {
             returnedText: !(run.result ?? "").isEmpty,
             keyPress: run.keyPress,
             attention: run.attention,
-            problem: run.problem
+            problem: run.problem,
+            session: session
         )
     }
 }
@@ -686,6 +721,8 @@ extension ActionManifest {
         if case .keyPress = executor { return true }
         // A script can paste and press keys through the host API (JS-4), whatever its steps say.
         if case .javaScript = executor { return true }
+        // JS-17: the rich result panel's Replace and Insert.
+        if pappuAfter != nil { return true }
         return [before, after].contains { step in
             switch step {
             case .cut, .paste, .pastePlain, .pasteResult, .previewResult: true

@@ -49,12 +49,20 @@ public final class AppAssembly: SelectionInstalling {
     private let statusItem: MenuBarItem
     private let settingsWindow: SettingsWindow
     private let attention: ScriptAttention
+    /// JS-17, JS-18: the rich result panel and the text prompt.
+    private let panels: NativePanelPresenter
     /// Nil when the extension library could not be opened; the app then runs its built-ins only.
     private let host: ExtensionHost?
     private let settingsModel: SettingsModel
     private let consentWindow: ConsentWindow
     private let onboardingWindow: OnboardingWindow
     private let consoleWindow: DebugConsoleWindow
+    /// EXM-11, EXM-15: nil without a library to import into.
+    private let popClipImporter: PopClipImporter?
+    /// ONB-6: explains PopClip running beside PappuClip. It never touches PopClip.
+    private let coexistenceNotice: CoexistenceNotice
+    /// DEV-1: tells the helper which worlds are development worlds, from the folders and the switches.
+    private let developmentDebugging: @Sendable () async -> Void
 
     /// The loops that read the three streams. Held so that `stop` can end them; an `AsyncStream` whose
     /// consumer is a detached task nobody kept would run for the life of the process either way, but a
@@ -79,6 +87,7 @@ public final class AppAssembly: SelectionInstalling {
         let shortcuts = ShortcutStore(storage: storage)
         let barPreferences = BarPreferences(storage: storage)
         let onboarding = OnboardingStore(storage: storage)
+        let developer = DeveloperPreferences(storage: storage)
 
         // A closure and not a copy: the gate is built once and every attempt after a setting changes
         // must be judged against the new one (architecture §4.4).
@@ -152,6 +161,7 @@ public final class AppAssembly: SelectionInstalling {
         )
         let scripts = RunnerClient()
         let shortcutRunner = SystemShortcutRunner()
+        let panels = NativePanelPresenter(manager: manager)
         let extensions = ExtensionRunner(
             manager: manager,
             editor: editor,
@@ -172,6 +182,7 @@ public final class AppAssembly: SelectionInstalling {
             hostCalls: [
                 NetworkHostCalls(manager: manager),
                 ScriptHostCalls(manager: manager, appleScripts: scripts, shortcuts: shortcutRunner),
+                PromptHostCalls(manager: manager, prompter: panels),
             ]
         )
 
@@ -261,6 +272,33 @@ public final class AppAssembly: SelectionInstalling {
                 settingsRef?.refresh()
             }
         }
+        // DEV-1: development folders go through the same review window as every install.
+        let consentWindow = ConsentWindow()
+        let developmentDebugging: @Sendable () async -> Void = {
+            let folders = (try? await host?.library.developmentFolders()) ?? []
+            javaScript.setDebugging(DevelopmentMode.debugging(for: folders.map(\.identity), preferences: developer))
+        }
+        if let host, let extensionsModel {
+            extensionsModel.development = DevelopmentModel(
+                library: host.library,
+                preferences: developer,
+                review: { proposal in
+                    await consentWindow.review(proposal) { identity in
+                        host.snapshot.installed[identity.description]?.manifest.name.text(for: .current)
+                    }
+                }
+            ) { change in
+                // The helper first, so the world a rebuild warms is already a development world.
+                await developmentDebugging()
+                switch change {
+                case .updated(let identity): await host.handle(.updated(identity))
+                case .removed(let identity): await host.handle(.removed(identity))
+                case .preferences: return
+                }
+                await extensionsModel.refresh()
+                settingsRef?.refresh()
+            }
+        }
         let settingsModel = SettingsModel(
             rules: rules,
             shortcuts: shortcuts,
@@ -294,7 +332,14 @@ public final class AppAssembly: SelectionInstalling {
         // The status item is made before the assembly is, so a drop reaches it through a weak reference.
         weak var assemblyRef: AppAssembly?
         let statusItem = MenuBarItem(
-            menu: { MenuBarMenu(rules: rules.rules, grant: onboarding.grant) },
+            menu: {
+                MenuBarMenu(
+                    rules: rules.rules,
+                    grant: onboarding.grant,
+                    offersPopClipImport: host != nil && PopClipImport.isPresent(),
+                    developmentMode: extensionsModel?.development?.isActive ?? false
+                )
+            },
             perform: { [rules] command in
                 switch command {
                 case .appearAutomatically:
@@ -311,6 +356,8 @@ public final class AppAssembly: SelectionInstalling {
                     settingsWindow.show()
                 case .debugConsole:
                     consoleWindow.show()
+                case .importFromPopClip:
+                    Task { await assemblyRef?.importFromPopClip() }
                 case .quit:
                     NSApp.terminate(nil)
                 }
@@ -339,15 +386,39 @@ public final class AppAssembly: SelectionInstalling {
         self.statusItem = statusItem
         self.settingsWindow = settingsWindow
         // A script that asked for its settings gets its extension's options sheet (ALM-6).
+        self.panels = panels
         self.attention = ScriptAttention(openOptions: { title, owner in
             settingsWindow.show()
             settingsModel.showOptions(title, owner: owner)
         })
         self.host = host
         self.settingsModel = settingsModel
-        self.consentWindow = ConsentWindow()
+        self.consentWindow = consentWindow
+        self.developmentDebugging = developmentDebugging
         self.onboardingWindow = onboardingWindow
         self.consoleWindow = consoleWindow
+        // EXM-11, EXM-15: PopClip's folders are read, every package goes through one batch review, and
+        // a gated one arrives turned off unless its own switch was turned on.
+        let batchWindow = BatchConsentWindow()
+        self.popClipImporter = host.map { host in
+            PopClipImporter(
+                storage: storage,
+                rules: rules,
+                ask: { offer in PopClipAlerts.offer(offer) },
+                install: { sources, review in try await host.installBatch(sources, review: review) },
+                review: { proposals in
+                    await batchWindow.review(proposals) { identity in
+                        host.snapshot.installed[identity.description]?.manifest.name.text(for: .current)
+                    }
+                }
+            )
+        }
+        self.coexistenceNotice = CoexistenceNotice(
+            rules: rules,
+            storage: storage,
+            ask: { PopClipAlerts.coexistence() },
+            showHowTo: { PopClipAlerts.howTo() }
+        )
         assemblyRef = self
     }
 
@@ -359,12 +430,16 @@ public final class AppAssembly: SelectionInstalling {
     public func start() async {
         // Before the bar can appear, so that its first resolution already has the installed extensions.
         if let host {
+            await developmentDebugging()
             await host.start()
             await settingsModel.extensions?.refresh()
+            await settingsModel.extensions?.development?.refresh()
             settingsModel.refresh()
         }
         await bridge.attach(bar)
         await bridge.attach(attention: attention)
+        panels.attach(bar: bar)
+        await bridge.attach(results: panels)
         // Only with a library to install into; without one the bar does not offer it.
         if host != nil { await bridge.attach(installer: self) }
         bar.prepare()
@@ -375,6 +450,7 @@ public final class AppAssembly: SelectionInstalling {
         accessibility.start()
         frontmost.start()
         coexistence.start()
+        coexistenceNotice.observe(coexistence)
         watcher.start()
         health.start()
 
@@ -403,9 +479,26 @@ public final class AppAssembly: SelectionInstalling {
 
         // Last, because it takes the screen: a first run should find the app already working behind the
         // window it is being explained in. A launch that owes the user nothing opens nothing (ONB-1).
+        // EXM-11: once, when PopClip's extensions are there to bring across — but not over the
+        // onboarding window; a launch that still owes the user that asks at a later one.
         if onboardingWindow.hasSomethingToShow {
             onboardingWindow.show()
+        } else if let popClipImporter {
+            await finishImport(popClipImporter.offerAtFirstRun())
         }
+    }
+
+    /// The menu's Import from PopClip (EXM-11).
+    func importFromPopClip() async {
+        guard let popClipImporter else { return }
+        await finishImport(popClipImporter.importNow())
+    }
+
+    private func finishImport(_ report: PopClipImporter.Report?) async {
+        guard let report else { return }
+        await settingsModel.extensions?.refresh()
+        settingsModel.refresh()
+        PopClipAlerts.report(report)
     }
 
     /// The reverse, for a quit that wants to be tidy and for a host that builds more than one.
