@@ -149,6 +149,7 @@ import Testing
         #expect(DevelopmentRun.looksLikeModule("module.exports = {}"))
         #expect(DevelopmentRun.looksLikeModule("exports.test = 1"))
         #expect(DevelopmentRun.looksLikeModule("defineExtension({})"))
+        #expect(DevelopmentRun.looksLikeModule("defineExtension<Options>({})"))
         #expect(!DevelopmentRun.looksLikeModule("return popclip.input.text;"))
         #expect(!DevelopmentRun.looksLikeModule("// exporting nothing\npopclip.pasteText('x');"))
         #expect(!DevelopmentRun.looksLikeModule("const kinds = { exports: typeof exports, module: typeof module };\nreturn 'ok';"))

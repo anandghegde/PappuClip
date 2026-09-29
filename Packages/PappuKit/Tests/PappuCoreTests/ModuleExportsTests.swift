@@ -85,6 +85,20 @@ import Testing
         #expect(ManifestBuilder.populatedActions("{}", attempt: 7, source: source).isEmpty)
     }
 
+    /// JS-13: a populated action may name an icon file in its own package (the corpus's Email does);
+    /// it is kept when the package is given, and left out, as a snippet's would be, when it is not.
+    @Test func aPopulatedActionFindsItsIconFileInItsPackage() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "populated-icon-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data([0x89, 0x50, 0x4E, 0x47]).write(to: root.appending(path: "envelope.png"))
+        let source = ModuleSource(source: .file("email.js"), isTypeScript: false)
+        let json = #"[{"title":"New email","icon":"envelope.png","code":true}]"#
+        let kept = ManifestBuilder.populatedActions(json, attempt: 1, source: source, package: PackageFiles(root: root))
+        #expect(kept.map { Self.script($0)?.export } == ["populated.1.0"])
+        #expect(ManifestBuilder.populatedActions(json, attempt: 1, source: source).isEmpty)
+    }
+
     /// The helper writes `code: true` only for a function; nothing else in the data can stand for one.
     @Test func anActionWithNoCodeIsLeftOut() throws {
         let json = #"{"actions":[{"title":"Label"},{"separator":true},{"title":"Real","code":true},{"title":"Forged","code":1}]}"#

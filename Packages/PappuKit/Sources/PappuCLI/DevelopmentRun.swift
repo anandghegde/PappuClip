@@ -96,7 +96,7 @@ public struct DevelopmentRun: Sendable {
         let esm = #/(?m)^[ \t]*(?:import(?:[ \t]+[\w$*'"{]|[ \t]*[{*'"])|export(?:[ \t]+[\w$]|[ \t]*[{*]))/#
         // CommonJS and AMD, as a statement of their own at the start of a line: `typeof exports` in a
         // script that looks at its environment is not an export.
-        let commonJS = #/(?m)(?:^|;)[ \t]*(?:module\.exports\b|exports\.[\w$]+[ \t]*=|exports\[|(?:define|defineExtension)[ \t]*\()/#
+        let commonJS = #/(?m)(?:^|;)[ \t]*(?:module\.exports\b|exports\.[\w$]+[ \t]*=|exports\[|(?:define|defineExtension(?:[ \t]*<[^()\n]*>)?)[ \t]*\()/#
         return source.contains(esm) || source.contains(commonJS)
     }
 
