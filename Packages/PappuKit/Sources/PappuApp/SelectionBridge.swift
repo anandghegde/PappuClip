@@ -104,6 +104,10 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
     private weak var reporter: (any InvocationReporting)?
     private weak var attention: (any AttentionPresenting)?
     private weak var installer: (any SelectionInstalling)?
+    /// JS-17: where a rich result goes. Without one, it is shown on the bar, cut to 160 characters.
+    private weak var results: (any ResultPresenting)?
+    /// Invocations kept live by an open result panel, which a press on the next bar does not cancel.
+    private var presenting: Set<InvocationID> = []
     private var prepared: Prepared?
     /// The run a press started, so that the next press can take it back (RUN-3).
     private var running: InvocationID?
@@ -165,6 +169,11 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
     /// Where a selected extension is installed from. Until one is attached the bar does not offer to.
     public func attach(installer: any SelectionInstalling) {
         self.installer = installer
+    }
+
+    /// Where a rich result is shown (JS-17). Attached after, like the bar.
+    public func attach(results presenter: any ResultPresenting) {
+        self.results = presenter
     }
 
     // MARK: BarContentProviding
@@ -331,6 +340,11 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
                     captured: prepared.captured
                 )
             )
+            if let session = report.session {
+                if running == invocation { running = nil }
+                await present(session, title: resolved.action.title.text(for: locale()))
+                return
+            }
             ending = Self.ending(for: report, stayVisible: resolved.action.manifest.stayVisible, name: resolved.action.extensionName.text(for: locale()))
             request = report.attention
         }
@@ -341,6 +355,27 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
         if let request, let attention {
             await attention.present(request, for: resolved.action.title.text(for: locale()), owner: resolved.action.owner)
         }
+    }
+
+    /// JS-17: the bar makes way for the rich result panel, whose session keeps the invocation live
+    /// until it closes. With no panel to show it in, the result goes on the bar as `show-result` would
+    /// put it, and the invocation ends here.
+    private func present(_ session: RichResultSession, title: String) async {
+        guard let results else {
+            await session.close()
+            await finish(Ending(state: .result(ExtensionRunner.preview(session.result.text)), then: .stay))
+            return
+        }
+        let invocation = session.invocation
+        presenting.insert(invocation)
+        session.onEnd { [weak self] in
+            Task { await self?.stopPresenting(invocation) }
+        }
+        await results.present(session, title: title)
+    }
+
+    private func stopPresenting(_ invocation: InvocationID) {
+        presenting.remove(invocation)
     }
 
     /// EXM-2. Not an invocation: nothing is written into the app the text came from, so there is no
@@ -365,7 +400,8 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
     /// lease on the key tap.
     public func cancelRunningAction() async {
         running = nil
-        for invocation in await manager.runningInvocations {
+        // An open result panel's invocation is the panel's to close, not the next bar's to stop.
+        for invocation in await manager.runningInvocations where !presenting.contains(invocation) {
             await manager.cancel(invocation, reason: .cancelled)
         }
     }
@@ -418,6 +454,8 @@ public actor SelectionBridge: BarContentProviding, BarActionInvoking {
         case .done:
             switch report.display {
             case .result(let text): return Ending(state: .result(text), then: .stay)
+            // Only without a session, which the bridge presents before it gets here.
+            case .richResult(let result): return Ending(state: .result(ExtensionRunner.preview(result.text)), then: .stay)
             case .reappear: return Ending(state: .idle, then: .stay)
             case .failure: return Ending(state: .failed, then: .dismiss)
             case .copied: return Ending(state: .copied, then: stayVisible ? .returnToButtons : .dismiss)

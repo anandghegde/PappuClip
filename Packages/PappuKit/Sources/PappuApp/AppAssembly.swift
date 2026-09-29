@@ -49,6 +49,8 @@ public final class AppAssembly: SelectionInstalling {
     private let statusItem: MenuBarItem
     private let settingsWindow: SettingsWindow
     private let attention: ScriptAttention
+    /// JS-17, JS-18: the rich result panel and the text prompt.
+    private let panels: NativePanelPresenter
     /// Nil when the extension library could not be opened; the app then runs its built-ins only.
     private let host: ExtensionHost?
     private let settingsModel: SettingsModel
@@ -159,6 +161,7 @@ public final class AppAssembly: SelectionInstalling {
         )
         let scripts = RunnerClient()
         let shortcutRunner = SystemShortcutRunner()
+        let panels = NativePanelPresenter(manager: manager)
         let extensions = ExtensionRunner(
             manager: manager,
             editor: editor,
@@ -179,6 +182,7 @@ public final class AppAssembly: SelectionInstalling {
             hostCalls: [
                 NetworkHostCalls(manager: manager),
                 ScriptHostCalls(manager: manager, appleScripts: scripts, shortcuts: shortcutRunner),
+                PromptHostCalls(manager: manager, prompter: panels),
             ]
         )
 
@@ -382,6 +386,7 @@ public final class AppAssembly: SelectionInstalling {
         self.statusItem = statusItem
         self.settingsWindow = settingsWindow
         // A script that asked for its settings gets its extension's options sheet (ALM-6).
+        self.panels = panels
         self.attention = ScriptAttention(openOptions: { title, owner in
             settingsWindow.show()
             settingsModel.showOptions(title, owner: owner)
@@ -433,6 +438,8 @@ public final class AppAssembly: SelectionInstalling {
         }
         await bridge.attach(bar)
         await bridge.attach(attention: attention)
+        panels.attach(bar: bar)
+        await bridge.attach(results: panels)
         // Only with a library to install into; without one the bar does not offer it.
         if host != nil { await bridge.attach(installer: self) }
         bar.prepare()
