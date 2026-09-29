@@ -61,6 +61,8 @@ import Testing
     @Test(arguments: [
         ("export default {}", true),
         ("defineExtension({ actions: [] })", true),
+        // TypeScript's type argument, as four of the corpus's own Config.ts files write it.
+        ("defineExtension<SayOptions>({ action: () => {} })", true),
         ("module.exports = {}", true),
         ("exports.actions = []", true),
         ("define({ actions: [] })", true),

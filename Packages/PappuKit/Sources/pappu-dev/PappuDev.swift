@@ -1,10 +1,11 @@
 import ArgumentParser
 import Foundation
+import PappuCLI
 import PappuDevTools
 import PappuHarness
 
 @main
-struct PappuDev: ParsableCommand {
+struct PappuDev: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "pappu-dev",
         abstract: "Repository tooling for PappuClip contributors and CI. Not shipped to users.",
@@ -87,8 +88,57 @@ struct Results: ParsableCommand {
 struct Corpus: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "The frozen extension corpus (Tests/corpus).",
-        subcommands: [Load.self]
+        subcommands: [Load.self, Functional.self]
     )
+
+    /// PRD §3.3: the corpus's functional pass rate, written to `Tests/results/corpus-functional/`.
+    struct Functional: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Run every extension in the corpus headless, report the functional pass rate, and write it to Tests/results.",
+            discussion: """
+            Every package counts. Blocked, load-only, untested and failed packages are reported separately and \
+            none of them is a pass. Nothing is pasted, opened, pressed or sent.
+            """
+        )
+
+        @OptionGroup var root: RootOption
+
+        @Option(help: "Corpus directory. Default: Tests/corpus under the repository root.")
+        var corpus: String?
+
+        @Option(help: "Seconds each JavaScript action may run.")
+        var timeout: Int = 15
+
+        @Flag(help: "Print every package that did not pass, and why.")
+        var verbose = false
+
+        @Flag(help: "Print the rate without writing a result file.")
+        var dryRun = false
+
+        func run() async throws {
+            let repository = try root.resolve()
+            let corpusURL = corpus.map { URL(filePath: $0) } ?? repository.appending(path: "Tests/corpus")
+            let packages = CorpusLoader.discover(in: corpusURL)
+            guard !packages.isEmpty else {
+                print("error: no extensions under \(corpusURL.path); is the submodule checked out?")
+                throw ExitCode.failure
+            }
+            let started = Date()
+            let report = await CorpusFunctional(timeout: .seconds(timeout)).run(corpus: corpusURL, packages: packages)
+            if verbose {
+                for package in report.packages where package.verdict != .passed {
+                    print("\(package.verdict.rawValue): \(package.path): \(package.detail)")
+                }
+            }
+            print(report.rateText)
+            guard !dryRun else { return }
+            let result = CorpusFunctionalResult.make(
+                report, corpus: corpusURL, startedAt: started, durationSeconds: Date().timeIntervalSince(started), timeout: timeout
+            )
+            let url = try ResultsStore(repositoryRoot: repository).write(result)
+            print("wrote \(url.path)")
+        }
+    }
 
     struct Load: ParsableCommand {
         static let configuration = CommandConfiguration(

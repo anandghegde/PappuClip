@@ -155,6 +155,24 @@ import Testing
         #expect(recorder.changes.last == .removed(identity))
     }
 
+    /// Uninstalling the development extension from Settings → Extensions turns development mode off at
+    /// once, so the menu's "Development Mode On" line does not outlive it.
+    @Test func uninstallingTheDevelopmentExtensionElsewhereTurnsDevelopmentModeOff() async throws {
+        let recorder = Recorder()
+        let extensions = ExtensionsModel(
+            library: scratch.library, secrets: InMemorySecretStore(), locale: Locale(identifier: "en")
+        ) { _ in }
+        let development = model(recorder)
+        extensions.development = development
+        await development.add(try folder(Self.search))
+        let identity = try #require(development.rows.first?.identity)
+        #expect(development.isActive)
+
+        await extensions.uninstall(identity)
+        #expect(!development.isActive)
+        #expect(development.rows.isEmpty)
+    }
+
     /// Both switches start off, persist, and tell the app to update the helper.
     @Test func theSwitchesStartOffAndPersist() async {
         let storage = FakeSettingsStorage()

@@ -2015,6 +2015,7 @@ requirements:
       - PappuJSHostTests/aThrowAndAMissingFunctionSayWhy
       - PappuCoreTests/aDynamicExtensionsPopulationFunctionIsNotAWarning
       - PappuCoreTests/populatedActionsRunTheCodeKeptForTheirAttempt
+      - PappuCoreTests/aPopulatedActionFindsItsIconFileInItsPackage
       - PappuRuntimeTests/offeredActionsAreResolvedAndRunTheirAttemptsCode
       - PappuRuntimeTests/anActionTheApprovalDoesNotCoverIsRefused
       - PappuRuntimeTests/aPopulationThatThrowsIsInTheConsole
@@ -2109,6 +2110,9 @@ requirements:
       - PappuSurfacesTests/submitAnswersWithTheFieldEvenEmpty
       - PappuSurfacesTests/cancelEscapeAndCloseAnswerCancelledOnce
       - PappuSurfacesTests/theInvocationEndingClosesThePromptWithoutAnAnswer
+      - PappuAppTests/aCancelBeforeTheShowStopsIt
+      - PappuAppTests/aCancelWhileShownClosesThePrompt
+      - PappuAppTests/aCancelAfterTheAnswerDoesNothing
       - manual:docs/checklists/m3-manual.md
   JS-19:
     priority: P1
@@ -2348,6 +2352,7 @@ requirements:
       - PappuSettingsTests/aCancelledReviewAddsNothing
       - PappuSettingsTests/reloadSaysWhatItDidAndOnlyRebuildsWhenSomethingLoaded
       - PappuSettingsTests/removingTheLastFolderTurnsDevelopmentModeOff
+      - PappuSettingsTests/uninstallingTheDevelopmentExtensionElsewhereTurnsDevelopmentModeOff
       - PappuSettingsTests/theSwitchesStartOffAndPersist
       - PappuSettingsTests/everyReloadOutcomeHasAStatus
       - PappuAppTests/withBothSwitchesOffNothingIsDebugged
@@ -2357,7 +2362,54 @@ requirements:
       - PappuAppTests/theMenuSaysDevelopmentModeIsOn
       - PappuAppTests/theMenuSaysNothingAboutDevelopmentOtherwise
       - PappuAppTests/aPauseIsStillSaidWhileDeveloping
-  DEV-2: { priority: P1, milestone: M3, tests: [] }
+  DEV-2:
+    priority: P1
+    milestone: M3
+    note: >-
+      `pappuclip run <file> [function]` runs a module's exported function (by default `test`), or an action
+      script, in the helper's own code in process, and exits 0 or 1. Host calls get the app's refusals and
+      are recorded, not performed. The API conformance suites (architecture §17) are run by it, and so is
+      `pappu-dev corpus functional`, the corpus's functional pass rate (PRD §3.3), which reports blocked,
+      load-only, untested and failed packages separately over every package in the corpus.
+    tests:
+      - PappuCLITests/aModulesTestFunctionThatReturnsExitsZero
+      - PappuCLITests/aFunctionThatThrowsExitsOne
+      - PappuCLITests/aRejectedPromiseExitsOne
+      - PappuCLITests/aNamedFunctionIsCalledInsteadOfTest
+      - PappuCLITests/aMissingFunctionIsNotRunAndExitsOne
+      - PappuCLITests/aFileThatWillNotCompileExitsOne
+      - PappuCLITests/aMissingFileExitsOne
+      - PappuCLITests/aRunStillGoingAtTheTimeoutExitsOne
+      - PappuCLITests/aTestFunctionBesideADefaultExportIsFound
+      - PappuCLITests/anActionPathStillMeansTheExtensionObjects
+      - PappuCLITests/aFileWithNoExportsRunsAsAnActionScript
+      - PappuCLITests/aModuleCanBeForcedToRunAsAScript
+      - PappuCLITests/thePackagesOtherFilesCanBeRequired
+      - PappuCLITests/typeScriptIsTranspiled
+      - PappuCLITests/optionsReachTheFunction
+      - PappuCLITests/modulesAndScriptsAreToldApart
+      - PappuCLITests/thePackageIsTheNearestPackageFolder
+      - PappuCLITests/hostCallsAreRecordedAndNotPerformed
+      - PappuCLITests/aGatedCallIsRefusedInTheAppsWordsWithoutItsGrant
+      - PappuCLITests/noRequestIsSentEvenWithTheNetworkGrant
+      - PappuCLITests/theHeadlessClipboardKeepsWhatWasCopied
+      - PappuCLITests/anUnknownMethodIsRefused
+      - PappuCLITests/scriptsAreNeverRunHeadless
+      - PappuCLITests/theReportEndsWithTheVerdict
+      - PappuCLITests/theAPISectionOfTheConformanceSuitePasses
+      - PappuCLITests/theConformanceSuitePassesUnderPappuclipRun
+      - PappuCLITests/aValueOrAServedEffectIsAPass
+      - PappuCLITests/readingTheClipboardAloneIsNotAnEffect
+      - PappuCLITests/whatAHeadlessRunCannotHaveIsBlockedAndSaysWhy
+      - PappuCLITests/aThrowATimeoutOrNoStartIsAFailure
+      - PappuCLITests/aPackageIsAsGoodAsItsWorstAction
+      - PappuCLITests/theDenominatorIsEveryPackage
+      - PappuCLITests/aURLActionPassesWhenItMakesAURL
+      - PappuCLITests/aModuleActionPassesWhenItReturnsAValue
+      - PappuCLITests/aModuleActionThatThrowsFails
+      - PappuCLITests/anAppleScriptIsLoadOnlyAndAServiceIsBlocked
+      - PappuCLITests/aPackageThatDoesNotLoadFails
+      - manual:docs/checklists/m3-manual.md
   DEV-3: { priority: P1, milestone: M5, tests: [] }
   DEV-4: { priority: P1, milestone: M5, tests: [] }
   DEV-5: { priority: P2, milestone: post-1.0, tests: [] }

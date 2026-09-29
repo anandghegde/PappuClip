@@ -1,0 +1,3568 @@
+{
+  "budgets" : {
+    "accessibility" : {
+      "analysisMs" : 20,
+      "populationMs" : 30,
+      "readMs" : 70,
+      "renderMs" : 30
+    },
+    "clipboardFallback" : {
+      "analysisMs" : 20,
+      "populationMs" : 30,
+      "readMs" : 270,
+      "renderMs" : 30
+    },
+    "hardCutoffMs" : 700,
+    "populationPerFunctionMs" : 15
+  },
+  "durationSeconds" : 13.565485954284668,
+  "environment" : {
+    "accessibilityTrusted" : true,
+    "architecture" : "arm64",
+    "hardwareModel" : "Mac16,10",
+    "osBuild" : "25E253",
+    "osVersion" : "26.4.1",
+    "signing" : {
+      "codeHash" : "fb5f4e3e0832bb327e4675dfc9e823bfb1bf33d8",
+      "hardenedRuntime" : false,
+      "identifier" : "pappu-dev-555549441c0d414d8fda38bdaba6e89326304c79",
+      "isAdHoc" : true
+    }
+  },
+  "findings" : [
+    {
+      "detail" : "PRD §3.3 asks for at least 95% of the corpus to work. 176/381 functional (46.2%): 83 blocked, 97 load-only, 6 untested, 19 failed",
+      "key" : "functional-rate",
+      "labels" : {
+
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "Does not load: Config.json: The JSON is empty.",
+      "key" : "contrib/Accordance.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "Add to Stash Shelf (service): Needs a macOS Service from another app.",
+      "key" : "contrib/AddToQSpaceProStashShelf.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Add to Stash Shelf (service): Needs a macOS Service from another app.",
+      "key" : "contrib/AddToQSpaceStashShelf.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for showText.",
+      "key" : "contrib/AsyncGlobals.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Does not load: The package has 2 Config files (Config.json, Config.plist); it must have one.",
+      "key" : "contrib/BibleVerses.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "Bookends (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/Bookends.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "contrib/BulgarianPhoneticLatinSwitcher.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Does not load: The package has 2 Config files (Config.json, Config.plist); it must have one.",
+      "key" : "contrib/CoffeeScript.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "HEX (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/ColorHexa.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "CP (url): Opens https: URL.",
+      "key" : "contrib/ConnectedPapers.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Copy (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/CopyAlternative.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Copy as HTML Link (javaScript): Runs and returns a value.; Copy as Markdown Link (javaScript): Runs and returns a value.",
+      "key" : "contrib/CopyUrlWithTitle.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Does not load: Config.js: There is no #popclip comment header to read the config from (FMT-2).",
+      "key" : "contrib/CyrillicLatinSwitcher.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "DB-IP Geo-Location (url): Opens https: URL.",
+      "key" : "contrib/DB-IP.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Clip to DEVONthink (appleScript): AppleScript is not run by a corpus pass.; Search in DEVONthink (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/DEVONthinkPro.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Dash Snippet (service): Needs a macOS Service from another app.",
+      "key" : "contrib/DashSnippets.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pressKeys, pressKeys.",
+      "key" : "contrib/DeepLApp.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "DeskConnect (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/DeskConnect.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Dial with Command-C (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/DialCommandC.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Dialectic (service): Needs a macOS Service from another app.",
+      "key" : "contrib/Dialectic.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "cc (url): Opens http: URL.",
+      "key" : "contrib/DictCC.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Dictionary (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/Dictionary2.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Douyin (url): Opens https: URL.",
+      "key" : "contrib/Douyin.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Ember (service): Needs a macOS Service from another app.",
+      "key" : "contrib/Ember.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Emoji (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/Emoji.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Emojipedia (url): Opens http: URL.",
+      "key" : "contrib/Emojipedia.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Code (keyPress): Shown only in com.evernote.Evernote.",
+      "key" : "contrib/EvernoteCodeBlock.popclipext",
+      "labels" : {
+        "blockers" : "app",
+        "kinds" : "keyPress",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Explain Shell (url): Opens http: URL.",
+      "key" : "contrib/ExplainShell.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Fantastical (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/Fantastical.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Fantastical (service): Needs a macOS Service from another app.",
+      "key" : "contrib/Fantastical2.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Settings error: API URL not configured",
+      "key" : "contrib/Flomo.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "GBK URL Encode (shellScript): A shell script is not run by a corpus pass.; GBK URL Decode (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/GbkURLEncode.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "MN (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/GetMagnetLinks.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "GitHub Search (url): Opens https: URL.",
+      "key" : "contrib/GitHubSearch.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Gmail Compose (url): Opens https: URL.",
+      "key" : "contrib/GmailCompose.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "GoldenDict (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/GoldenDict.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "\" (url): Opens http: URL.",
+      "key" : "contrib/GoogleExact.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Google Images Exact (url): Opens https: URL.",
+      "key" : "contrib/GoogleImagesExact.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Google Scholar (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/GoogleScholarFirefox.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Guokr (url): Opens http: URL.",
+      "key" : "contrib/Guokr.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "HTML→Markdown (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/HTMLToMarkdown.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "contrib/Hypothesis.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "IPdb (url): Opens https: URL.",
+      "key" : "contrib/IPdb.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Its population function offers only actions without code (shown disabled) or submenus, which arrive in M4.",
+      "key" : "contrib/IconPreview.popclipext",
+      "labels" : {
+        "verdict" : "untested"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "I'm Feeling Lucky (url): Opens http: URL.",
+      "key" : "contrib/ImFeelingLucky.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Instant Translate (service): Needs a macOS Service from another app.",
+      "key" : "contrib/InstantTranslateApp.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Does not load: The package has 2 Config files (Config.json, Config.plist); it must have one.",
+      "key" : "contrib/Instapaper.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "JSON Tailor (url): Opens https: URL.",
+      "key" : "contrib/JSONTailor.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "JSONer (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/JSONer.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Jira (url): Opens https: URL.",
+      "key" : "contrib/JiraCloud.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "JSON Prettify (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/JsonPrettify.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Does not load: The package has 2 Config files (Config.json, Config.plist); it must have one.",
+      "key" : "contrib/Klipz.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "(untitled) (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/LLMCLI.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Language Bar (service): Needs a macOS Service from another app.",
+      "key" : "contrib/LanguageBar.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Does not load: The package has 2 Config files (Config.json, Config.plist); it must have one.",
+      "key" : "contrib/Lingvo.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "MD5 (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/MD5.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "MD5 (Python) (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/MD5Python.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Magnetize (url): Opens magnet: URL.",
+      "key" : "contrib/Magnetize.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Mail (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/Mail.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Markdown Link (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/MarkdownLink.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Follow on Mastodon (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "contrib/Mastodon.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/MicrosoftWord.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Myna (service): Needs a macOS Service from another app.",
+      "key" : "contrib/Myna.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Neeva (url): Opens https: URL.",
+      "key" : "contrib/Neeva.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Notational velocity (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/NotationalVelocity.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Notebooks (url): Opens notebooks: URL.",
+      "key" : "contrib/Notebooks.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Does not load: The package has no Config file in its top folder.",
+      "key" : "contrib/OneNote.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "The module's actions do not load: Config.ts: module.actions[0].submenu: Submenus arrive with the bar's submenu support (M4); until then this action cannot load as its author wrote it.",
+      "key" : "contrib/OpenAIPrompt.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "Does not load: Config.json: com.pilotmoon.popclip.extention.open-html-links has no actions.",
+      "key" : "contrib/OpenHTMLLinks.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "Open in Brave (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/OpenInBrave.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Open in Chrome (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/OpenInChrome.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Open in Edge (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/OpenInEdge.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Open in Firefox (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/OpenInFirefox.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Open in Firefox (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/OpenInFirefoxNightly.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Open in Opera (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/OpenInOpera.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Open in Safari (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/OpenInSafari.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Open in VS Code (appleScript): AppleScript is not run by a corpus pass.; Paste into VS Code (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/OpenInVSCode.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Open in Vivaldi (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/OpenInVivaldi.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Phind (url): Opens https: URL.",
+      "key" : "contrib/Phind.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "POCH (url): Opens https: URL.",
+      "key" : "contrib/Pochta.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Highlight (keyPress): Shown only in com.apple.Preview, net.sourceforge.skim-app.skim, com.readdle.PDFExpert-Mac.",
+      "key" : "contrib/PreviewHighlight.popclipext",
+      "labels" : {
+        "blockers" : "app",
+        "kinds" : "keyPress",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Pronounce (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/Pronounce.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "PushDialer (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/PushDialer.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Python Package (url): Opens https: URL.",
+      "key" : "contrib/PythonPackage.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "QR Code (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/QRCode.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "QRGenerator (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/QRGenerator.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "RRun (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/RRun.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Rdio (url): Opens http: URL.",
+      "key" : "contrib/Rdio.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Resolve (url): Opens http: URL.",
+      "key" : "contrib/ReferenceResolver.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "contrib/Reflow.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "↵ (keyPress): Every combo parses.",
+      "key" : "contrib/Return.popclipext",
+      "labels" : {
+        "kinds" : "keyPress",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Reveal in QSpace (service): Needs a macOS Service from another app.",
+      "key" : "contrib/RevealInQSpace.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Reveal in QSpace Pro (service): Needs a macOS Service from another app.",
+      "key" : "contrib/RevealInQSpacePro.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "SHA-1 (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/SHA-1.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "SHA-256 (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/SHA-256.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "SHA-512 (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/SHA-512.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Search Salesforce (url): Opens https: URL.",
+      "key" : "contrib/SalesforceSearch.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Say (keyPress): Every combo parses.",
+      "key" : "contrib/SayAlt.popclipext",
+      "labels" : {
+        "kinds" : "keyPress",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "SearX (url): Opens https: URL.",
+      "key" : "contrib/SearX.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "⌘A⌘C (keyPress): Every combo parses.",
+      "key" : "contrib/SelectAllAndCopy.popclipext",
+      "labels" : {
+        "kinds" : "keyPress",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for showText.",
+      "key" : "contrib/ShowInNatoAlphabet.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Simplenote (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/Simplenote.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Sina Weibo (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/SinaWeibo.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Slicereader (service): Needs a macOS Service from another app.",
+      "key" : "contrib/Slicereader.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Smart Translate (javaScript): Runs and asks for showText.",
+      "key" : "contrib/SmartTranslate.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Save in SnipNotes (service): Needs a macOS Service from another app.",
+      "key" : "contrib/SnipNotes.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Sparrow (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/Sparrow.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Spotlight (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/Spotlight.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Sticky Notification (service): Needs a macOS Service from another app.",
+      "key" : "contrib/StickyNotifications.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "ST (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/SublimeText.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Sub (keyPress): Every combo parses.",
+      "key" : "contrib/Subscript.popclipext",
+      "labels" : {
+        "kinds" : "keyPress",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Summ. (service): Needs a macOS Service from another app.",
+      "key" : "contrib/Summarize.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Super (keyPress): Every combo parses.",
+      "key" : "contrib/Superscript.popclipext",
+      "labels" : {
+        "kinds" : "keyPress",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Throws: undefined is not an object (evaluating 'axios.get')",
+      "key" : "contrib/Template_JavaScript_Network.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "TestResult (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/TestAppleScriptResult.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs without error, and does nothing a headless run can observe.",
+      "key" : "contrib/TestDynamic.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "untested"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "TestAScript (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/TestFieldsAppleScript.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "TestShell (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/TestFieldsShell.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Does not load: The package has no Config file in its top folder.",
+      "key" : "contrib/TestIconStrings.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "TestSVG-text (shellScript): A shell script is not run by a corpus pass.; TestText (shellScript): A shell script is not run by a corpus pass.; TestLocalPNG (shellScript): A shell script is not run by a corpus pass.; TestLocalSVG (shellScript): A shell script is not run by a corpus pass.; TestSVG-star (shellScript): A shell script is not run by a corpus pass.; TestSymbol (shellScript): A shell script is not run by a corpus pass.; NullIcon (shellScript): A shell script is not run by a corpus pass.; TestIconifyColor (shellScript): A shell script is not run by a corpus pass.; TestIconify (shellScript): A shell script is not run by a corpus pass.; MissingIconify (shellScript): A shell script is not run by a corpus pass.; IconifyAspect (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/TestIcons.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "contrib/TestJSAuth.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "POST superagent (javaScript): Throws: undefined is not an object (evaluating 'superagent\n          .post')",
+      "key" : "contrib/TestJavaScript.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "(untitled) (url): Opens http: URL.",
+      "key" : "contrib/TestMinimal.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Create TextExpander Snippet (service): Needs a macOS Service from another app.",
+      "key" : "contrib/TestMultiConfig.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "TestOptions (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/TestOptions.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "TestPWAuth (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/TestPasswordAuth.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs without error, and does nothing a headless run can observe.",
+      "key" : "contrib/TestPasteboard.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "untested"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "contrib/TestRTF.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "scpt (appleScript): AppleScript is not run by a corpus pass.; scpt2 (appleScript): AppleScript is not run by a corpus pass.; pre (appleScript): AppleScript is not run by a corpus pass.; params (appleScript): AppleScript is not run by a corpus pass.; handler text (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/TestScpt.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Hi Py (shellScript): A shell script is not run by a corpus pass.; Bye Py (shellScript): A shell script is not run by a corpus pass.; Hi Rb (shellScript): A shell script is not run by a corpus pass.; Hi Swift (shellScript): A shell script is not run by a corpus pass.; No Interpreter sh (shellScript): A shell script is not run by a corpus pass.; Direct zsh (shellScript): A shell script is not run by a corpus pass.; Direct ruby (shellScript): A shell script is not run by a corpus pass.; Direct python (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/TestScripts.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Spin (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/TestSpin.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (url): Opens http: URL.",
+      "key" : "contrib/TestYAML.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Create TextExpander Snippet (service): Needs a macOS Service from another app.",
+      "key" : "contrib/TextExpander.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "TM (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/TextMate.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "TextWrangler (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/TextWrangler.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Things (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/Things.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Together (service): Needs a macOS Service from another app.",
+      "key" : "contrib/Together.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Toggle Case (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/ToggleCase.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "TorontoPublicLibrary (url): Opens https: URL.",
+      "key" : "contrib/TorontoPublicLibrary.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Tweet (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/Tweet.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Tweet (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/TweetInNotificationCenter.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "TweetBot (url): Opens tweetbot: URL.",
+      "key" : "contrib/Tweetbot.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "@{popclip text} (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/TweetbotUser.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Twitter (service): Needs a macOS Service from another app.; {popclip text} (service): Needs a macOS Service from another app.",
+      "key" : "contrib/Twitter.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Does not load: Config.plist: The identifier \"-colortest\" must start and end with a letter or digit.",
+      "key" : "contrib/TwitterColor.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "Tweet (shellScript): A shell script is not run by a corpus pass.; {popclip text} (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/Twitterrific.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Underline (keyPress): Shown only in net.sourceforge.skim-app.skim.; Underline (keyPress): Shown only in com.apple.Preview.",
+      "key" : "contrib/Underline.popclipext",
+      "labels" : {
+        "blockers" : "app",
+        "kinds" : "keyPress",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Translate (service): Needs a macOS Service from another app.",
+      "key" : "contrib/UniversalTranslator.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Vocabulary.com (url): Opens https: URL.",
+      "key" : "contrib/Vocabulary.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Whois (url): Opens http: URL.",
+      "key" : "contrib/WhoIs.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Wunderlist (service): Needs a macOS Service from another app.",
+      "key" : "contrib/Wunderlist.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "// (keyPress): Every combo parses.",
+      "key" : "contrib/XcodeComment.popclipext",
+      "labels" : {
+        "kinds" : "keyPress",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "YoruFukurou (shellScript): A shell script is not run by a corpus pass.; {popclip text} (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "contrib/YoruFukurou.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Zhihu (url): Opens http: URL.",
+      "key" : "contrib/Zhihu.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Allegro (url): Opens http: URL.",
+      "key" : "contrib/ZnajdzAukcje.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Event (appleScript): AppleScript is not run by a corpus pass.; Todo (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/iCal.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "iTunes Music (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "contrib/iTunesMusic.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Jmpy Short URL (javaScript): Needs settings or a sign-in: API Key is required. Set it in PopClip options.; Jmpy QR Code (javaScript): Needs settings or a sign-in: API Key is required. Set it in PopClip options.",
+      "key" : "contrib/jmpy.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for showText.",
+      "key" : "misc/NoID.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for showText.",
+      "key" : "misc/NoID.popcliptxt",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "misc/iconify.zsh.popcliptxt",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "2Do (service): Needs a macOS Service from another app.",
+      "key" : "source/2Do.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for openUrl.",
+      "key" : "source/Agenda.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/Alfred.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Alphagram (javaScript): Runs and asks for pasteText.; Scramble (javaScript): Runs and asks for pasteText.",
+      "key" : "source/Alphagram.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/AlternatingCase.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens http: URL.",
+      "key" : "source/Amazon.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (service): Needs a macOS Service from another app.",
+      "key" : "source/Antidote.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/Antinote.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/Anybox.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteboard.write.",
+      "key" : "source/Append.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens https: URL.",
+      "key" : "source/ArchiveIs.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Audible (url): Opens https: URL.",
+      "key" : "source/Audible.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "BBedit (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/BBEdit.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Baidu (url): Opens http: URL.",
+      "key" : "source/Baidu.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Base64 Encode (javaScript): Runs and asks for pasteText.; Base64 Decode (javaScript): Runs and asks for pasteText.",
+      "key" : "source/Base64.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Bear (service): Needs a macOS Service from another app.",
+      "key" : "source/Bear.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/Bike.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (url): Opens http: URL.",
+      "key" : "source/Bing.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Bing Translator (url): Opens https: URL.",
+      "key" : "source/BingTranslator.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "source/Bitly.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(round) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/Brackets.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Bubble Translate (service): Needs a macOS Service from another app.",
+      "key" : "source/BubbleTranslate3.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Buffer (url): Opens http: URL.",
+      "key" : "source/Buffer.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "com.apple.Safari (javaScript): Runs and asks for copyText.",
+      "key" : "source/BundleID.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "BusyCal (url): Opens busycalevent: URL.",
+      "key" : "source/BusyCal.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens busycontacts: URL.",
+      "key" : "source/BusyContacts.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "The population function fails: undefined is not an object (evaluating '_mathjs.evaluate')",
+      "key" : "source/Calculate.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "Call (url): Opens tel: URL.",
+      "key" : "source/Call.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens https: URL.",
+      "key" : "source/CamelCamelCamel.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/Capitalize.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Cardhop (service): Needs a macOS Service from another app.",
+      "key" : "source/Cardhop.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Does not load: Config.plist: Actions[0]: The action has no action type: none of url, keyCombo, serviceName, shortcutName, appleScript, shellScript or javaScript.",
+      "key" : "source/CharCount.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteboard.write, openUrl, pressKeys, pressKeys, pressKeys.",
+      "key" : "source/ChatGPTApp.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for openUrl.",
+      "key" : "source/ChatGPTWebsite.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens cheatsheet: URL.",
+      "key" : "source/Cheatsheet.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for openUrl.",
+      "key" : "source/ClaudeWebsite.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "source/ClickUp.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "camelCase (javaScript): Runs and returns a value.; UpperCamelCase (javaScript): Runs and returns a value.; kebab-case (javaScript): Runs and returns a value.; snake_case (javaScript): Runs and returns a value.; CONSTANT_CASE (javaScript): Runs and returns a value.",
+      "key" : "source/CodeCase.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Join with commas (javaScript): Runs and asks for pasteText.",
+      "key" : "source/CommaList.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and returns a value.",
+      "key" : "source/Convert.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for copyText.",
+      "key" : "source/CopyAsMarkdown.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for copyText.",
+      "key" : "source/CopyLinkToHighlight.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for openUrl.",
+      "key" : "source/Craft.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Clip to Curiota (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/Curiota.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and returns a value.",
+      "key" : "source/CyrillicTransliteration.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Clip to DEVONthink (service): Needs a macOS Service from another app.; Search in DEVONthink (service): Needs a macOS Service from another app.",
+      "key" : "source/DEVONthink.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "DOI (url): Opens http: URL.",
+      "key" : "source/DOI.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Dash (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "source/Dash.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Day One (url): Opens dayone: URL.",
+      "key" : "source/DayOne.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pressKeys, pressKeys.",
+      "key" : "source/DeepLTranslator.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "⌫ (keyPress): Every combo parses.; ⌫ (keyPress): Every combo parses.",
+      "key" : "source/Delete.popclipext",
+      "labels" : {
+        "kinds" : "keyPress",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Deliveries (service): Needs a macOS Service from another app.",
+      "key" : "source/Deliveries.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Discogs (url): Opens http: URL.",
+      "key" : "source/Discogs.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (service): Needs a macOS Service from another app.",
+      "key" : "source/Dockside.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Doit.im (service): Needs a macOS Service from another app.",
+      "key" : "source/Doit.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Douban (url): Opens http: URL.; Douban (url): Opens http: URL.; Douban (url): Opens http: URL.; Douban (url): Opens http: URL.; Douban (url): Opens http: URL.",
+      "key" : "source/Douban.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Downie (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "source/Downie.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Send to Drafts (service): Needs a macOS Service from another app.; Send to Drafts (service): Needs a macOS Service from another app.",
+      "key" : "source/Drafts.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "source/Droplr.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (service): Needs a macOS Service from another app.",
+      "key" : "source/Dropover.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Dropshelf (service): Needs a macOS Service from another app.",
+      "key" : "source/Dropshelf.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "DuckDuckGo (url): Opens https: URL.",
+      "key" : "source/DuckDuckGo.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Due (url): Opens due: URL.",
+      "key" : "source/Due.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "EagleFiler (service): Needs a macOS Service from another app.",
+      "key" : "source/EagleFiler.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Ebay (url): Opens http: URL.",
+      "key" : "source/Ebay.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Ecosia (url): Opens https: URL.",
+      "key" : "source/Ecosia.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "New email with text (javaScript): Runs and asks for openUrl.",
+      "key" : "source/Email.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Etsy (url): Opens https: URL.",
+      "key" : "source/Etsy.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Search In Eudic (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/Eudic.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "source/Evernote.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Fantastical (service): Needs a macOS Service from another app.",
+      "key" : "source/Fantastical3.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Find this file name with FAF (url): Opens fafapp: URL.; Search here with FAF (url): Opens fafapp: URL.",
+      "key" : "source/FindAnyFile.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for openUrl.",
+      "key" : "source/Floating.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Bold (keyPress): Every combo parses.; Italic (keyPress): Every combo parses.; Underline (keyPress): Every combo parses.",
+      "key" : "source/Formatting.popclipext",
+      "labels" : {
+        "kinds" : "keyPress",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for share.",
+      "key" : "source/Freeform.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Half (shellScript): A shell script is not run by a corpus pass.; Full (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "source/FullHalfWidth.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "IP (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "source/GetIP.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (url): Opens gladys: URL.",
+      "key" : "source/Gladys.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Glosbe (url): Opens https: URL.",
+      "key" : "source/Glosbe.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Missing API token",
+      "key" : "source/GoodLinks.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Goodreads (url): Opens https: URL.",
+      "key" : "source/Goodreads.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Google Images (url): Opens https: URL.",
+      "key" : "source/GoogleImages.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Google Maps (url): Opens https: URL.",
+      "key" : "source/GoogleMaps.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Google Scholar (url): Opens http: URL.",
+      "key" : "source/GoogleScholar.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Google (url): Opens https: URL.",
+      "key" : "source/GoogleSearch.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Google Translate (url): Opens https: URL.",
+      "key" : "source/GoogleTranslate.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for openUrl.",
+      "key" : "source/GrokWebsite.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "HTML-encode (javaScript): Runs and asks for pasteText.; HTML-decode (javaScript): Runs and asks for pasteText.",
+      "key" : "source/HTMLEncode.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (keyPress): Shown only in com.apple.Preview, net.sourceforge.skim-app.skim, com.evernote.Evernote, com.readdle.PDFExpert-Mac, md.obsidian, com.ngocluu.goodlinks.; (untitled) (keyPress): Shown only in com.literatureandlatte.scrivener2, com.literatureandlatte.scrivener3, com.apple.iWork.Pages, com.electron.logseq.; (untitled) (keyPress): Shown only in com.devon-technologies.thinkpro2, com.devon-technologies.think3, com.devon-technologies.think, com.Alternote.; (untitled) (keyPress): Shown only in pro.writer.mac, net.ia.presenter.; (untitled) (keyPress): Shown only in com.smileonmymac.PDFpenPro, com.smileonmymac.PDFpen.; (untitled) (keyPress): Shown only in com.apple.Notes.",
+      "key" : "source/Highlight.popclipext",
+      "labels" : {
+        "blockers" : "app",
+        "kinds" : "keyPress",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "HoudahSpot (service): Needs a macOS Service from another app.",
+      "key" : "source/HoudahSpot.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/Hyphenate.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for openUrl.",
+      "key" : "source/IINA.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens http: URL.",
+      "key" : "source/IMDb.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Makes a network request.",
+      "key" : "source/InstantTranslate.popclipext",
+      "labels" : {
+        "blockers" : "network",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "source/Instapaper.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "JD (url): Opens http: URL.",
+      "key" : "source/JD.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and returns a value.",
+      "key" : "source/JoinLines.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens https: URL.",
+      "key" : "source/Kagi.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Kagi Translate (URL) (url): Opens https: URL.; Kagi Translate (Text) (url): Opens https: URL.",
+      "key" : "source/KagiTranslate.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for showText.",
+      "key" : "source/LargeType.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/LatexToMathML.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "LaunchBar (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/LaunchBar.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Leap (service): Needs a macOS Service from another app.",
+      "key" : "source/Leap.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Leech (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/Leech.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (url): Opens lexibird: URL.",
+      "key" : "source/Lexibird.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Its population function offers only actions without code (shown disabled) or submenus, which arrive in M4.",
+      "key" : "source/LineCount.popclipext",
+      "labels" : {
+        "verdict" : "untested"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (url): Opens https: URL.",
+      "key" : "source/LinkedIn.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for openUrl.",
+      "key" : "source/Logseq.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/Lowercase.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens https: URL.",
+      "key" : "source/MDNWebDocs.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Make Sticky (service): Needs a macOS Service from another app.",
+      "key" : "source/MakeSticky.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Maps (url): Opens maps: URL.",
+      "key" : "source/Maps.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens https: URL.",
+      "key" : "source/Mapy.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "source/Markdown.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs richText.convert.",
+      "key" : "source/MarkdownToRTF.popclipext",
+      "labels" : {
+        "blockers" : "system-service",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Mate Translate (service): Needs a macOS Service from another app.",
+      "key" : "source/MateTranslate.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for share.",
+      "key" : "source/Messages.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens music: URL.",
+      "key" : "source/Music.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "source/NameColor.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Naver (url): Opens http: URL.",
+      "key" : "source/Naver.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens https: URL.",
+      "key" : "source/NaverMap.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "NoteAway (service): Needs a macOS Service from another app.",
+      "key" : "source/NoteAway.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Notefile (url): Opens notefile: URL.",
+      "key" : "source/Notefile.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for share.",
+      "key" : "source/Notes.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "MiniNote Pro (url): Opens notestab: URL.",
+      "key" : "source/NotesTab.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "source/Notion.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for openUrl.",
+      "key" : "source/Obsidian.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Reset Chat (javaScript): Runs without error, and does nothing a headless run can observe.",
+      "key" : "source/Ollama.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "untested"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/OmniFocus.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Makes a network request.",
+      "key" : "source/Omnivore.popclipext",
+      "labels" : {
+        "blockers" : "network",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "source/OneNote.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for openUrl.",
+      "key" : "source/OnlineDictionary.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for openUrl.",
+      "key" : "source/OnlineThesaurus.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Reset Chat (javaScript): Runs without error, and does nothing a headless run can observe.",
+      "key" : "source/OpenAIChat.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "untested"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/Pages.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Paper (service): Needs a macOS Service from another app.",
+      "key" : "source/Paper.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (url): Opens parcel: URL.",
+      "key" : "source/Parcel.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Paste + ↵ (javaScript): Runs and asks for performCommand, pressKeys.",
+      "key" : "source/PasteAndEnter.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Paste = (javaScript): Runs and asks for performCommand.",
+      "key" : "source/PasteAndMatch.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Dial with Phone Amego (url): Opens phoneamego: URL.",
+      "key" : "source/PhoneAmego.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "source/Pinboard.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and returns a value.",
+      "key" : "source/Pinyin.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Pocket (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "source/Pocket.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (service): Needs a macOS Service from another app.",
+      "key" : "source/PopDo.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (url): Opens https: URL.",
+      "key" : "source/Presearch.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Print (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "source/Print.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "PubMed (url): Opens http: URL.",
+      "key" : "source/PubMed.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Quicksilver (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/Quicksilver.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "source/Quiver.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "“…” (javaScript): Runs and asks for pasteText.",
+      "key" : "source/Quotes.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens https: URL.",
+      "key" : "source/Qwant.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/ROT13.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "source/RaindropIO.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for share.",
+      "key" : "source/ReadingList.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Save Highlight (javaScript): Needs settings or a sign-in: Not signed in; Save Article (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "source/Readwise.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/Reminders.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/RemoveSpaces.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/Reverse.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Reverso (service): Needs a macOS Service from another app.",
+      "key" : "source/Reverso.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: API Key and graph name are required.",
+      "key" : "source/RoamResearch.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (url): Opens http: URL.",
+      "key" : "source/RottenTomatoes.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (appleScript): AppleScript is not run by a corpus pass.; (untitled) (appleScript): AppleScript is not run by a corpus pass.; (untitled) (appleScript): AppleScript is not run by a corpus pass.; (untitled) (appleScript): AppleScript is not run by a corpus pass.; (untitled) (appleScript): AppleScript is not run by a corpus pass.; (untitled) (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/RunCommand.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs a script.",
+      "key" : "source/Say.popclipext",
+      "labels" : {
+        "blockers" : "script",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Capture selected text in ScreenFloat (url): Opens esssf2: URL.; Capture a screenshot with ScreenFloat (url): Opens esssf2: URL.; Capture a timed screenshot with ScreenFloat (url): Opens esssf2: URL.; Record your screen with ScreenFloat (url): Opens esssf2: URL.",
+      "key" : "source/ScreenFloat.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (service): Needs a macOS Service from another app.; (untitled) (service): Needs a macOS Service from another app.; (untitled) (service): Needs a macOS Service from another app.",
+      "key" : "source/Scrivener.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pressKeys.",
+      "key" : "source/SelectAll.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/SentenceCase.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Makes a network request.",
+      "key" : "source/ShortMenu.popclipext",
+      "labels" : {
+        "blockers" : "network",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Throws: undefined is not an object (evaluating 'axios_1.default')",
+      "key" : "source/ShortenLink.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/Shuffle.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "SideNotes (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/SideNotes.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Skype (service): Needs a macOS Service from another app.",
+      "key" : "source/Skype.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "source/Slack.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Throws: undefined is not an object (evaluating 'voca.slugify')",
+      "key" : "source/Slugify.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "SnippetsLab (service): Needs a macOS Service from another app.",
+      "key" : "source/SnippetsLab.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/Sort.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens spotify: URL.",
+      "key" : "source/Spotify.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "StartPage (url): Opens https: URL.",
+      "key" : "source/StartPage.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Swap (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "source/Swap.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Makes a network request.",
+      "key" : "source/Tana.popclipext",
+      "labels" : {
+        "blockers" : "network",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Taobao (url): Opens http: URL.",
+      "key" : "source/Taobao.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/TaskPaper.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (service): Needs a macOS Service from another app.",
+      "key" : "source/Tembo.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "TextEdit (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/TextEdit.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/TextSoap.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "The Hit List (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/TheHitList.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Things (url): Opens things: URL.",
+      "key" : "source/Things3.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "TickTick (service): Needs a macOS Service from another app.",
+      "key" : "source/TickTick.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and returns a value.",
+      "key" : "source/Timestamp.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (shellScript): A shell script is not run by a corpus pass.",
+      "key" : "source/TitleCase.popclipext",
+      "labels" : {
+        "kinds" : "shellScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Todo (service): Needs a macOS Service from another app.",
+      "key" : "source/Todo.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Needs settings or a sign-in: Not signed in",
+      "key" : "source/Todoist.popclipext",
+      "labels" : {
+        "blockers" : "credentials",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Tot (url): Opens tot: URL.",
+      "key" : "source/Tot.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Convert to Simplified (javaScript): Runs and asks for pasteText.; Convert to Traditional (javaScript): Runs and asks for pasteText.",
+      "key" : "source/TradSim.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Translate Tab (service): Needs a macOS Service from another app.",
+      "key" : "source/TranslateTab.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (url): Opens translatium: URL.",
+      "key" : "source/Translatium.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Twitter Search (url): Opens https: URL.",
+      "key" : "source/TwitterSearch.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Create Typinator Snippet (appleScript): AppleScript is not run by a corpus pass.",
+      "key" : "source/Typinator.popclipext",
+      "labels" : {
+        "kinds" : "appleScript",
+        "verdict" : "load-only"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "URL-encode (javaScript): Runs and asks for pasteText.; URL-decode (javaScript): Runs and asks for pasteText.",
+      "key" : "source/URLEncode.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Ulysses (url): Opens ulysses: URL.",
+      "key" : "source/Ulysses.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Unclutter (service): Needs a macOS Service from another app.",
+      "key" : "source/Unclutter.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/Underscore.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for showText.",
+      "key" : "source/UnicodeLens.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "1970-01-01 03:25:45 UTC (javaScript): Runs and returns a value.",
+      "key" : "source/UnixTime.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for openUrl.",
+      "key" : "source/UpNote.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Runs and asks for pasteText.",
+      "key" : "source/Uppercase.popclipext",
+      "labels" : {
+        "kinds" : "javaScript",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Urban Dictionary (url): Opens http: URL.",
+      "key" : "source/UrbanDictionary.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (javaScript): Makes a network request.",
+      "key" : "source/WaybackMachine.popclipext",
+      "labels" : {
+        "blockers" : "network",
+        "kinds" : "javaScript",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "(untitled) (url): Opens https: URL.",
+      "key" : "source/What3Words.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Wikipedia (url): Opens https: URL.",
+      "key" : "source/Wikipedia.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Wolfram Alpha (url): Opens http: URL.",
+      "key" : "source/WolframAlpha.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Does not load: Config.plist: Actions[0]: The action has no action type: none of url, keyCombo, serviceName, shortcutName, appleScript, shellScript or javaScript.",
+      "key" : "source/WordCount.popclipext",
+      "labels" : {
+        "verdict" : "failed"
+      },
+      "outcome" : "refuted"
+    },
+    {
+      "detail" : "WorldCat (url): Opens https: URL.",
+      "key" : "source/WorldCat.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Yahoo! Japan (url): Opens https: URL.",
+      "key" : "source/YahooJapanSearch.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "Yahoo! Search (url): Opens https: URL.",
+      "key" : "source/YahooSearch.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens https: URL.",
+      "key" : "source/Yandex.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (service): Needs a macOS Service from another app.",
+      "key" : "source/Yoink.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "Yojimbo (service): Needs a macOS Service from another app.; Yojimbo (service): Needs a macOS Service from another app.",
+      "key" : "source/Yojimbo.popclipext",
+      "labels" : {
+        "blockers" : "service",
+        "kinds" : "service",
+        "verdict" : "blocked"
+      },
+      "outcome" : "inconclusive"
+    },
+    {
+      "detail" : "YouTube (url): Opens http: URL.",
+      "key" : "source/YouTube.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    },
+    {
+      "detail" : "(untitled) (url): Opens nvalt: URL.",
+      "key" : "source/nvALT.popclipext",
+      "labels" : {
+        "kinds" : "url",
+        "verdict" : "passed"
+      },
+      "outcome" : "confirmed"
+    }
+  ],
+  "log" : [
+    "176/381 functional (46.2%): 83 blocked, 97 load-only, 6 untested, 19 failed"
+  ],
+  "measurements" : [
+
+  ],
+  "notes" : "Denominator: every package in the corpus, including the ones that do not load. A package passes only when every action it offers passes. JavaScript runs in the helper's own code against a headless host with every grant, where network requests, scripts and system services are refused (counted as blocked); URL actions pass when they expand to a URL and key presses when every combo parses; AppleScript and shell scripts are not run (load-only); Services, Shortcuts, app-specific actions and actions needing credentials are blocked.",
+  "parameters" : {
+    "blocked" : "83",
+    "blocked-by-app" : "4",
+    "blocked-by-credentials" : "19",
+    "blocked-by-network" : "5",
+    "blocked-by-script" : "1",
+    "blocked-by-service" : "53",
+    "blocked-by-shortcut" : "0",
+    "blocked-by-system-service" : "1",
+    "corpus" : "Tests/corpus",
+    "corpus-commit" : "81d774b2040e91a9895b20d43f426b19fbbd6f3f",
+    "failed" : "19",
+    "javascript-timeout-seconds" : "15",
+    "load-only" : "97",
+    "packages" : "381",
+    "passed" : "176",
+    "rate" : "46.2%",
+    "untested" : "6"
+  },
+  "question" : "What share of the frozen PopClip extensions corpus works, not just loads, when run headless? (PRD §3.3, implementation plan M3 week 7)",
+  "runID" : "corpus-functional",
+  "schema" : 1,
+  "startedAt" : "2026-09-29T10:12:55Z",
+  "title" : "Corpus functional pass"
+}

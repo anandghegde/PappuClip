@@ -4,7 +4,7 @@ This page covers what M3 needs from a person. The tests do not cover it.
 
 The helper's isolation and lifecycle are tested in-process (`PappuJSHostTests`), and the client's crash handling is tested against a helper that can be made to crash (`PappuRuntimeTests`). `PappuClip --check-js-host` runs the same things against the real, sandboxed `PappuClipJSHost.xpc`. What is left here is the sandbox as the system enforces it, and the Debug Console as a person reads it.
 
-**Status: weeks 1 to 5; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
+**Status: weeks 1 to 7; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
 
 Fixtures:
 - **J**: a JavaScript snippet, `#popclip` / `name: Shout JS` / `javascript: print(popclip.input.text); return popclip.input.text.toUpperCase()`, with `after: paste-result`.
@@ -226,3 +226,21 @@ Both switches are in Settings → App under Diagnostics, between Startup and Tro
 | 70 | Turn "Send crash reports" off and on again, and press Show What Is Sent… | No crash reports; the beta diagnostics are still there. Turning beta diagnostics off and on empties those the same way | |
 | 71 | With crash reports on, crash the app (for example `kill -SEGV` its pid) and relaunch it the next day | A crash report with `process` `app`, the signal, and frames that are binary UUIDs and offsets only: no binary names, paths or addresses | |
 | 72 | With VoiceOver on, move through the Diagnostics section | Each switch is read by its name with its explanation as the hint; Show What Is Sent… is a button; the preview's text is readable | |
+
+## Week 7: `pappuclip run`, the corpus pass and the built-ins (DEV-2)
+
+Build the CLI with `swift build --product pappuclip` in `Packages/PappuKit`; it is at `.build/debug/pappuclip`. The fixtures are the conformance suites under `Tests/conformance`, and a scratch package **R**: a folder `R.popclipext` holding `Config.js` with `exports.test = (input) => { print('ran'); return input.text.toUpperCase(); }; exports.broken = () => { throw new Error('nope'); }; exports.keys = () => popclip.pressKey('cmd b');`.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| CL1 | `pappuclip run Tests/conformance/environment/suite.js; echo $?` | Two `require(...) found nothing` lines, then `ok`, `passed` and `0` | |
+| CL2 | `pappuclip run Tests/conformance/api/suite.js; echo $?` | `host:` lines for each call, four of them `refused:` (pressKeys, performService, runShellScript, httpRequest); then `ok`, `passed`, `0`. No browser opens, nothing is pasted, and `pbpaste` is unchanged | |
+| CL3 | `pappuclip run R.popclipext/Config.js --text abc; echo $?` | `ran`, `ABC`, `passed`, `0` | |
+| CL4 | `pappuclip run R.popclipext/Config.js broken; echo $?` | `failed: Error: nope` and `1` | |
+| CL5 | `pappuclip run R.popclipext/Config.js missing; echo $?` | `error: The module exports no function missing.` and `1` | |
+| CL6 | `pappuclip run R.popclipext/Config.js keys`, then again with `--allow synthetic-input` | First: refused with "pressKeys needs the synthetic-input permission…" and exit 1. Second: `host: pressKeys … -> done`, exit 0, and no key reaches the frontmost app | |
+| CL7 | `pappuclip run --help` | Lists `--text`, `--option`, `--allow`, `--clipboard`, `--timeout`, `--script` and `--quiet` | |
+| CF1 | In `Packages/PappuKit`, `swift run pappu-dev corpus functional --dry-run --verbose` (the `Tests/corpus` submodule checked out) | One line per package that did not pass, each with its verdict (`blocked`, `load-only`, `untested`, `failed`) and why, then `N/381 functional (…%): …`. No browser opens, nothing is pasted, no key is pressed, no Service or Shortcut runs, and `pbpaste` is unchanged | |
+| CF2 | The same without `--dry-run` | Also `wrote …/Tests/results/corpus-functional/<timestamp>-macOS<version>-<arch>.json`; `pappu-dev results summarize` on it shows `functional-rate` and the counts; the file has no host name, user name or home path | |
+| CF3 | Install the corpus's `source/Email.popclipext`, approve it, turn on both of its actions in its settings and select `someone@example.com` in TextEdit | "New email to someone@example.com" (@ icon) and "New email with text" (envelope icon) are on the bar. Before this week both were left out, because their icons are package files | |
+| DM1 | With one development folder approved (DV2), uninstall its extension from Settings → Extensions, without opening Settings → Developer, then open the menu bar menu | No "Development Mode On" line | |

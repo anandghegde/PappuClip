@@ -30,7 +30,8 @@ public struct CodeBody: Sendable, Equatable {
     /// exports and AMD's `define({...})` count, because the corpus has both.
     public var looksLikeModule: Bool {
         text.range(of: #"(^|\n)\s*export\s"#, options: .regularExpression) != nil
-            || text.range(of: #"\bdefineExtension\s*\("#, options: .regularExpression) != nil
+            // `defineExtension<Options>(...)` in TypeScript: the type argument before the call.
+            || text.range(of: #"\bdefineExtension\s*(<[^()\n]*>\s*)?\("#, options: .regularExpression) != nil
             || text.range(of: #"\bmodule\.exports\b"#, options: .regularExpression) != nil
             || text.range(of: #"(^|\n)\s*exports\.\w+\s*="#, options: .regularExpression) != nil
             || text.range(of: #"(^|\n)\s*define\s*\("#, options: .regularExpression) != nil
