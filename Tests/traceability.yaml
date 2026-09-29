@@ -780,7 +780,16 @@ requirements:
       - manual:docs/checklists/voiceover-bar.md
   BAR-15: { priority: P2, milestone: post-1.0, tests: [] }
   BAR-16: { priority: P1, milestone: M4, tests: [] }
-  BAR-17: { priority: P1, milestone: M3, completes: M4, tests: [], note: "Functional in M3; finished in M4." }
+  BAR-17:
+    priority: P1
+    milestone: M3
+    completes: M4
+    note: "Functional in M3; finished in M4. The rich result panel's Copy, Replace Selection, Insert and Close."
+    tests:
+      - PappuRuntimeTests/insertKeepsTheSelectionAndPutsTheResultAfterIt
+      - PappuRuntimeTests/replaceVerifiesAtTheClickAndCopyStaysAvailable
+      - PappuSurfacesTests/aWriteThatLandsClosesThePanelOnce
+      - manual:docs/checklists/m3-manual.md
 
   # Filtering (PRD §7.3)
   FLT-1:
@@ -1250,6 +1259,13 @@ requirements:
     note: "Mechanism in M3; polish in M4. The re-verification it is built on is one call, and a run can make it twice."
     tests:
       - PappuRuntimeTests/theRecordSaysWhichTiersItReachedAndHowItEnded
+      - PappuRuntimeTests/replaceVerifiesAtTheClickAndCopyStaysAvailable
+      - PappuRuntimeTests/withoutPasteOnlyCopyIsOffered
+      - PappuSurfacesTests/copyStaysAvailableWhenReplaceAndInsertAreNot
+      - PappuSurfacesTests/aRefusedClickDisablesReplaceAndInsertAndSaysWhy
+      - PappuSurfacesTests/aClickThatFindsTheRunOverClosesThePanel
+      - PappuAppTests/everyDestinationFailureHasAnExplanation
+      - manual:docs/checklists/m3-manual.md
   RUN-2f:
     priority: P0
     milestone: M1
@@ -1988,8 +2004,48 @@ requirements:
       - PappuSelectionTests/aMouseDownPingsTheHelper
       - PappuJSHostTests/aPingIsAnsweredAtOnce
       - manual:docs/checklists/m3-manual.md
-  JS-17: { priority: P1, milestone: M3, tests: [] }
-  JS-18: { priority: P1, milestone: M3, tests: [] }
+  JS-17:
+    priority: P1
+    milestone: M3
+    note: >-
+      `pappuAfter: rich-result` and `showResult(text, {format})` open the functional result panel (Copy,
+      Replace Selection, Insert, Close) and write nothing to the clipboard until a button says so. The
+      invocation stays live while the panel is open; cancel, pause or revocation closes it. Markdown is
+      rendered inline with every link and image removed; the polished renderer is DIF-3's, in M4.
+    tests:
+      - PappuCoreTests/pappuAfterTakesRichResultAndNothingElse
+      - PappuRuntimeTests/pappuAfterRichResultOpensAPanelAndWritesNothing
+      - PappuRuntimeTests/showResultOpensThePanelWithItsFormat
+      - PappuRuntimeTests/anEmptyResultOpensNoPanel
+      - PappuRuntimeTests/showResultIsARequestOfTheRunAndNothingElse
+      - PappuRuntimeTests/cancellingOrPausingTheInvocationClosesThePanel
+      - PappuJSHostTests/showResultSendsTheTextAndItsFormat
+      - PappuJSHostTests/theEnvironmentSectionOfTheConformanceSuitePasses
+      - PappuSurfacesTests/everyStringThePanelsSayIsInTheCatalogue
+      - PappuSurfacesTests/aWriteThatLandsClosesThePanelOnce
+      - PappuSurfacesTests/theInvocationEndingClosesThePanelWithoutClosingItAgain
+      - PappuSurfacesTests/markdownKeepsEmphasisAndLosesEveryWayOut
+      - PappuSurfacesTests/plainTextIsShownAsWritten
+      - manual:docs/checklists/m3-manual.md
+  JS-18:
+    priority: P1
+    milestone: M3
+    note: >-
+      One labelled field with Submit and Cancel, only while an explicitly invoked action runs. Submit
+      resolves to the field, empty included; Cancel, Escape or closing cancels the invocation (RUN-3), and
+      an answer that arrives after a cancel has no effect.
+    tests:
+      - PappuRuntimeTests/promptTextResolvesToWhatWasSubmittedEvenEmpty
+      - PappuRuntimeTests/cancellingThePromptCancelsTheInvocation
+      - PappuRuntimeTests/cancellingTheInvocationClosesThePrompt
+      - PappuRuntimeTests/aPromptAnsweredAfterCancelHasNoEffect
+      - PappuRuntimeTests/promptTextIsRefusedDuringPopulationAndWithoutALabel
+      - PappuJSHostTests/promptTextResolvesToWhatWasEntered
+      - PappuJSHostTests/theEnvironmentSectionOfTheConformanceSuitePasses
+      - PappuSurfacesTests/submitAnswersWithTheFieldEvenEmpty
+      - PappuSurfacesTests/cancelEscapeAndCloseAnswerCancelledOnce
+      - PappuSurfacesTests/theInvocationEndingClosesThePromptWithoutAnAnswer
+      - manual:docs/checklists/m3-manual.md
   JS-19:
     priority: P1
     milestone: M3

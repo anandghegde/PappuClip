@@ -5,7 +5,7 @@ import Foundation
 /// Everything §8.3 lists except three families, each absent for a reason rather than forgotten:
 /// `submenu`, `separator` and `wantsInitialDisplay` are the bar's submenus, which are M4 (BAR-5a), and
 /// `ManifestBuilder` refuses a manifest that depends on one rather than flattening it into something
-/// its author did not write; `pappuAfter` is M3's rich result, refused the same way until then.
+/// its author did not write.
 public struct ActionManifest: Sendable, Equatable, Codable {
     /// Defaults to the extension's name (§8.3). Held as written so that View Source shows what the
     /// author wrote, and resolved against the extension only when the action is built.
@@ -26,6 +26,9 @@ public struct ActionManifest: Sendable, Equatable, Codable {
     /// §8.6. `before` is one of the four editing commands; `after` is any of them.
     public var before: StepCommand?
     public var after: StepCommand?
+    /// PappuClip's own after-step (JS-17): show the result in the rich result panel rather than on
+    /// the bar. Exclusive with `after`.
+    public var pappuAfter: PappuAfter?
     /// BAR-4: the action asks to sit under the pointer. The placement that honours it is M4; the flag
     /// rides along from M1 so that a manifest never loses it.
     public var wantsPrimaryDisplay: Bool
@@ -51,6 +54,7 @@ public struct ActionManifest: Sendable, Equatable, Codable {
         excludedApps: [String] = [],
         before: StepCommand? = nil,
         after: StepCommand? = nil,
+        pappuAfter: PappuAfter? = nil,
         wantsPrimaryDisplay: Bool = false,
         stayVisible: Bool = false,
         captureHTML: Bool = false,
@@ -67,6 +71,7 @@ public struct ActionManifest: Sendable, Equatable, Codable {
         self.excludedApps = excludedApps
         self.before = before
         self.after = after
+        self.pappuAfter = pappuAfter
         self.wantsPrimaryDisplay = wantsPrimaryDisplay
         self.stayVisible = stayVisible
         self.captureHTML = captureHTML
@@ -79,7 +84,7 @@ public struct ActionManifest: Sendable, Equatable, Codable {
     // Defaults are left out when encoding and filled in when decoding, so that the bundled built-ins
     // stay as short as they are.
     private enum CodingKeys: String, CodingKey {
-        case title, icon, identifier, requirements, regex, requiredApps, excludedApps, before, after
+        case title, icon, identifier, requirements, regex, requiredApps, excludedApps, before, after, pappuAfter
         case wantsPrimaryDisplay, stayVisible, captureHTML, captureRTF, restorePasteboard, executor
     }
 
@@ -94,6 +99,7 @@ public struct ActionManifest: Sendable, Equatable, Codable {
         excludedApps = try container.decodeIfPresent([String].self, forKey: .excludedApps) ?? []
         before = try container.decodeIfPresent(StepCommand.self, forKey: .before)
         after = try container.decodeIfPresent(StepCommand.self, forKey: .after)
+        pappuAfter = try container.decodeIfPresent(PappuAfter.self, forKey: .pappuAfter)
         wantsPrimaryDisplay = try container.decodeIfPresent(Bool.self, forKey: .wantsPrimaryDisplay) ?? false
         stayVisible = try container.decodeIfPresent(Bool.self, forKey: .stayVisible) ?? false
         captureHTML = try container.decodeIfPresent(Bool.self, forKey: .captureHTML) ?? false
@@ -113,6 +119,7 @@ public struct ActionManifest: Sendable, Equatable, Codable {
         if !excludedApps.isEmpty { try container.encode(excludedApps, forKey: .excludedApps) }
         try container.encodeIfPresent(before, forKey: .before)
         try container.encodeIfPresent(after, forKey: .after)
+        try container.encodeIfPresent(pappuAfter, forKey: .pappuAfter)
         if wantsPrimaryDisplay { try container.encode(true, forKey: .wantsPrimaryDisplay) }
         if stayVisible { try container.encode(true, forKey: .stayVisible) }
         if captureHTML { try container.encode(true, forKey: .captureHTML) }
@@ -120,6 +127,12 @@ public struct ActionManifest: Sendable, Equatable, Codable {
         if restorePasteboard { try container.encode(true, forKey: .restorePasteboard) }
         try container.encode(executor, forKey: .executor)
     }
+}
+
+/// `pappuAfter` (§8.3, JS-17): what PappuClip does with an action's result beyond PopClip's `after`.
+public enum PappuAfter: String, Sendable, Equatable, Codable, CaseIterable {
+    /// Show the result, as plain text, in the rich result panel with Copy, Replace, Insert and Close.
+    case richResult = "rich-result"
 }
 
 /// One extension: a name, an identity, and the actions it offers (§8.3 "Top-level keys").

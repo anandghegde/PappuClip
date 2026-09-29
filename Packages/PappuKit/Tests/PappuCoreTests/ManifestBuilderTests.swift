@@ -127,9 +127,18 @@ import Testing
         #expect(Self.errors("name: A\nregex: \"([a-z\"\nurl: https://a.example")?.contains("does not compile") == true)
     }
 
-    @Test func submenusAndPappuAfterAreRefusedUntilTheyExist() {
+    @Test func submenusAreRefusedUntilTheyExist() {
         #expect(Self.errors("name: A\nactions:\n  - title: X\n    url: https://a.example\n    submenu: []")?.contains("M4") == true)
-        #expect(Self.errors("name: A\nactions:\n  - title: X\n    url: https://a.example\n    pappuAfter: rich")?.contains("M3") == true)
+    }
+
+    /// JS-17: `pappuAfter: rich-result` loads; anything else, or with `after`, is refused.
+    @Test func pappuAfterTakesRichResultAndNothingElse() throws {
+        let manifest = try Self.build("name: A\npappuAfter: rich-result\nshellScript: echo hi").manifest
+        #expect(manifest.actions[0].pappuAfter == .richResult)
+        let decoded = try JSONDecoder().decode(ActionManifest.self, from: JSONEncoder().encode(manifest.actions[0]))
+        #expect(decoded.pappuAfter == .richResult)
+        #expect(Self.errors("name: A\npappuAfter: rich\nshellScript: echo hi")?.contains("rich-result") == true)
+        #expect(Self.errors("name: A\npappuAfter: rich-result\nafter: copy-result\nshellScript: echo hi")?.contains("use one") == true)
     }
 
     // MARK: Key presses

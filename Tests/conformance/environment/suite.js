@@ -61,6 +61,18 @@ await check('JS-2: the globals', () => {
 await check('JS-2: popclip and pappuclip are one object, and window is the global', () =>
   same([popclip === pappuclip, window === globalThis], [true, true]));
 
+// JS-17, JS-18: the checks that need no answer from the app. What the app does with them is
+// PappuRuntimeTests' (RichResultAndPromptTests).
+await check('JS-17: showResult takes text or markdown and nothing else', () => same(
+  [typeof pappuclip.showResult, thrown(() => popclip.showResult('x', { format: 'html' }), 'name')],
+  ['function', 'TypeError'],
+));
+
+await check('JS-18: promptText needs a label', () => same(
+  [typeof pappuclip.promptText, thrown(() => popclip.promptText(), 'name'), thrown(() => popclip.promptText({ label: ' ' }), 'name')],
+  ['function', 'TypeError', 'TypeError'],
+));
+
 await check('JS-1: no fetch, DOM, process, storage or TextDecoder', () =>
   same([typeof fetch, typeof document, typeof process, typeof localStorage, typeof TextDecoder], Array(5).fill('undefined')));
 

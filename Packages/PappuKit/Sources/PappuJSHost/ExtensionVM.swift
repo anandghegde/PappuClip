@@ -1650,6 +1650,20 @@ final class ExtensionVM: @unchecked Sendable {
               preview: flag(options, 'preview', false),
             });
           },
+          // JS-17: the whole text in the rich result panel, as plain text or Markdown.
+          showResult: function showResult(text, options) {
+            tell('showResult', { text: String(text), format: choice(options, 'format', ['text', 'markdown'], 'text') });
+          },
+          // JS-18: one labelled field, answered with what was typed. Cancel cancels the whole action.
+          promptText: function promptText(options) {
+            const label = options === undefined || options === null ? undefined : options.label;
+            if (typeof label !== 'string' || label.trim() === '') throw new TypeError('promptText needs a label.');
+            return ask('promptText', {
+              label: label,
+              placeholder: optionalText(options, 'placeholder'),
+              defaultValue: optionalText(options, 'defaultValue'),
+            });
+          },
           showSuccess: function showSuccess() { tell('showSuccess', {}); },
           showFailure: function showFailure() { tell('showFailure', {}); },
           showSettings: function showSettings() { tell('showSettings', {}); },

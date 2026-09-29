@@ -132,3 +132,33 @@ Fixture **G**: a module snippet, `// #popclip` / `// name: Sign` / `// after: sh
 | 43 | Install D2, approve it and select a word | No item from D2; the Debug Console has "A timer is not available in a population function." | |
 | 44 | Install D3, approve it and select a word | The bar appears as fast as without D3, with no item from D3 (a population that never returns is ended only by the watchdog, §10.7) | |
 
+## The rich result panel and the text prompt (JS-17, JS-18, RUN-2e, BAR-17)
+
+Fixtures:
+- **RR**: a JavaScript snippet, `#popclip` / `name: Rich Result` / `pappuAfter: rich-result` / `javascript: return popclip.input.text.toUpperCase() + '\n\nsecond line'`.
+- **MD**: a JavaScript snippet, `#popclip` / `name: Show MD` / `javascript: popclip.showResult('**bold** _it_ [link](https://example.com) <b>raw</b>', { format: 'markdown' })`.
+- **Q**: a JavaScript snippet, `#popclip` / `name: Ask` / `after: paste-result` / `javascript: return 'Hello, ' + await pappuclip.promptText({ label: 'Your name', placeholder: 'name', defaultValue: 'World' })`.
+
+The panels are the functional M3 ones; their look is M4's (DIF-1a, DIF-3). Replace Selection and Insert re-check the destination when clicked. A click on a PappuClip panel counts as input to apps that are checked only by quiescence (the unverifiable and quiescence tiers of §9.2), so there Replace and Insert are expected to be refused with an explanation, and Copy still works. That is the known M3 limitation, not a failure.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| 45 | Install and approve RR, select `hello` in TextEdit and press Rich Result | A panel near the selection shows `HELLO` and `second line` on two lines; TextEdit keeps focus (its caret still blinks); the clipboard is unchanged (`pbpaste`) | |
+| 46 | Press Copy | "Copied" in the panel; `pbpaste` gives the whole result; the panel stays open | |
+| 47 | Run RR again and press Replace Selection | `hello` is replaced with the result and the panel closes; the clipboard is what it was before | |
+| 48 | Run RR again and press Insert | `hello` stays, followed by the result; the panel closes | |
+| 49 | Run RR again, click elsewhere in the TextEdit document, then look at the panel and press Replace Selection | Replace Selection and Insert are disabled with "The selection has changed since the action ran" (or "Focus has moved…") under them and in their tooltips; nothing is written; Copy still works | |
+| 50 | Run RR again, switch to another app, then press Replace Selection | Refused with "The app the text came from is no longer in front"; Copy still works | |
+| 51 | Run RR in Safari's address bar or another quiescence-tier app and press Replace Selection | Either written, or refused with the typing-or-clicking explanation; never written somewhere else | |
+| 52 | Run RR and press Escape, then again and press Close, then again and click the window's close button | The panel goes each time; the Debug Console shows each invocation completed; nothing written | |
+| 53 | Run RR, then pause PappuClip from the menu bar while the panel is open | The panel closes at once | |
+| 54 | Install and approve MD and press Show MD | `bold` in bold, `it` in italics, `link` as plain text that opens nothing when clicked, and `<b>raw</b>` shown as written | |
+| 55 | With VoiceOver on, run RR and move through the panel | VoiceOver reads the result text, then Copy, Replace Selection, Insert and Close by name; a disabled Replace says why; pressing Copy announces "Copied" | |
+| 56 | Install and approve Q, select a word and press Ask | A prompt titled PappuClip shows "Your name", a field holding `World` with focus in it, "Asked by Ask" under it, and Submit and Cancel | |
+| 57 | Type `Ann` and press Return | The selection is replaced with `Hello, Ann` | |
+| 58 | Run Q, clear the field and press Submit | `Hello, ` is pasted: an empty answer is an answer | |
+| 59 | Run Q and press Escape; again and press Cancel; again and close the window | Nothing is pasted each time; the Debug Console shows the invocation cancelled | |
+| 60 | Run Q and, with the prompt up, pause PappuClip from the menu bar | The prompt closes; nothing is pasted | |
+| 61 | With VoiceOver on, run Q | VoiceOver announces the field as "Your name, edit text, World"; Tab reaches Cancel and Submit; Return submits and Escape cancels without the mouse | |
+| 62 | Install a dynamic extension whose population calls `pappuclip.promptText({ label: 'x' })`, approve it and select a word | No prompt appears; the Debug Console has "promptText is not available in a population function." | |
+

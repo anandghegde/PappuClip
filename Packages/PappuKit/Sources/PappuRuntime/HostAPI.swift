@@ -14,6 +14,8 @@ import Synchronization
 public enum HostMethod: String, Sendable, Equatable, CaseIterable {
     case pasteText, pasteContent, copyText, copyContent, performCommand
     case showText, showSuccess, showFailure, showSettings, appear
+    /// JS-17: the rich result panel.
+    case showResult
     case pressKeys, performService, revealFile, openUrl, openTemplateUrl, share
     case pasteboardRead = "pasteboard.read"
     case pasteboardWrite = "pasteboard.write"
@@ -67,6 +69,8 @@ public struct HostRequests: Sendable, Equatable {
         case text(String)
         /// `appear`.
         case appear
+        /// `showResult` (JS-17): the whole text, for the rich result panel.
+        case rich(RichResult)
     }
 
     public var display: Display?
@@ -336,6 +340,10 @@ public final class HostAPIDispatcher: Sendable {
         case .showText:
             let given = try decode(ShowText.self, arguments)
             ask(.text(ExtensionRunner.preview(given.text)))
+            return .done
+        case .showResult:
+            let given = try decode(ShowResult.self, arguments)
+            ask(.rich(RichResult(text: given.text, format: given.format ?? .text)))
             return .done
         case .showSuccess:
             ask(.success)
@@ -664,6 +672,11 @@ public final class HostAPIDispatcher: Sendable {
 
     private struct ShowText: Decodable {
         var text: String
+    }
+
+    private struct ShowResult: Decodable {
+        var text: String
+        var format: RichResult.Format?
     }
 
     private struct PressKeys: Decodable {
