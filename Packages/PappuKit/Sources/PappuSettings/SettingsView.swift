@@ -23,6 +23,7 @@ public struct SettingsView: View {
         case actions
         case extensions
         case developer
+        case app
     }
 
     private let model: SettingsModel
@@ -53,6 +54,11 @@ public struct SettingsView: View {
                 DevelopmentView(model: development)
                     .tabItem { Label(DeveloperStrings.tab, systemImage: "hammer") }
                     .tag(Tab.developer)
+            }
+            if let app = model.app {
+                AppTabView(model: app)
+                    .tabItem { Label(AppTabStrings.tab, systemImage: "app.badge") }
+                    .tag(Tab.app)
             }
         }
         .frame(width: 520, height: 400)

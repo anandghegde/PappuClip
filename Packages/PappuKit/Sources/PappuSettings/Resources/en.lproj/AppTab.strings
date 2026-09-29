@@ -1,0 +1,31 @@
+/* Settings → App: version, links, Software Update, Start at login (PRD §7.5, §11.4). */
+"app.tab" = "App";
+"app.about" = "About";
+/* The first %@ is the version, the second the build number. */
+"app.version" = "Version %1$@ (%2$@)";
+"app.link.source" = "Source Code";
+"app.link.issues" = "Report an Issue";
+/* Accessibility label for a link button. %@ is the link's title. */
+"app.link.label" = "%@, opens in your browser";
+"app.updates" = "Software Update";
+"app.updates.policy" = "Updates";
+"app.updates.policy.off" = "Off";
+"app.updates.policy.notify" = "Notify only";
+"app.updates.policy.install" = "Install automatically";
+"app.updates.policy.help" = "Checks once a day. Every update is verified against PappuClip's signing key before it is installed.";
+"app.updates.betas" = "Include beta versions";
+"app.updates.betas.help" = "Betas arrive earlier and may have problems. Turning this off does not go back to an older version; the next stable release replaces the beta.";
+"app.updates.check" = "Check for Updates Now";
+"app.updates.never" = "Not checked yet.";
+/* %@ is a date and time. */
+"app.updates.last" = "Last checked %@.";
+"app.updates.unavailable" = "This build does not update itself. Release builds do.";
+"app.startup" = "Startup";
+"app.startup.login" = "Start at login";
+"app.startup.login.approval" = "Allow PappuClip in System Settings \U2192 General \U2192 Login Items to finish.";
+"app.startup.login.open" = "Open Login Items Settings";
+"app.startup.login.unavailable" = "This copy of PappuClip cannot start at login. Move it to the Applications folder and try again.";
+"app.startup.login.failed" = "The login item could not be changed. Try again from System Settings.";
+"app.troubleshooting" = "Troubleshooting";
+"app.console" = "Open Debug Console";
+"app.console.help" = "What extensions printed and how their actions ended since launch.";

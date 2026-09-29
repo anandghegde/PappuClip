@@ -24,10 +24,21 @@ settings:
     DEVELOPMENT_TEAM: ""
     MARKETING_VERSION: "0.0.1"
     CURRENT_PROJECT_VERSION: "1"
+  configs:
+    # Release builds are what Scripts/release.sh archives, re-signs with a Developer ID (hardened
+    # runtime, secure timestamp) and notarizes. Debug keeps the development identity above. Xcode never
+    # injects get-task-allow into a Release signature; saying so here keeps notarization from finding it.
+    Release:
+      CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
 
 packages:
   PappuKit:
     path: ../Packages/PappuKit
+  # PRD §11.4: app updates. Linked by the app target only, behind SoftwareUpdating, so PappuKit's
+  # tests never build it.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.0"
 
 targets:
   # The product (architecture §19). An agent app: the status item is the whole of the UI, the windows
@@ -62,9 +73,21 @@ targets:
         # As for SpikeLab: the debug dylib cannot be loaded under the hardened runtime when the
         # signature has no Team ID, which is the case for the local development certificate.
         ENABLE_DEBUG_DYLIB: NO
+        # PRD §11.4. Sparkle is compiled in only when Scripts/release.sh sets PAPPU_UPDATER_CONDITION to
+        # PAPPU_SPARKLE, and it passes SUFeedURL's and SUPublicEDKey's values (Info.plist) with it. Every
+        # other build leaves all three empty and has no updater. That is not only tidiness: under the
+        # hardened runtime, library validation refuses to load Sparkle.framework into a process whose
+        # signature has no Team ID — every development build — so those builds must not link it at all.
+        # The framework is still embedded; -dead_strip_dylibs drops the load command nothing uses.
+        PAPPU_UPDATER_CONDITION: ""
+        PAPPU_APPCAST_URL: ""
+        PAPPU_SPARKLE_PUBLIC_KEY: ""
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) $(PAPPU_UPDATER_CONDITION)"
+        OTHER_LDFLAGS: "$(inherited) -Wl,-dead_strip_dylibs"
     dependencies:
       - package: PappuKit
         product: PappuApp
+      - package: Sparkle
       - target: PappuClipRunner
       - target: PappuClipJSHost
 

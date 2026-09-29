@@ -113,6 +113,8 @@ public final class SettingsModel {
     private let openAccessibilitySettings: @MainActor () -> Void
     /// Extension Info and the options sheets. Nil where there is no library behind the window.
     public let extensions: ExtensionsModel?
+    /// Settings → App (PRD §7.5). Nil where the window is built without one, as in most tests.
+    public let app: AppTabModel?
 
     /// Apps named in the sheet during this session that have no rule yet, so that a row does not vanish
     /// between adding it and choosing what it is for. Not stored: an app with neither box ticked has no
@@ -142,9 +144,11 @@ public final class SettingsModel {
         displayName: @escaping @Sendable (String) -> String? = { _ in nil },
         locale: Locale = .current,
         extensions: ExtensionsModel? = nil,
+        app: AppTabModel? = nil,
         openAccessibilitySettings: @escaping @MainActor () -> Void = {}
     ) {
         self.extensions = extensions
+        self.app = app
         self.rules = rules
         self.shortcuts = shortcuts
         self.bar = bar
