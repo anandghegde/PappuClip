@@ -144,7 +144,7 @@ public final class PopClipImporter {
 
     static func name(of source: ExtensionLibrary.Source) -> String {
         switch source {
-        case .packageFolder(let url), .zippedPackage(let url), .snippetFile(let url), .popClipPackage(let url):
+        case .packageFolder(let url), .zippedPackage(let url), .snippetFile(let url), .popClipPackage(let url), .developmentFolder(let url):
             url.deletingPathExtension().lastPathComponent
         case .selectedText:
             ""

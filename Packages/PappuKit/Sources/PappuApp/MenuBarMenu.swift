@@ -1,5 +1,6 @@
 import Foundation
 import PappuCore
+import PappuSettings
 
 /// Everything the menu bar item can be asked to do (PRD §7.5).
 ///
@@ -60,7 +61,8 @@ public struct MenuBarMenu: Sendable, Equatable {
         grant: AccessibilityGrant = .working,
         now: Date = Date(),
         locale: Locale = .current,
-        offersPopClipImport: Bool = false
+        offersPopClipImport: Bool = false,
+        developmentMode: Bool = false
     ) {
         let pause = rules.pause.settled(at: now)
         isPaused = pause != .running
@@ -79,6 +81,12 @@ public struct MenuBarMenu: Sendable, Equatable {
             entries.append(.separator)
         case .working, .untested:
             break
+        }
+
+        // DEV-1: for as long as a development folder is approved, whatever else the menu says.
+        if developmentMode {
+            entries.append(.status(DeveloperStrings.menuStatus))
+            entries.append(.separator)
         }
 
         if let status = Self.status(for: pause, locale: locale) {
@@ -131,9 +139,10 @@ public struct MenuBarMenu: Sendable, Equatable {
     }
 
     /// What ACT-18's status line says, or nil when nothing is paused and there is no line at all.
+    /// The development-mode line (DEV-1) comes before it and is not it.
     public var statusLine: String? {
         for entry in entries {
-            if case .status(let text) = entry { return text }
+            if case .status(let text) = entry, text != DeveloperStrings.menuStatus { return text }
         }
         return nil
     }

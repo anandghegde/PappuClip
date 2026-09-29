@@ -157,3 +157,21 @@ Week 6. The fixtures are in `~/Library/Application Support/PopClip/Extensions`. 
 | P14 | Turn "Appear automatically" back on, tick "Don't show this again", restart PopClip twice | The notice appears once, then not again | |
 | P15 | With PopClip running, select text in an app with no Accessibility text (e.g. a canvas app with a copyable selection) | The automatic bar does not copy (the pasteboard's change count is unchanged); the shortcut still reads the selection | |
 | P16 | Launch PappuClip with PopClip already running | The notice appears at launch, unless it was suppressed | |
+
+## File types and development folders (EXM-4, DEV-1)
+
+Fixture **V**: a folder `Dev.popclipext` holding `Config.json` with `{"name": "Dev", "identifier": "com.example.dev", "actions": [{"title": "Search", "url": "https://example.com/?q=***"}]}`. For V2, add a second action `{"title": "Hi", "javascript": "popclip.showText('hi')"}`; for V3, add `{"title": "Shout", "shellScript": "echo hi"}`.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| FT1 | `plutil -p` the built app's `Contents/Info.plist` | `CFBundleDocumentTypes` names the three `com.pilotmoon.popclip.extension*` types with `LSHandlerRank` `Alternate`; they are under `UTImportedTypeDeclarations` and not under `UTExportedTypeDeclarations`; no type has rank `Default` | |
+| FT2 | With PopClip installed, Get Info on a `.popclipextz` in Finder | "Open with" still shows PopClip as the default; PappuClip is in the Open With list | |
+| FT3 | Open With → PappuClip on a `.popclipextz`, and again on a `.popcliptxt` | The install review appears for each; Cancel installs nothing | |
+| DV1 | Settings → Developer on a fresh install | No development-mode banner; "No development folders."; both switches off | |
+| DV2 | Add Folder… and choose V | The install review says "Development folder…" (unsigned, unreviewed); Install adds the row; the banner "Development mode is on" appears; the menu bar menu starts with "Development Mode On" | |
+| DV3 | Press Reload without changing V | "No changes to load." | |
+| DV4 | Change V's Search title and press Reload | "Reloaded." with no review; the bar shows the new title | |
+| DV5 | Make V into V3 and press Reload | The review appears again with the script switch off and Update / Cancel only; Cancel says "Not reloaded…" and the bar still has the old version | |
+| DV6 | Turn on "Allow Safari Web Inspector" with V2 approved, select text and open Safari → Develop → this Mac | The PappuClipJSHost context for Dev is listed; a JavaScript extension installed normally is not. Turn the switch off: it is gone after the next selection | |
+| DV7 | Turn on "Verbose extension logging" and press Hi | The Debug Console has `[development]` lines for the load, the run and the host call, with no selected text in them; other extensions write no such lines | |
+| DV8 | Press Remove on V's row | The row, banner and menu status line go; V's folder on disk is untouched | |

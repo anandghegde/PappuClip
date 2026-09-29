@@ -138,6 +138,8 @@ public enum LocalOrigin: String, Sendable, Hashable, Codable, CaseIterable {
     /// A folder in PopClip's own `Extensions/`, through Import from PopClip (EXM-11). Whatever PopClip
     /// thought of it, here it is unsigned local code like any other folder (SEC-8b).
     case popClipImport
+    /// A folder a developer approved in Developer settings, reloaded from where it is (DEV-1).
+    case developmentFolder
 }
 
 /// Who vouches for an extension's code (SEC-8b).
