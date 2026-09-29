@@ -212,11 +212,11 @@ The panels are the functional M3 ones; their look is M4's (DIF-1a, DIF-3). Repla
 Fixtures:
 - **HANG**: a JavaScript snippet, `#popclip` / `name: Hang` / `javascript: await new Promise(() => {})`.
 
-Both switches are in Settings → General under Diagnostics until Settings → App takes them. The endpoints in Info.plist are placeholders in `.invalid`, which the app reads as no endpoint: nothing leaves the Mac, and "Show What Is Sent…" is how the payload is checked. MetricKit delivers an app crash at a later launch, often a day later, so row 71 may have to be checked the next day.
+Both switches are in Settings → App under Diagnostics, between Startup and Troubleshooting. The endpoints in Info.plist are placeholders in `.invalid`, which the app reads as no endpoint: nothing leaves the Mac, and "Show What Is Sent…" is how the payload is checked. MetricKit delivers an app crash at a later launch, often a day later, so row 71 may have to be checked the next day.
 
 | # | Do this | Expect | Result |
 |---|---------|--------|--------|
-| 63 | Quit PappuClip, run `defaults delete app.pappuclip.PappuClip diagnostics.crashReports`, the same for `diagnostics.betaDiagnostics` and `diagnostics.ledger` (a missing key is fine), launch it and open Settings → General | A Diagnostics section with "Send crash reports" and "Share beta diagnostics", both off, each with an explanation under it | |
+| 63 | Quit PappuClip, run `defaults delete app.pappuclip.PappuClip diagnostics.crashReports`, the same for `diagnostics.betaDiagnostics` and `diagnostics.ledger` (a missing key is fine), launch it and open Settings → App | A Diagnostics section with "Send crash reports" and "Share beta diagnostics", both off, each with an explanation under it | |
 | 64 | Press Show What Is Sent… | A sheet says nothing is collected while both switches are off; Done closes it | |
 | 65 | Build with `PAPPU_RELEASE_CHANNEL` set to `release` in App/project.yml and open Settings | Only "Send crash reports" is shown | |
 | 66 | Back on the beta build, turn both switches on, select `hello` in TextEdit a few times so the bar shows, then press Show What Is Sent… | Beta diagnostics show today with `sessions` 1 and a `selectionToBar` histogram whose counts add up to the bars shown; app and macOS versions and `beta`; no `hello`, no `TextEdit`, no bundle identifier, no user name anywhere in the text | |

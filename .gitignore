@@ -17,6 +17,10 @@ Package.resolved.orig
 *.p12
 *.pem
 *.key
+# Sparkle EdDSA private keys (Scripts/appcast.sh reads them from the keychain or outside the repo)
+*eddsa*
+*sparkle_private*
+appcast-key*
 
 # Local tooling
 .codegraph/

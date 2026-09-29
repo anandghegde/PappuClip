@@ -67,6 +67,8 @@ public final class AppAssembly: SelectionInstalling {
     private let diagnostics: DiagnosticsReporter
     private let crashes: MetricKitCrashSource
     private var termination: (any NSObjectProtocol)?
+    /// PRD §11.4: Sparkle, from the app target, in a release build with a feed and a key; nil otherwise.
+    private let updater: (any SoftwareUpdating)?
 
     /// The loops that read the three streams. Held so that `stop` can end them; an `AsyncStream` whose
     /// consumer is a detached task nobody kept would run for the life of the process either way, but a
@@ -76,8 +78,13 @@ public final class AppAssembly: SelectionInstalling {
     /// Asynchronous because the Accessibility probes live on `AXActor` and must be made there
     /// (architecture §14). The caller is `applicationDidFinishLaunching`, which cannot wait, so the
     /// first thing the app does is start a task; nothing is on screen until it gets this far anyway.
-    public init(resources: AppResources, defaults: UserDefaults = .standard) async {
+    public init(
+        resources: AppResources,
+        defaults: UserDefaults = .standard,
+        updater: (any SoftwareUpdating)? = nil
+    ) async {
         self.resources = resources
+        self.updater = updater
         let ax = await Self.accessibilityProbes()
 
         // One tag for the process. Everything we post — the copy behind a selection read, a paste, a
@@ -316,6 +323,22 @@ public final class AppAssembly: SelectionInstalling {
                 settingsRef?.refresh()
             }
         }
+        // Settings → App (PRD §7.5). The console window is made after the model, so it is reached late.
+        weak var consoleRef: DebugConsoleWindow?
+        let updatePreferences = UpdatePreferences(storage: storage)
+        updater?.channel = updatePreferences.channel
+        let appTab = AppTabModel(
+            version: AppTabModel.Version(bundle: .main),
+            links: [
+                AppTabModel.Link(title: AppTabStrings.sourceCode, url: ProductIdentity.sourceRepository),
+                AppTabModel.Link(title: AppTabStrings.issues, url: ProductIdentity.issueTracker),
+            ],
+            updater: updater,
+            preferences: updatePreferences,
+            loginItem: SystemLoginItem(),
+            open: { NSWorkspace.shared.open($0) },
+            openDebugConsole: { consoleRef?.show() }
+        )
         let settingsModel = SettingsModel(
             rules: rules,
             shortcuts: shortcuts,
@@ -324,6 +347,7 @@ public final class AppAssembly: SelectionInstalling {
             catalog: catalog,
             displayName: Self.displayName,
             extensions: extensionsModel,
+            app: appTab,
             openAccessibilitySettings: { accessibility.openSystemSettings() }
         )
         settingsRef = settingsModel
@@ -346,6 +370,7 @@ public final class AppAssembly: SelectionInstalling {
         // menu is the one surface that is looked at while nothing else is happening, and a tick left
         // over from an hour ago is worse than no menu (ACT-18).
         let consoleWindow = DebugConsoleWindow(console: console)
+        consoleRef = consoleWindow
 
         // The status item is made before the assembly is, so a drop reaches it through a weak reference.
         weak var assemblyRef: AppAssembly?
@@ -464,6 +489,9 @@ public final class AppAssembly: SelectionInstalling {
         if host != nil { await bridge.attach(installer: self) }
         bar.prepare()
         statusItem.install()
+        // Sparkle's scheduler, with the stored channel already set (init). Its first check is its own
+        // business and never delays the bar.
+        updater?.start()
 
         // DIA-3, DIA-4: a session left open by the last launch is counted as a crash, and a clean quit
         // closes this one. The quit is heard here and not in `stop`, which runs in a task the process

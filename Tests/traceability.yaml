@@ -2449,6 +2449,49 @@ sections:
       - PappuSelectionTests/doesNotReadWhereItWouldPrompt
       - PappuSelectionTests/noRecordCanHoldWhatWasWritten
   "PRD §7.4 built-ins (Dictionary, Reveal, Spelling)": { milestone: M4, tests: [] }
+  "PRD §7.5 Settings (App)":
+    milestone: M3
+    note: >-
+      Version and the source and issue links, Software Update (Off / Notify only / Install
+      automatically, include betas, check now) over the `SoftwareUpdating` seam, Start at login over
+      `SMAppService.mainApp`, and the Debug Console. Not yet: "Show in menu bar" and the website and
+      sponsor links. The DIA-3/DIA-4 opt-in toggles have a marked place in `AppTabView`.
+    tests:
+      - PappuSettingsTests/everyAppTabStringIsInItsTable
+      - PappuSettingsTests/thePolicyIsSparklesTwoSwitches
+      - PappuSettingsTests/theBetaChannelAddsTheBetaItemsToTheDefaultOnes
+      - PappuSettingsTests/choosingAPolicyReachesTheUpdater
+      - PappuSettingsTests/includingBetasIsStoredAndReachesTheUpdater
+      - PappuSettingsTests/checkNowAsksTheUpdaterOnlyWhenItCan
+      - PappuSettingsTests/theLastCheckIsSaidOrNeverChecked
+      - PappuSettingsTests/aBuildWithoutAnUpdaterOffersNothingToPress
+      - PappuSettingsTests/startAtLoginRegistersAndUnregisters
+      - PappuSettingsTests/aLoginItemAwaitingApprovalSaysWhereToAllowIt
+      - PappuSettingsTests/aFailedLoginItemChangeIsSaidAndCleared
+      - PappuSettingsTests/aCopyThatCannotBeALoginItemSaysSo
+      - PappuSettingsTests/theVersionIsTheBundlesTwoNumbers
+      - PappuSettingsTests/linksAndTheConsoleOpenWhatTheyName
+      - PappuSettingsTests/theSettingsModelCarriesTheAppTab
+      - manual:docs/checklists/m3-release.md
   "PRD §11.1 latency budgets": { milestone: M1, completes: M6, tests: [PappuCoreTests/initialTotalsMatchThePRD, PappuCoreTests/fallbackInheritsTimeSpentOnEarlierStrategies], note: "Table and clock exist from M0; measured against Tier A apps from M1; release gate in M6." }
+  "PRD §11.4 signing, notarization and Sparkle 2":
+    milestone: M3
+    note: >-
+      Scripts/release.sh builds universal, re-signs every piece inside out with Developer ID, the
+      hardened runtime and a timestamp, checks it (Scripts/verify-signature.sh), notarizes with a
+      notarytool keychain profile, staples, and makes the Sparkle zip and a DMG. Sparkle 2 with EdDSA
+      is compiled in only there (library validation refuses it under a certificate without a Team ID).
+      Scripts/appcast.sh signs archives and writes the appcast, with a "beta" channel. Notarization and
+      an update end to end need real credentials and are in the release checklist.
+    tests:
+      - PappuAppTests/theAppKeepsLibraryValidationAndIsNotSandboxed
+      - PappuAppTests/eachHelperHasItsOneEntitlement
+      - PappuAppTests/releaseBuildsUseTheHardenedRuntimeWithoutGetTaskAllow
+      - PappuAppTests/theReleaseScriptSignsNotarizesAndStaples
+      - PappuAppTests/aReleaseWithoutCredentialsFailsAndSaysWhy
+      - PappuAppTests/sparklesKeysComeFromBuildSettings
+      - PappuAppTests/onlyAReleaseBuildCompilesSparkleIn
+      - PappuAppTests/theAppcastKeyStaysOutOfTheRepository
+      - manual:docs/checklists/m3-release.md
   "PRD §11.5 app matrix": { milestone: M1, completes: M6, tests: [PappuHarnessTests/matrixMatchesThePRD] }
   "Localization: strings externalised from the start": { milestone: M1, completes: M4, tests: [] }

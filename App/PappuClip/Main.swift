@@ -65,7 +65,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // inside this call. Nothing is on screen until it finishes, which is the intended order: the
         // status item and the first-run window go up together, in `start`.
         Task { @MainActor in
-            let assembly = await AppAssembly(resources: resources)
+            // PRD §11.4: nil in every build without an update feed and an EdDSA key.
+            let assembly = await AppAssembly(resources: resources, updater: Updates.make())
             self.assembly = assembly
             await assembly.start()
             let urls = pendingURLs

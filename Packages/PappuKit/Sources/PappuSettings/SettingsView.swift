@@ -23,6 +23,7 @@ public struct SettingsView: View {
         case actions
         case extensions
         case developer
+        case app
     }
 
     private let model: SettingsModel
@@ -53,6 +54,11 @@ public struct SettingsView: View {
                 DevelopmentView(model: development)
                     .tabItem { Label(DeveloperStrings.tab, systemImage: "hammer") }
                     .tag(Tab.developer)
+            }
+            if let app = model.app {
+                AppTabView(model: app, diagnostics: model.diagnostics)
+                    .tabItem { Label(AppTabStrings.tab, systemImage: "app.badge") }
+                    .tag(Tab.app)
             }
         }
         .frame(width: 520, height: 400)
@@ -122,9 +128,8 @@ public struct SettingsView: View {
                 }
             }
 
-            // DIA-3, DIA-4. Here until Settings → App exists; the section is self-contained and moves
-            // there whole.
-            if let diagnostics = model.diagnostics {
+            // DIA-3, DIA-4 live in Settings → App; here only where the window has no App tab.
+            if model.app == nil, let diagnostics = model.diagnostics {
                 DiagnosticsSettingsSection(model: diagnostics)
             }
         }
