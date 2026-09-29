@@ -2110,6 +2110,9 @@ requirements:
       - PappuSurfacesTests/submitAnswersWithTheFieldEvenEmpty
       - PappuSurfacesTests/cancelEscapeAndCloseAnswerCancelledOnce
       - PappuSurfacesTests/theInvocationEndingClosesThePromptWithoutAnAnswer
+      - PappuAppTests/aCancelBeforeTheShowStopsIt
+      - PappuAppTests/aCancelWhileShownClosesThePrompt
+      - PappuAppTests/aCancelAfterTheAnswerDoesNothing
       - manual:docs/checklists/m3-manual.md
   JS-19:
     priority: P1
@@ -2307,6 +2310,7 @@ requirements:
       - PappuSettingsTests/aCancelledReviewAddsNothing
       - PappuSettingsTests/reloadSaysWhatItDidAndOnlyRebuildsWhenSomethingLoaded
       - PappuSettingsTests/removingTheLastFolderTurnsDevelopmentModeOff
+      - PappuSettingsTests/uninstallingTheDevelopmentExtensionElsewhereTurnsDevelopmentModeOff
       - PappuSettingsTests/theSwitchesStartOffAndPersist
       - PappuSettingsTests/everyReloadOutcomeHasAStatus
       - PappuAppTests/withBothSwitchesOffNothingIsDebugged

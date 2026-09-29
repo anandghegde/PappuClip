@@ -148,6 +148,10 @@ public final class ExtensionsModel {
         } catch {
             failure = ExtensionStrings.failed(String(describing: error))
         }
+        // DEV-1: a development folder's extension can be uninstalled here as well as removed in
+        // Settings → Developer. The menu's "Development Mode On" line reads the development model, so
+        // it is refreshed with the list rather than left stale.
+        await development?.refresh()
     }
 
     // MARK: Approval (EXM-15d, SEC-4)
