@@ -132,3 +132,28 @@ Fixture **G**: a module snippet, `// #popclip` / `// name: Sign` / `// after: sh
 | 43 | Install D2, approve it and select a word | No item from D2; the Debug Console has "A timer is not available in a population function." | |
 | 44 | Install D3, approve it and select a word | The bar appears as fast as without D3, with no item from D3 (a population that never returns is ended only by the watchdog, §10.7) | |
 
+
+## Import from PopClip and coexistence (EXM-11, EXM-15, ONB-6)
+
+Week 6. The fixtures are in `~/Library/Application Support/PopClip/Extensions`. Make the folder if PopClip is not installed. **PS** is a `Search.popclipext` folder with a URL action. **PX** is a `Shout.popclipext` folder whose `Config.json` has `"shellScript": "echo hi"`. Keep a copy of `~/Library/Preferences/com.pilotmoon.popclip.plist` if there is one. Compare it afterwards to confirm that nothing in PopClip changed.
+
+**The exclusion list's format is unverified.** PappuClip reads `BlockedApps` (an array of bundle IDs) from `com.pilotmoon.popclip.plist`. Row P1 checks that against a real PopClip.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| P1 | With a real PopClip, exclude Terminal in PopClip's settings, then run `defaults read com.pilotmoon.popclip BlockedApps` | Terminal's bundle ID in an array. If the key or the shape differs, note it here: `PopClipExclusions` is the one place to change | |
+| P2 | Put PS and PX in the folder, finish onboarding, relaunch PappuClip | "Import from PopClip?" with the extension and excluded-app counts; Not Now closes it, and it is not offered at the next launch | |
+| P3 | Open the menu bar item's menu | "Import from PopClip…" above Quit. Rename the Extensions folder, reopen the menu: it is gone | |
+| P4 | Choose Import from PopClip…, then Review and Import… | One "Review Extensions" window: the unsigned-files sentence; Search under "Approved together…"; Shout under "These ask for more…" with a switch that is off and the script sentence | |
+| P5 | With VoiceOver on, move to Shout's switch | It is read as "Approve “Shout”", then the script sentence | |
+| P6 | Press Install with Shout's switch off | The closing alert says Search is on and Shout is waiting; Settings › Extensions shows Shout as "Waiting for approval"; Shout is not on the bar; Terminal is under Settings › Apps as "Don't appear automatically" | |
+| P7 | Approve Shout in Extension Info | Shout is on the bar and runs | |
+| P8 | Uninstall both, import again, turn Shout's switch on and press Install | Both are on; Shout is approved for scripts | |
+| P9 | Import again and close the review window | Nothing is installed and no app rule is added; no closing alert | |
+| P10 | Compare PopClip's folder and preferences with the copy | Unchanged | |
+| P11 | With PappuClip running and "Appear automatically" on, start PopClip | "PopClip Is Running", which explains the two bars, with Keep Both, Turn Off PappuClip's Automatic Bar, How to Turn Off PopClip's, and "Don't show this again" | |
+| P12 | Choose How to Turn Off PopClip's | The steps. Check that they match PopClip's current menu; PopClip keeps running and its settings are unchanged | |
+| P13 | Quit and restart PopClip, then choose Turn Off PappuClip's Automatic Bar | The menu's "Appear Automatically" is unticked; the shortcut still brings the bar | |
+| P14 | Turn "Appear automatically" back on, tick "Don't show this again", restart PopClip twice | The notice appears once, then not again | |
+| P15 | With PopClip running, select text in an app with no Accessibility text (e.g. a canvas app with a copyable selection) | The automatic bar does not copy (the pasteboard's change count is unchanged); the shortcut still reads the selection | |
+| P16 | Launch PappuClip with PopClip already running | The notice appears at launch, unless it was suppressed | |

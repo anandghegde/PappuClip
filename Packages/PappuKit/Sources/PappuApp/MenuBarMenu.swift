@@ -15,6 +15,8 @@ public enum MenuCommand: String, Sendable, Equatable, Codable, CaseIterable {
     case settings
     /// DIA-1: what extensions printed, and how their actions ended.
     case debugConsole
+    /// EXM-11: offered while PopClip's extensions folder is there.
+    case importFromPopClip
     case quit
 }
 
@@ -57,7 +59,8 @@ public struct MenuBarMenu: Sendable, Equatable {
         rules: PrivacyRules,
         grant: AccessibilityGrant = .working,
         now: Date = Date(),
-        locale: Locale = .current
+        locale: Locale = .current,
+        offersPopClipImport: Bool = false
     ) {
         let pause = rules.pause.settled(at: now)
         isPaused = pause != .running
@@ -102,6 +105,9 @@ public struct MenuBarMenu: Sendable, Equatable {
         entries.append(.separator)
         entries.append(.item(Item(command: .settings, title: AppStrings.settings, keyEquivalent: ",")))
         entries.append(.item(Item(command: .debugConsole, title: AppStrings.debugConsole)))
+        if offersPopClipImport {
+            entries.append(.item(Item(command: .importFromPopClip, title: PopClipStrings.importMenu)))
+        }
         entries.append(.separator)
         entries.append(.item(Item(command: .quit, title: AppStrings.quit, keyEquivalent: "q")))
 

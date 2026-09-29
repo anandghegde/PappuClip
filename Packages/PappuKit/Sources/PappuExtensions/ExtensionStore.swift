@@ -313,6 +313,10 @@ public actor ExtensionStore {
         /// The gated capabilities the user switched on in the review (EXM-5d). Execution itself is
         /// approved by the review's confirmation (EXM-5c), so an activation always grants it.
         public var granted: Set<GatedCapability>
+        /// False for an extension a batch review left switched off (EXM-15c, EXM-15d): it is installed,
+        /// waits for approval, and has no grant at all — not even execution — until Extension Info's
+        /// Approve gives it one.
+        public var approved: Bool
 
         public init(
             kind: Kind,
@@ -321,8 +325,10 @@ public actor ExtensionStore {
             provenance: Provenance,
             digest: ContentDigest,
             form: StagedForm,
-            granted: Set<GatedCapability> = []
+            granted: Set<GatedCapability> = [],
+            approved: Bool = true
         ) {
+            self.approved = approved
             self.kind = kind
             self.identity = identity
             self.manifest = manifest
@@ -355,7 +361,7 @@ public actor ExtensionStore {
                     name: manifest.name.english,
                     provenance: activation.provenance,
                     activeVersion: activation.digest,
-                    state: .enabled,
+                    state: activation.approved ? .enabled : .pendingApproval,
                     updatesPaused: false,
                     installedAt: now()
                 ).insert(db)
@@ -385,7 +391,8 @@ public actor ExtensionStore {
                 record.provenance = activation.provenance
                 // The user has just approved these bytes. A version the user had switched off stays
                 // off; one that was waiting for approval has it now.
-                if record.state == .pendingApproval { record.state = .enabled }
+                if activation.approved, record.state == .pendingApproval { record.state = .enabled }
+                if !activation.approved, record.state == .enabled { record.state = .pendingApproval }
                 try record.update(db)
                 let instances = try InstanceRecord
                     .filter(Column("local_identity") == record.localIdentity && Column("deleted_at") == nil)
@@ -393,7 +400,7 @@ public actor ExtensionStore {
                 for instance in instances {
                     try reconcile(instance.id, with: keys, in: db)
                 }
-                try replaceGrants(of: record.localIdentity, at: activation.digest, granting: activation.granted, in: db)
+                try grant(activation, to: record.localIdentity, in: db)
                 return retired
             }
 
@@ -431,10 +438,19 @@ public actor ExtensionStore {
                 let instance = try insertInstance(for: activation.identity, in: db)
                 try appendItems(keys, for: instance, in: db)
             }
-            try replaceGrants(of: activation.identity, at: activation.digest, granting: activation.granted, in: db)
+            try grant(activation, to: activation.identity, in: db)
             return retired
         }
         return retired
+    }
+
+    /// The activation's grants, or none at all when it was left unapproved (EXM-15d).
+    private func grant(_ activation: Activation, to identity: LocalIdentity, in db: Database) throws {
+        if activation.approved {
+            try replaceGrants(of: identity, at: activation.digest, granting: activation.granted, in: db)
+        } else {
+            try GrantRecord.filter(Column("local_identity") == identity).deleteAll(db)
+        }
     }
 
     /// What deleting one list item did.

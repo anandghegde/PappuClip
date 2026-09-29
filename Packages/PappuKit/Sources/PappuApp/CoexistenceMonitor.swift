@@ -41,8 +41,22 @@ public final class CoexistenceMonitor: Sendable {
         { [self] in current }
     }
 
+    /// Called with every reading that differs from the one before, the first included when it is not
+    /// `.none` (ONB-6: PopClip found at launch, or starting later). On whatever thread the watcher
+    /// reports on; `CoexistenceNotice` hops to the main actor itself.
+    public func onChange(_ body: @escaping @Sendable (Coexistence) -> Void) {
+        observers.withLock { $0.append(body) }
+    }
+
+    private let observers = Mutex<[@Sendable (Coexistence) -> Void]>([])
+
     private func note(_ running: Set<String>) {
         let next = Coexistence(running: running)
-        state.withLock { $0 = next }
+        let changed = state.withLock { current -> Bool in
+            defer { current = next }
+            return current != next
+        }
+        guard changed else { return }
+        for observer in observers.withLock({ $0 }) { observer(next) }
     }
 }

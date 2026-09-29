@@ -1148,14 +1148,68 @@ requirements:
       - PappuRuntimeTests/anInstalledAppOrOneNotCheckedLetsItRun
       - PappuRuntimeTests/onlyAWebPageIsOfferedAsTheLink
       - manual:docs/checklists/m3-manual.md
-  EXM-11: { priority: P1, milestone: M3, tests: [] }
+  EXM-11:
+    priority: P1
+    milestone: M3
+    note: >-
+      Offered once at a launch with nothing else to show, and from the menu bar item's menu (there is no
+      Tools menu yet) while PopClip's Extensions folder exists. Folders install as local, unsigned code
+      through the batch review; exclusions become appearance exclusions for apps with no rule yet. The
+      exclusion list's format (BlockedApps in com.pilotmoon.popclip.plist) is unverified and kept to one
+      reader tested on fixtures.
+    tests:
+      - PappuExtensionsTests/theBlockedAppsArrayIsReadInOrder
+      - PappuExtensionsTests/anotherShapeIsNoExclusions
+      - PappuExtensionsTests/entriesThatAreNotBundleIdentifiersAreDropped
+      - PappuExtensionsTests/withoutPopClipsFolderThereIsNothingToOffer
+      - PappuExtensionsTests/thePackageFoldersAreFoundInNameOrder
+      - PappuExtensionsTests/theExclusionsComeFromTheFirstPreferencesFileThere
+      - PappuExtensionsTests/findingChangesNothing
+      - PappuExtensionsTests/importedPackagesAreLocalAndUnsigned
+      - PappuAppTests/theFirstRunOfferIsMadeOnce
+      - PappuAppTests/decliningTheOfferImportsNothing
+      - PappuAppTests/exclusionsArriveAsAppearanceExclusionsWithoutOverridingRules
+      - PappuAppTests/cancellingTheReviewImportsNoExclusions
+      - PappuAppTests/importFromPopClipIsOfferedOnlyWhenThereIsSomethingToImport
+      - manual:docs/checklists/m3-manual.md
   EXM-12: { priority: P1, milestone: M5, tests: [], note: "The staged-package shape is built in M2; update activation lands in M5." }
   EXM-13: { priority: P1, milestone: M5, tests: [] }
   EXM-14: { priority: P1, milestone: M5, tests: [] }
-  EXM-15a: { priority: P1, milestone: M3, tests: [] }
-  EXM-15b: { priority: P1, milestone: M3, tests: [] }
-  EXM-15c: { priority: P1, milestone: M3, tests: [] }
-  EXM-15d: { priority: P1, milestone: M3, tests: [] }
+  EXM-15a:
+    priority: P1
+    milestone: M3
+    tests:
+      - PappuExtensionsTests/theSetIsReviewedOnceWithEveryCapability
+      - PappuSettingsTests/everyExtensionIsListedWithItsCapabilities
+      - PappuExtensionsTests/aBatchNeverOffersToReplace
+      - manual:docs/checklists/m3-manual.md
+  EXM-15b:
+    priority: P1
+    milestone: M3
+    tests:
+      - PappuSettingsTests/nothingSwitchedOnApprovesOnlyTheListedOnes
+      - PappuExtensionsTests/cancellingTheReviewInstallsNothing
+      - PappuExtensionsTests/anAnswerForADifferentSetInstallsNothing
+      - manual:docs/checklists/m3-manual.md
+  EXM-15c:
+    priority: P1
+    milestone: M3
+    tests:
+      - PappuSettingsTests/aSwitchApprovesItsOwnExtensionWithItsGates
+      - PappuSettingsTests/onlyAGatedRowsSwitchCounts
+      - PappuExtensionsTests/switchingOneOnApprovesThatOneAlone
+      - manual:docs/checklists/m3-manual.md
+  EXM-15d:
+    priority: P1
+    milestone: M3
+    note: >-
+      Done-when: an imported set with gated extensions arrives disabled until switched on. Left off, it is
+      installed pending approval with no grants at all, and Extension Info's Approve turns it on.
+    tests:
+      - PappuExtensionsTests/aGatedExtensionArrivesDisabledUntilSwitchedOn
+      - PappuExtensionsTests/oneLeftWaitingCanBeApprovedLater
+      - PappuAppTests/theImportReportsWhatIsWaiting
+      - manual:docs/checklists/m3-manual.md
 
   # Invocation runtime (safety spec)
   RUN-1a:
@@ -2094,12 +2148,24 @@ requirements:
     priority: P1
     milestone: M3
     note: >-
-      The explanation and the offer are M3. Detection, and the clause the safety spec leans on — no
-      synthetic copy on the automatic path while PopClip runs — are in from M1.
+      Detection, and the clause the safety spec leans on — no synthetic copy on the automatic path while
+      PopClip runs — are in from M1, through an injectable watcher. M3 adds the explanation and the offer
+      (pause PappuClip's automatic appearance, or read how to turn PopClip's off), shown once each time
+      PopClip starts. Nothing touches PopClip: the notice has no handle on its process or preferences.
     tests:
       - PappuAppTests/popClipLaunchingAndQuittingLaterIsFollowed
       - PappuSelectionTests/popClipStopsSyntheticCopyOnTheAutomaticPathAndNowhereElse
       - PappuSelectionTests/popClipTakesTheFallbackAwayOnTheAutomaticPath
+      - PappuAppTests/theFlagTheChainReadsFollowsALateLaunch
+      - PappuAppTests/observersHearChangesOnly
+      - PappuAppTests/popClipStartingIsExplainedOnce
+      - PappuAppTests/aRestartIsExplainedAgain
+      - PappuAppTests/nothingIsSaidWhileAutomaticAppearanceIsOff
+      - PappuAppTests/pausingTurnsOffAutomaticAppearance
+      - PappuAppTests/howToShowsTheStepsAndChangesNothing
+      - PappuAppTests/dontShowAgainIsRemembered
+      - PappuAppTests/theMonitorsReadingsReachIt
+      - manual:docs/checklists/m3-manual.md
 
   # Diagnostics
   DIA-1:

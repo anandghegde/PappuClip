@@ -54,6 +54,9 @@ public actor ExtensionLibrary {
         case snippetFile(URL)
         /// Selected text, through the bar's Install Extension action (EXM-2).
         case selectedText(String)
+        /// A package folder in PopClip's `Extensions/`, through Import from PopClip (EXM-11). Staged as
+        /// a folder is; only its origin differs.
+        case popClipPackage(URL)
 
         /// Which source a file is, by its extension; nil for anything that is not an extension.
         public static func file(_ url: URL) -> Source? {
@@ -68,6 +71,7 @@ public actor ExtensionLibrary {
         var origin: LocalOrigin {
             switch self {
             case .packageFolder, .zippedPackage: .packageFile
+            case .popClipPackage: .popClipImport
             case .snippetFile: .snippetFile
             case .selectedText: .selectedText
             }
@@ -260,9 +264,122 @@ public actor ExtensionLibrary {
         installing = true
         defer { installing = false }
 
-        let staging = paths.staging.appending(path: UUID().uuidString.lowercased(), directoryHint: .isDirectory)
+        let staging = newStaging()
         defer { try? FileManager.default.removeItem(at: staging) }
 
+        let prepared = try await prepare(source, into: staging, route: route)
+        if case .alreadyInstalled(let identity) = prepared.proposal.decision {
+            try deleteArchive(source)
+            return .alreadyInstalled(identity)
+        }
+        let consent = await review(prepared.proposal)
+        return try await commit(prepared, consent: consent, approved: true)
+    }
+
+    // MARK: Several at once (EXM-15)
+
+    /// What a batch review decided for one extension (EXM-15b–d).
+    public enum BatchApproval: Sendable, Equatable {
+        /// Installed and approved, with these gates. A listed-only extension is approved this way by the
+        /// sheet's one confirmation; a gated one only when the user switched it on.
+        case approve(granting: Set<GatedCapability>)
+        /// Installed, but waiting: no grant, no code, until Extension Info's Approve (EXM-15d).
+        case leaveUnapproved
+        /// Not installed at all.
+        case skip
+    }
+
+    /// Shown every proposal at once; answers one `BatchApproval` per proposal, in the same order, or nil
+    /// to install nothing. An answer list of the wrong length installs nothing either.
+    public typealias BatchReviewer = @Sendable ([Proposal]) async -> [BatchApproval]?
+
+    /// What happened to one source of a batch. A source the review was shown and then skipped, or a
+    /// batch the review cancelled, is `.cancelled`.
+    public struct BatchEntry: Sendable {
+        public var source: Source
+        public var result: Result<Outcome, any Error>
+        /// Whether the review approved it: false for one installed but left waiting (EXM-15d), nil
+        /// for one the review never activated.
+        public var approved: Bool?
+
+        public init(source: Source, result: Result<Outcome, any Error>, approved: Bool? = nil) {
+            self.source = source
+            self.result = result
+            self.approved = approved
+        }
+    }
+
+    /// Several extensions arriving together — Import from PopClip, and later a configuration import or
+    /// a sync (EXM-11, EXM-15a) — staged and analysed first, then reviewed on one sheet, then activated.
+    ///
+    /// A source that cannot be staged is reported and left out of the review; one that is already
+    /// installed is reported and not shown. The rest are resolved on the batch route, so nothing offers
+    /// to replace anything (EXM-2), and each is activated with the answer the sheet gave it.
+    public func installBatch(_ sources: [Source], review: BatchReviewer) async throws -> [BatchEntry] {
+        guard !installing else { throw InstallError.busy }
+        installing = true
+        defer { installing = false }
+
+        var entries: [BatchEntry] = []
+        var waiting: [(index: Int, prepared: Prepared)] = []
+        var stagings: [URL] = []
+        defer { for staging in stagings { try? FileManager.default.removeItem(at: staging) } }
+
+        for source in sources {
+            let staging = newStaging()
+            stagings.append(staging)
+            do {
+                let prepared = try await prepare(source, into: staging, route: .batch)
+                if case .alreadyInstalled(let identity) = prepared.proposal.decision {
+                    entries.append(BatchEntry(source: source, result: .success(.alreadyInstalled(identity))))
+                } else {
+                    waiting.append((entries.count, prepared))
+                    entries.append(BatchEntry(source: source, result: .success(.cancelled)))
+                }
+            } catch {
+                entries.append(BatchEntry(source: source, result: .failure(error)))
+            }
+        }
+        guard !waiting.isEmpty else { return entries }
+
+        let answers = await review(waiting.map { $0.prepared.proposal })
+        guard let answers, answers.count == waiting.count else { return entries }
+
+        for ((index, prepared), answer) in zip(waiting, answers) {
+            let consent: Consent
+            let approved: Bool
+            switch answer {
+            case .skip: continue
+            case .approve(let gates): (consent, approved) = (.install(granting: gates), true)
+            case .leaveUnapproved: (consent, approved) = (.install, false)
+            }
+            do {
+                entries[index].result = .success(try await commit(prepared, consent: consent, approved: approved))
+                entries[index].approved = approved
+            } catch {
+                entries[index].result = .failure(error)
+            }
+        }
+        return entries
+    }
+
+    // MARK: The pipeline's two halves
+
+    /// A source staged, read, resolved and analysed: everything the review is shown, and what
+    /// activating it needs afterwards.
+    struct Prepared: Sendable {
+        var source: Source
+        var staging: URL
+        var form: StagedForm
+        var scan: CodeScan?
+        var proposal: Proposal
+    }
+
+    private func newStaging() -> URL {
+        paths.staging.appending(path: UUID().uuidString.lowercased(), directoryHint: .isDirectory)
+    }
+
+    private func prepare(_ source: Source, into staging: URL, route: IdentityResolver.Route) async throws -> Prepared {
         let (loaded, form) = try stage(source, into: staging)
         checkpoint(.staged)
 
@@ -271,28 +388,37 @@ public actor ExtensionLibrary {
         let provenance = Provenance.local(source.origin, digest)
         let candidate = IdentityResolver.Candidate(manifest: loaded.manifest, provenance: provenance, digest: digest)
         let decision = IdentityResolver.resolve(candidate, against: try await store.installedSummaries(), route: route)
-        if case .alreadyInstalled(let identity) = decision {
-            try deleteArchive(source)
-            return .alreadyInstalled(identity)
+        var scan: CodeScan?
+        if case .alreadyInstalled = decision {} else {
+            scan = await codeScan(loaded.manifest, in: staging, key: nil)
         }
+        return Prepared(
+            source: source,
+            staging: staging,
+            form: form,
+            scan: scan,
+            proposal: Proposal(
+                manifest: loaded.manifest,
+                warnings: loaded.warnings,
+                provenance: provenance,
+                digest: digest,
+                decision: decision,
+                capabilities: CapabilityAnalyzer.effective(loaded.manifest, directory: staging, scan: scan)
+            )
+        )
+    }
 
-        let scan = await codeScan(loaded.manifest, in: staging, key: nil)
-        let capabilities = CapabilityAnalyzer.effective(loaded.manifest, directory: staging, scan: scan)
-        let consent = await review(Proposal(
-            manifest: loaded.manifest,
-            warnings: loaded.warnings,
-            provenance: provenance,
-            digest: digest,
-            decision: decision,
-            capabilities: capabilities
-        ))
-        let answer = consent.answer
+    /// Activate a prepared source with the user's answer. `approved` false installs it waiting for
+    /// approval, with no grant (EXM-15d).
+    private func commit(_ prepared: Prepared, consent: Consent, approved: Bool) async throws -> Outcome {
+        let proposal = prepared.proposal
+        let decision = proposal.decision
         // A grant for something the analysis did not find would approve nothing today and something
         // tomorrow, when a later version needs it without having been reviewed for it.
-        let granted = consent.granted.intersection(capabilities.gated)
+        let granted = consent.granted.intersection(proposal.capabilities.gated)
         let kind: ExtensionStore.Activation.Kind
         let identity: LocalIdentity
-        switch (answer, decision) {
+        switch (consent.answer, decision) {
         case (.cancel, _):
             return .cancelled
         case (.install, .replacementOffered(let existing)):
@@ -312,18 +438,19 @@ public actor ExtensionLibrary {
         let activation = ExtensionStore.Activation(
             kind: kind,
             identity: identity,
-            manifest: loaded.manifest,
-            provenance: provenance,
-            digest: digest,
-            form: form,
-            granted: granted
+            manifest: proposal.manifest,
+            provenance: proposal.provenance,
+            digest: proposal.digest,
+            form: prepared.form,
+            granted: approved ? granted : [],
+            approved: approved
         )
         let destination = paths.folder(activation.folder)
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
         if !fileManager.fileExists(atPath: destination.path) {
             // A folder named by its digest holds those bytes; one that is already there is this version.
-            try fileManager.moveItem(at: staging, to: destination)
+            try fileManager.moveItem(at: prepared.staging, to: destination)
         }
         checkpoint(.moved)
 
@@ -336,10 +463,10 @@ public actor ExtensionLibrary {
             throw error
         }
         checkpoint(.committed)
-        if let scan { codeScans[ModuleKey(identity: identity, digest: digest)] = scan }
+        if let scan = prepared.scan { codeScans[ModuleKey(identity: identity, digest: proposal.digest)] = scan }
 
         try retire(retired)
-        try deleteArchive(source)
+        try deleteArchive(prepared.source)
         switch kind {
         case .update: return .updated(identity)
         case .fresh: return .installed(identity, replaced: nil)
@@ -353,7 +480,7 @@ public actor ExtensionLibrary {
         let settings = ExtensionLoader.Settings(origin: .installed)
         do {
             switch source {
-            case .packageFolder(let url):
+            case .packageFolder(let url), .popClipPackage(let url):
                 try PackageStaging.copyFolder(url, to: staging)
                 return (try ExtensionLoader.loadPackage(at: staging, settings: settings), .package)
             case .zippedPackage(let url):
