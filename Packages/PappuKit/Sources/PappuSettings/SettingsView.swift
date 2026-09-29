@@ -121,6 +121,12 @@ public struct SettingsView: View {
                     Button(SettingsStrings.rulesApps) { isShowingApps = true }
                 }
             }
+
+            // DIA-3, DIA-4. Here until Settings → App exists; the section is self-contained and moves
+            // there whole.
+            if let diagnostics = model.diagnostics {
+                DiagnosticsSettingsSection(model: diagnostics)
+            }
         }
         .formStyle(.grouped)
     }

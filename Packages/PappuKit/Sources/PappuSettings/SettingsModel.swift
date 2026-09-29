@@ -113,6 +113,8 @@ public final class SettingsModel {
     private let openAccessibilitySettings: @MainActor () -> Void
     /// Extension Info and the options sheets. Nil where there is no library behind the window.
     public let extensions: ExtensionsModel?
+    /// DIA-3, DIA-4: the two opt-ins. Set by the app after the model is made; nil draws nothing.
+    public var diagnostics: DiagnosticsModel?
 
     /// Apps named in the sheet during this session that have no rule yet, so that a row does not vanish
     /// between adding it and choosing what it is for. Not stored: an app with neither box ticked has no

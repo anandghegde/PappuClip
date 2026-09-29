@@ -256,6 +256,26 @@ final class InProcessJSHost: JSHostTransport {
         #expect(setup.kinds("Extension B") == [.returned])
     }
 
+    /// DIA-3, DIA-4: a crash under an extension is told to the diagnostics reporter; a helper the app
+    /// killed itself is not.
+    @Test func aCrashUnderAnExtensionIsReportedAndAKillIsNot() async throws {
+        let setup = try Setup(grace: .milliseconds(50))
+        let crashes = Mutex(0)
+        setup.client.whenHelperCrashed { crashes.withLock { $0 += 1 } }
+
+        let hanging = try #require(await setup.client.start(setup.job("await new Promise(() => {})")))
+        setup.transport.current?.crash()
+        _ = await hanging.result()
+        #expect(crashes.withLock { $0 } == 1)
+
+        let busy = try #require(await setup.client.start(setup.job(
+            "const end = Date.now() + 1500; while (Date.now() < end) {}; return 'finished'"
+        )))
+        _ = await busy.cancel()
+        _ = await busy.result()
+        #expect(crashes.withLock { $0 } == 1)
+    }
+
     @Test func anExtensionThatKeepsCrashingIsSuspended() async throws {
         let setup = try Setup()
         for _ in 0..<JSHostClient.suspensionThreshold {

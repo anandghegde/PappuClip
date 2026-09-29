@@ -83,7 +83,7 @@ let package = Package(
         // surface and owns the words it says, so it has a catalogue of its own.
         .target(
             name: "PappuSettings",
-            dependencies: [core, "PappuExtensions", "PappuSelection", "PappuSurfaces"],
+            dependencies: [core, "PappuExtensions", "PappuSelection", "PappuSurfaces", "PappuDiagnostics"],
             resources: [.process("Resources")]
         ),
         // The one module allowed to hold a surface and the runtime at once (architecture §15).
@@ -127,10 +127,13 @@ let package = Package(
         ),
         .testTarget(name: "PappuRunnerHostTests", dependencies: ["PappuRunnerHost", "PappuRunnerBridge"]),
         .testTarget(name: "PappuJSHostTests", dependencies: ["PappuJSHost", "PappuJSBridge"]),
-        .testTarget(name: "PappuDiagnosticsTests", dependencies: ["PappuDiagnostics"]),
+        .testTarget(name: "PappuDiagnosticsTests", dependencies: ["PappuDiagnostics", core, "PappuTestSupport"]),
         .testTarget(name: "PappuAppTests", dependencies: ["PappuApp", "PappuExtensions", "PappuTestSupport", "PappuDevTools"]),
         .testTarget(name: "PappuSurfacesTests", dependencies: ["PappuSurfaces", core, "PappuTestSupport"]),
-        .testTarget(name: "PappuSettingsTests", dependencies: ["PappuSettings", "PappuExtensions", "PappuTestSupport", "PappuDevTools"]),
+        .testTarget(
+            name: "PappuSettingsTests",
+            dependencies: ["PappuSettings", "PappuExtensions", "PappuTestSupport", "PappuDevTools", "PappuDiagnostics"]
+        ),
         .testTarget(name: "PappuHarnessTests", dependencies: ["PappuHarness", "PappuTestSupport"]),
         .testTarget(name: "PappuDevToolsTests", dependencies: ["PappuDevTools"]),
     ]

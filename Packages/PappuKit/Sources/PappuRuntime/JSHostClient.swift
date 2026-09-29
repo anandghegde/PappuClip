@@ -62,6 +62,8 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
         /// suspended at once: another extension's runaway may have been what took it down.
         var overran = false
         var whenSuspended: (@Sendable (String) async -> Void)?
+        /// DIA-3, DIA-4: told that the helper went away under an extension. Never which one.
+        var whenCrashed: (@Sendable () -> Void)?
         /// What is loaded on `connection`, by owner: the generation.
         var loaded: [String: String] = [:]
         /// The jobs in flight on `connection`.
@@ -322,6 +324,13 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
         state.withLock { $0.whenSuspended = handler }
     }
 
+    /// Called each time the helper goes away while an extension's code was running or loading in it,
+    /// and not because the app or the watchdog stopped it (DIA-3, DIA-4). Nothing about the extension
+    /// is passed.
+    public func whenHelperCrashed(_ handler: @escaping @Sendable () -> Void) {
+        state.withLock { $0.whenCrashed = handler }
+    }
+
     /// Extension Info's Resume: `owner` may run again, with no crashes held against it.
     public func resume(_ owner: String) {
         state.withLock { state in
@@ -443,6 +452,7 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
         rewarm()
         guard !killed else { return }
         let owners = Set(charged.filter { !$0.wasCancelled }.map(\.request.owner)).union(loading)
+        if !owners.isEmpty, !overran, let crashed = state.withLock({ $0.whenCrashed }) { crashed() }
         for owner in owners.sorted() {
             let name = charged.first { $0.request.owner == owner }?.request.extensionName
                 ?? names.withLock { $0[owner] } ?? owner

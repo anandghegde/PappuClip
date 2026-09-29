@@ -1,0 +1,13 @@
+/* The crash-report and beta-diagnostics switches (DIA-3, DIA-4). */
+"diagnostics.heading" = "Diagnostics";
+"diagnostics.crash" = "Send crash reports";
+"diagnostics.crash.help" = "When PappuClip or its JavaScript helper crashes, a report is sent once a day: the app and macOS versions, the error code and where in the program it stopped. Never selected text, clipboard contents, extension options or the names of your apps.";
+"diagnostics.beta" = "Share beta diagnostics";
+"diagnostics.beta.help" = "Once a day, send how many times PappuClip started and crashed and how long the bar took to appear, with the app and macOS versions. No identifier, no text, no app names and no option values.";
+"diagnostics.discarded" = "Turning a switch off deletes what it collected and has not sent.";
+"diagnostics.preview" = "Show What Is Sent\U2026";
+"diagnostics.preview.help" = "The reports waiting to be sent, exactly as they would be sent.";
+"diagnostics.preview.crash" = "Crash reports";
+"diagnostics.preview.beta" = "Beta diagnostics";
+"diagnostics.preview.nothing" = "Nothing is collected while both switches are off.";
+"diagnostics.done" = "Done";

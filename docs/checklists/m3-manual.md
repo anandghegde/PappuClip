@@ -206,3 +206,23 @@ The panels are the functional M3 ones; their look is M4's (DIF-1a, DIF-3). Repla
 | 61 | With VoiceOver on, run Q | VoiceOver announces the field as "Your name, edit text, World"; Tab reaches Cancel and Submit; Return submits and Escape cancels without the mouse | |
 | 62 | Install a dynamic extension whose population calls `pappuclip.promptText({ label: 'x' })`, approve it and select a word | No prompt appears; the Debug Console has "promptText is not available in a population function." | |
 
+
+## Crash reports and beta diagnostics (DIA-3, DIA-4)
+
+Fixtures:
+- **HANG**: a JavaScript snippet, `#popclip` / `name: Hang` / `javascript: await new Promise(() => {})`.
+
+Both switches are in Settings → General under Diagnostics until Settings → App takes them. The endpoints in Info.plist are placeholders in `.invalid`, which the app reads as no endpoint: nothing leaves the Mac, and "Show What Is Sent…" is how the payload is checked. MetricKit delivers an app crash at a later launch, often a day later, so row 71 may have to be checked the next day.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| 63 | Quit PappuClip, run `defaults delete app.pappuclip.PappuClip diagnostics.crashReports`, the same for `diagnostics.betaDiagnostics` and `diagnostics.ledger` (a missing key is fine), launch it and open Settings → General | A Diagnostics section with "Send crash reports" and "Share beta diagnostics", both off, each with an explanation under it | |
+| 64 | Press Show What Is Sent… | A sheet says nothing is collected while both switches are off; Done closes it | |
+| 65 | Build with `PAPPU_RELEASE_CHANNEL` set to `release` in App/project.yml and open Settings | Only "Send crash reports" is shown | |
+| 66 | Back on the beta build, turn both switches on, select `hello` in TextEdit a few times so the bar shows, then press Show What Is Sent… | Beta diagnostics show today with `sessions` 1 and a `selectionToBar` histogram whose counts add up to the bars shown; app and macOS versions and `beta`; no `hello`, no `TextEdit`, no bundle identifier, no user name anywhere in the text | |
+| 67 | Install and approve HANG, press it, then `pkill -9 PappuClipJSHost` | The Debug Console says the extension crashed; the preview has one crash report with `process` `javaScriptHelper` and no frames, and `helperCrashes` 1 | |
+| 68 | `kill -9` PappuClip and launch it again | The preview shows `sessions` 2 and `appCrashes` 1 | |
+| 69 | Quit PappuClip from the menu bar and launch it again | `sessions` 3; `appCrashes` still 1 | |
+| 70 | Turn "Send crash reports" off and on again, and press Show What Is Sent… | No crash reports; the beta diagnostics are still there. Turning beta diagnostics off and on empties those the same way | |
+| 71 | With crash reports on, crash the app (for example `kill -SEGV` its pid) and relaunch it the next day | A crash report with `process` `app`, the signal, and frames that are binary UUIDs and offsets only: no binary names, paths or addresses | |
+| 72 | With VoiceOver on, move through the Diagnostics section | Each switch is read by its name with its explanation as the hint; Show What Is Sent… is a button; the preview's text is readable | |
