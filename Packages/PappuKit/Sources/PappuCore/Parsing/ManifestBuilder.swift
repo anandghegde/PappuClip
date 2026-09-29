@@ -822,10 +822,16 @@ public struct ManifestBuilder {
     /// JS-13: the actions a population function offered for one attempt, as the helper described them
     /// (`JSPopulation.actions`), each running the code the helper keeps for that attempt at
     /// `populated.<attempt>.<index>`. Read with a module action's rules; an entry that breaks them is
-    /// left out, and the rest are offered.
-    public static func populatedActions(_ json: String, attempt: UInt64, source: ModuleSource) -> [ActionManifest] {
+    /// left out, and the rest are offered. `package` is the extension's own files, where an entry's
+    /// icon file is found; without it an icon file is an error, as it is for a snippet.
+    public static func populatedActions(
+        _ json: String,
+        attempt: UInt64,
+        source: ModuleSource,
+        package: PackageFiles? = nil
+    ) -> [ActionManifest] {
         guard let value = try? ConfigDecoding.decodeYAML(json), case .array(let values) = value else { return [] }
-        var builder = ManifestBuilder(input: Input(config: .dictionary([])))
+        var builder = ManifestBuilder(input: Input(config: .dictionary([]), package: package))
         var built: [ActionManifest] = []
         for (index, value) in values.enumerated() {
             let errorCount = builder.errors.count

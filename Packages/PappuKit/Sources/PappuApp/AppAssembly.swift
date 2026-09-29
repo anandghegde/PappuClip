@@ -63,6 +63,12 @@ public final class AppAssembly: SelectionInstalling {
     private let coexistenceNotice: CoexistenceNotice
     /// DEV-1: tells the helper which worlds are development worlds, from the folders and the switches.
     private let developmentDebugging: @Sendable () async -> Void
+    /// DIA-3, DIA-4: crash reports and beta diagnostics, both opt-in, uploaded once a day.
+    private let diagnostics: DiagnosticsReporter
+    private let crashes: MetricKitCrashSource
+    private var termination: (any NSObjectProtocol)?
+    /// PRD §11.4: Sparkle, from the app target, in a release build with a feed and a key; nil otherwise.
+    private let updater: (any SoftwareUpdating)?
 
     /// The loops that read the three streams. Held so that `stop` can end them; an `AsyncStream` whose
     /// consumer is a detached task nobody kept would run for the life of the process either way, but a
@@ -72,8 +78,13 @@ public final class AppAssembly: SelectionInstalling {
     /// Asynchronous because the Accessibility probes live on `AXActor` and must be made there
     /// (architecture §14). The caller is `applicationDidFinishLaunching`, which cannot wait, so the
     /// first thing the app does is start a task; nothing is on screen until it gets this far anyway.
-    public init(resources: AppResources, defaults: UserDefaults = .standard) async {
+    public init(
+        resources: AppResources,
+        defaults: UserDefaults = .standard,
+        updater: (any SoftwareUpdating)? = nil
+    ) async {
         self.resources = resources
+        self.updater = updater
         let ax = await Self.accessibilityProbes()
 
         // One tag for the process. Everything we post — the copy behind a selection read, a paste, a
@@ -132,6 +143,17 @@ public final class AppAssembly: SelectionInstalling {
         // launch when an approved module extension needs describing (JS-12).
         let console = DebugConsole()
         let javaScript = JSHostClient(console: console)
+        // DIA-3, DIA-4: off until the user turns them on; beta diagnostics only in a beta build. The
+        // channel and the endpoints are the bundle's (Info.plist); the endpoints are placeholders.
+        let channel = ReleaseChannel(bundle: .main)
+        let diagnostics = DiagnosticsReporter(
+            preferences: DiagnosticsPreferences(storage: storage, channel: channel),
+            environment: .current(bundle: .main, channel: channel),
+            endpoints: DiagnosticsEndpoints(bundle: .main),
+            uploader: URLSessionDiagnosticsUploader(),
+            storage: storage
+        )
+        javaScript.whenHelperCrashed { diagnostics.helperCrashed() }
         // The helper also reads each extension's JavaScript for what it can reach (EXM-5f).
         let host = (try? ExtensionLibrary(paths: .standard, scanner: javaScript)).map { library in
             ExtensionHost(
@@ -250,7 +272,9 @@ public final class AppAssembly: SelectionInstalling {
             popClipIsRunning: { coexistence.current.popClipIsRunning },
             populations: populations,
             // JS-16: a mouse-down wakes the helper, and restarts it if it went away.
-            onMouseDown: { javaScript.ping() }
+            onMouseDown: { javaScript.ping() },
+            // DIA-4: the latency histograms take each attempt's duration, and nothing else of it.
+            onFinish: { record in DiagnosticsFeed.record(record, into: diagnostics) }
         )
 
         let hotkeys = HotkeyService(registrar: SystemHotkeyRegistrar())
@@ -299,6 +323,22 @@ public final class AppAssembly: SelectionInstalling {
                 settingsRef?.refresh()
             }
         }
+        // Settings → App (PRD §7.5). The console window is made after the model, so it is reached late.
+        weak var consoleRef: DebugConsoleWindow?
+        let updatePreferences = UpdatePreferences(storage: storage)
+        updater?.channel = updatePreferences.channel
+        let appTab = AppTabModel(
+            version: AppTabModel.Version(bundle: .main),
+            links: [
+                AppTabModel.Link(title: AppTabStrings.sourceCode, url: ProductIdentity.sourceRepository),
+                AppTabModel.Link(title: AppTabStrings.issues, url: ProductIdentity.issueTracker),
+            ],
+            updater: updater,
+            preferences: updatePreferences,
+            loginItem: SystemLoginItem(),
+            open: { NSWorkspace.shared.open($0) },
+            openDebugConsole: { consoleRef?.show() }
+        )
         let settingsModel = SettingsModel(
             rules: rules,
             shortcuts: shortcuts,
@@ -307,9 +347,11 @@ public final class AppAssembly: SelectionInstalling {
             catalog: catalog,
             displayName: Self.displayName,
             extensions: extensionsModel,
+            app: appTab,
             openAccessibilitySettings: { accessibility.openSystemSettings() }
         )
         settingsRef = settingsModel
+        settingsModel.diagnostics = DiagnosticsModel(reporter: diagnostics)
         // SEC-1d, SEC-2: a suspension is kept in the store, the bar drops the extension's actions, and
         // Extension Info says it was stopped.
         javaScript.whenSuspended { [weak settingsModel] owner in
@@ -328,6 +370,7 @@ public final class AppAssembly: SelectionInstalling {
         // menu is the one surface that is looked at while nothing else is happening, and a tick left
         // over from an hour ago is worse than no menu (ACT-18).
         let consoleWindow = DebugConsoleWindow(console: console)
+        consoleRef = consoleWindow
 
         // The status item is made before the assembly is, so a drop reaches it through a weak reference.
         weak var assemblyRef: AppAssembly?
@@ -395,6 +438,8 @@ public final class AppAssembly: SelectionInstalling {
         self.settingsModel = settingsModel
         self.consentWindow = consentWindow
         self.developmentDebugging = developmentDebugging
+        self.diagnostics = diagnostics
+        self.crashes = MetricKitCrashSource(reporter: diagnostics)
         self.onboardingWindow = onboardingWindow
         self.consoleWindow = consoleWindow
         // EXM-11, EXM-15: PopClip's folders are read, every package goes through one batch review, and
@@ -444,6 +489,19 @@ public final class AppAssembly: SelectionInstalling {
         if host != nil { await bridge.attach(installer: self) }
         bar.prepare()
         statusItem.install()
+        // Sparkle's scheduler, with the stored channel already set (init). Its first check is its own
+        // business and never delays the bar.
+        updater?.start()
+
+        // DIA-3, DIA-4: a session left open by the last launch is counted as a crash, and a clean quit
+        // closes this one. The quit is heard here and not in `stop`, which runs in a task the process
+        // does not wait for.
+        diagnostics.sessionStarted()
+        termination = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: nil
+        ) { [diagnostics] _ in diagnostics.sessionEnded() }
+        crashes.start()
+        tasks.append(Task { [diagnostics] in await diagnostics.run() })
 
         // Before the tap, so that the first answer about the grant is the one the tap's own success or
         // failure then confirms (ONB-4: trusted and refused is a different state from not trusted).
@@ -513,6 +571,8 @@ public final class AppAssembly: SelectionInstalling {
         coexistence.stop()
         accessibility.stop()
         statusItem.remove()
+        if let termination { NotificationCenter.default.removeObserver(termination) }
+        termination = nil
     }
 
     /// Files the Finder asked the app to open (EXM-1): each extension is reviewed, one at a time, in the

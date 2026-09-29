@@ -961,6 +961,19 @@ final class ExtensionVM: @unchecked Sendable {
         throw new Error('The module has no action at ' + path + '.');
       }
 
+      // DEV-2: a function the module exports by name (`test`) beside an `export default` extension object,
+      // which `extensionOf` looks past. The extension object is looked in first, so an action path means
+      // what it always has.
+      function moduleAction(exports, path) {
+        const extension = extensionOf(exports);
+        try {
+          return exportedAction(extension, path);
+        } catch (error) {
+          if (extension === exports || exports === null || typeof exports !== 'object') throw error;
+          return exportedAction(exports, path);
+        }
+      }
+
       // Host calls (architecture §10.2, §10.4). Everything a script asks of the app goes through these two:
       // an asynchronous call is answered later, on the world's queue, through `answer`; a synchronous one
       // (`pasteboard.text`, a dictionary lookup) waits in the host for its answer. Either way it carries the
@@ -1924,7 +1937,7 @@ final class ExtensionVM: @unchecked Sendable {
           let promise;
           try {
             const action = String(path).indexOf('populated.') === 0 ? populatedAction(path)
-              : exportedAction(extensionOf(loadModule(source, isFile, typeScript)), path);
+              : moduleAction(loadModule(source, isFile, typeScript), path);
             const popclip = enter(state);
             const result = typeof action === 'function'
               ? action.call(undefined, popclip.input, popclip.options, popclip.context)

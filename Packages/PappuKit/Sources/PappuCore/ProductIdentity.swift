@@ -1,3 +1,5 @@
+import Foundation
+
 /// Every name that a rename would touch (PRD §14, architecture §1).
 ///
 /// Nothing else in the code base may spell these out. The only other place that repeats the
@@ -18,6 +20,10 @@ public enum ProductIdentity {
 
     /// Reserved for extensions signed by our directory (FMT-6).
     public static let reservedExtensionIdentifierPrefix = "app.pappuclip."
+
+    /// Where the source lives and where problems are reported (Settings → App, PRD §7.5).
+    public static let sourceRepository = URL(string: "https://github.com/anandghegde/PappuClip")!
+    public static let issueTracker = URL(string: "https://github.com/anandghegde/PappuClip/issues")!
 
     /// Logging and signpost subsystem.
     public static let logSubsystem = bundleIDPrefix

@@ -237,8 +237,31 @@
 	     is the string macOS shows when an extension's AppleScript first talks to another app. -->
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Extensions you install can run AppleScripts that control other apps. macOS asks once for each app.</string>
+	<!-- PRD §11.4: Sparkle 2. Both values come from build settings that are empty in project.yml and
+	     set by Scripts/release.sh, so a development build has no feed and no key and SparkleUpdater.make
+	     answers nil. The public key is the EdDSA one `generate_keys` prints; the private key stays in
+	     the release machine's keychain and is never committed. -->
+	<key>SUFeedURL</key>
+	<string>$(PAPPU_APPCAST_URL)</string>
+	<key>SUPublicEDKey</key>
+	<string>$(PAPPU_SPARKLE_PUBLIC_KEY)</string>
+	<!-- Check the EdDSA signature before unpacking the archive, not after. -->
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
+	<!-- "Notify only" until the user chooses otherwise in Settings → App; no first-run question. -->
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 	<!-- Every window is made in code, so there is no main storyboard and no nib to name. -->
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<!-- DIA-3, DIA-4. The channel decides whether beta diagnostics are offered (release, beta or
+	     development; empty is development). The two URLs are PLACEHOLDERS in the .invalid domain,
+	     which never resolves (RFC 2606): no report leaves the Mac until they name the real service. -->
+	<key>PappuReleaseChannel</key>
+	<string>$(PAPPU_RELEASE_CHANNEL)</string>
+	<key>PappuCrashReportURL</key>
+	<string>https://diagnostics.pappuclip.invalid/v1/crash-reports</string>
+	<key>PappuDiagnosticsURL</key>
+	<string>https://diagnostics.pappuclip.invalid/v1/beta-diagnostics</string>
 </dict>
 </plist>

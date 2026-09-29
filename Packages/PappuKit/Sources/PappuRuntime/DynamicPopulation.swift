@@ -248,7 +248,9 @@ public struct DynamicPopulator: Sendable {
         options: [String: [String: String]]
     ) -> [ActionResolver.ResolvedAction] {
         var entry = source.entry
-        entry.manifest.actions = ManifestBuilder.populatedActions(json, attempt: attempt.rawValue, source: source.module)
+        entry.manifest.actions = ManifestBuilder.populatedActions(
+            json, attempt: attempt.rawValue, source: source.module, package: source.entry.directory.map(PackageFiles.init(root:))
+        )
         guard !entry.manifest.actions.isEmpty else { return [] }
         let catalog = ActionCatalog(entries: [entry]).rekeyed {
             ActionKey(extensionIdentifier: $0.extensionIdentifier, action: "populated.\($0.action)")

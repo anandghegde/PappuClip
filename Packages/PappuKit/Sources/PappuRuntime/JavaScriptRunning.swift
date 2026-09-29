@@ -157,14 +157,14 @@ enum JavaScriptFailure {
 ///
 /// **The limits** are PappuClip's, not PopClip's, and sized from the corpus: its largest script is
 /// Calculate's mathjs, 1.7 MB once decompressed, so a file may be 8 MB and a package 16 MB.
-enum PackageSources {
+public enum PackageSources {
     static let extensions: Set<String> = ["js", "cjs", "mjs", "ts", "json"]
     static let compressed = "lzfse"
     static let fileLimit = 8 << 20
     static let totalLimit = 16 << 20
     static let countLimit = 2_000
 
-    enum Failure: Error, Equatable {
+    public enum Failure: Error, Equatable {
         case unreadable
         case tooLarge
     }
@@ -177,7 +177,7 @@ enum PackageSources {
         }
     }
 
-    static func read(_ directory: URL) -> Result<[String: String], Failure> {
+    public static func read(_ directory: URL) -> Result<[String: String], Failure> {
         let root = directory.resolvingSymlinksInPath().standardizedFileURL
         let prefix = root.path.hasSuffix("/") ? root.path : root.path + "/"
         let keys: [URLResourceKey] = [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]

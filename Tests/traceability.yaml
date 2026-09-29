@@ -2015,6 +2015,7 @@ requirements:
       - PappuJSHostTests/aThrowAndAMissingFunctionSayWhy
       - PappuCoreTests/aDynamicExtensionsPopulationFunctionIsNotAWarning
       - PappuCoreTests/populatedActionsRunTheCodeKeptForTheirAttempt
+      - PappuCoreTests/aPopulatedActionFindsItsIconFileInItsPackage
       - PappuRuntimeTests/offeredActionsAreResolvedAndRunTheirAttemptsCode
       - PappuRuntimeTests/anActionTheApprovalDoesNotCoverIsRefused
       - PappuRuntimeTests/aPopulationThatThrowsIsInTheConsole
@@ -2109,6 +2110,9 @@ requirements:
       - PappuSurfacesTests/submitAnswersWithTheFieldEvenEmpty
       - PappuSurfacesTests/cancelEscapeAndCloseAnswerCancelledOnce
       - PappuSurfacesTests/theInvocationEndingClosesThePromptWithoutAnAnswer
+      - PappuAppTests/aCancelBeforeTheShowStopsIt
+      - PappuAppTests/aCancelWhileShownClosesThePrompt
+      - PappuAppTests/aCancelAfterTheAnswerDoesNothing
       - manual:docs/checklists/m3-manual.md
   JS-19:
     priority: P1
@@ -2265,8 +2269,50 @@ requirements:
       - PappuSelectionTests/noRecordCanHoldTheSelection
       - PappuSelectionTests/whatPopulationDidIsInTheAttemptsRecord
       - PappuSelectionTests/anAttemptWithNothingToPopulateHasNoPopulationRecord
-  DIA-3: { priority: P1, milestone: M3, tests: [] }
-  DIA-4: { priority: P1, milestone: M3, tests: [] }
+  DIA-3:
+    priority: P1
+    milestone: M3
+    note: >-
+      Opt-in crash reports, off by default: the app's own crashes from MetricKit at the next launch, the JavaScript helper's when it goes away under an extension. The payload types hold enum codes, version numbers, counts and binary UUIDs with offsets, and no String field. Sent once a day to the Info.plist endpoint, a placeholder until the service exists; turning the switch off discards what is held. Settings shows what would be sent.
+    tests:
+      - PappuDiagnosticsTests/payloadTypesHaveNoStringFieldAtAnyDepth
+      - PappuDiagnosticsTests/everyStringInTheEncodedPayloadIsACodeOrAUUID
+      - PappuDiagnosticsTests/noSelectionClipboardOptionOrAppReachesTheEncodedBytes
+      - PappuDiagnosticsTests/theCrashedThreadIsBinariesAndOffsetsOnly
+      - PappuDiagnosticsTests/bothSwitchesAreOffByDefaultAndNothingIsCollectedOrSent
+      - PappuDiagnosticsTests/turningASwitchOffDiscardsWhatItCollected
+      - PappuDiagnosticsTests/aHelperCrashIsAReportAndACount
+      - PappuDiagnosticsTests/crashReportsAreBounded
+      - PappuDiagnosticsTests/aFailedUploadIsKeptForTheNextDay
+      - PappuDiagnosticsTests/nothingIsSentWithoutAnEndpoint
+      - PappuDiagnosticsTests/theChannelAndEndpointsComeFromTheBundle
+      - PappuRuntimeTests/aCrashUnderAnExtensionIsReportedAndAKillIsNot
+      - PappuSettingsTests/bothSwitchesStartOff
+      - PappuSettingsTests/theSwitchesAreRemembered
+      - PappuSettingsTests/thePreviewShowsOnlyWhatIsOn
+      - PappuSettingsTests/everyDiagnosticsStringIsInItsTable
+      - manual:docs/checklists/m3-manual.md
+  DIA-4:
+    priority: P1
+    milestone: M3
+    note: >-
+      Opt-in beta diagnostics, off by default and offered only when the build's channel is beta: per day and build, the sessions started, the sessions that did not end cleanly, helper crashes and a fixed-bucket histogram of selection-to-bar latency taken from the attempt records. No identifier, app names, text or option values. Only finished days are sent, once a day; turning the switch off discards them.
+    tests:
+      - PappuDiagnosticsTests/payloadTypesHaveNoStringFieldAtAnyDepth
+      - PappuDiagnosticsTests/everyStringInTheEncodedPayloadIsACodeOrAUUID
+      - PappuDiagnosticsTests/noSelectionClipboardOptionOrAppReachesTheEncodedBytes
+      - PappuDiagnosticsTests/bothSwitchesAreOffByDefaultAndNothingIsCollectedOrSent
+      - PappuDiagnosticsTests/betaDiagnosticsAreOfferedOnlyInBetaBuilds
+      - PappuDiagnosticsTests/turningASwitchOffDiscardsWhatItCollected
+      - PappuDiagnosticsTests/aSessionLeftOpenIsCountedAsACrashAtTheNextLaunch
+      - PappuDiagnosticsTests/durationsFallIntoFixedBuckets
+      - PappuDiagnosticsTests/finishedDaysAreSentOnceADayAndThenForgotten
+      - PappuDiagnosticsTests/versionsAreNumbers
+      - PappuAppTests/anAttemptThatShowedABarIsOneDurationAndNoApp
+      - PappuAppTests/anAttemptWithoutABarRecordsNothing
+      - PappuSettingsTests/aReleaseBuildDoesNotOfferBetaDiagnostics
+      - PappuSettingsTests/thePreviewShowsOnlyWhatIsOn
+      - manual:docs/checklists/m3-manual.md
 
   # Developer tooling
   DEV-1:
@@ -2306,6 +2352,7 @@ requirements:
       - PappuSettingsTests/aCancelledReviewAddsNothing
       - PappuSettingsTests/reloadSaysWhatItDidAndOnlyRebuildsWhenSomethingLoaded
       - PappuSettingsTests/removingTheLastFolderTurnsDevelopmentModeOff
+      - PappuSettingsTests/uninstallingTheDevelopmentExtensionElsewhereTurnsDevelopmentModeOff
       - PappuSettingsTests/theSwitchesStartOffAndPersist
       - PappuSettingsTests/everyReloadOutcomeHasAStatus
       - PappuAppTests/withBothSwitchesOffNothingIsDebugged
@@ -2315,7 +2362,54 @@ requirements:
       - PappuAppTests/theMenuSaysDevelopmentModeIsOn
       - PappuAppTests/theMenuSaysNothingAboutDevelopmentOtherwise
       - PappuAppTests/aPauseIsStillSaidWhileDeveloping
-  DEV-2: { priority: P1, milestone: M3, tests: [] }
+  DEV-2:
+    priority: P1
+    milestone: M3
+    note: >-
+      `pappuclip run <file> [function]` runs a module's exported function (by default `test`), or an action
+      script, in the helper's own code in process, and exits 0 or 1. Host calls get the app's refusals and
+      are recorded, not performed. The API conformance suites (architecture §17) are run by it, and so is
+      `pappu-dev corpus functional`, the corpus's functional pass rate (PRD §3.3), which reports blocked,
+      load-only, untested and failed packages separately over every package in the corpus.
+    tests:
+      - PappuCLITests/aModulesTestFunctionThatReturnsExitsZero
+      - PappuCLITests/aFunctionThatThrowsExitsOne
+      - PappuCLITests/aRejectedPromiseExitsOne
+      - PappuCLITests/aNamedFunctionIsCalledInsteadOfTest
+      - PappuCLITests/aMissingFunctionIsNotRunAndExitsOne
+      - PappuCLITests/aFileThatWillNotCompileExitsOne
+      - PappuCLITests/aMissingFileExitsOne
+      - PappuCLITests/aRunStillGoingAtTheTimeoutExitsOne
+      - PappuCLITests/aTestFunctionBesideADefaultExportIsFound
+      - PappuCLITests/anActionPathStillMeansTheExtensionObjects
+      - PappuCLITests/aFileWithNoExportsRunsAsAnActionScript
+      - PappuCLITests/aModuleCanBeForcedToRunAsAScript
+      - PappuCLITests/thePackagesOtherFilesCanBeRequired
+      - PappuCLITests/typeScriptIsTranspiled
+      - PappuCLITests/optionsReachTheFunction
+      - PappuCLITests/modulesAndScriptsAreToldApart
+      - PappuCLITests/thePackageIsTheNearestPackageFolder
+      - PappuCLITests/hostCallsAreRecordedAndNotPerformed
+      - PappuCLITests/aGatedCallIsRefusedInTheAppsWordsWithoutItsGrant
+      - PappuCLITests/noRequestIsSentEvenWithTheNetworkGrant
+      - PappuCLITests/theHeadlessClipboardKeepsWhatWasCopied
+      - PappuCLITests/anUnknownMethodIsRefused
+      - PappuCLITests/scriptsAreNeverRunHeadless
+      - PappuCLITests/theReportEndsWithTheVerdict
+      - PappuCLITests/theAPISectionOfTheConformanceSuitePasses
+      - PappuCLITests/theConformanceSuitePassesUnderPappuclipRun
+      - PappuCLITests/aValueOrAServedEffectIsAPass
+      - PappuCLITests/readingTheClipboardAloneIsNotAnEffect
+      - PappuCLITests/whatAHeadlessRunCannotHaveIsBlockedAndSaysWhy
+      - PappuCLITests/aThrowATimeoutOrNoStartIsAFailure
+      - PappuCLITests/aPackageIsAsGoodAsItsWorstAction
+      - PappuCLITests/theDenominatorIsEveryPackage
+      - PappuCLITests/aURLActionPassesWhenItMakesAURL
+      - PappuCLITests/aModuleActionPassesWhenItReturnsAValue
+      - PappuCLITests/aModuleActionThatThrowsFails
+      - PappuCLITests/anAppleScriptIsLoadOnlyAndAServiceIsBlocked
+      - PappuCLITests/aPackageThatDoesNotLoadFails
+      - manual:docs/checklists/m3-manual.md
   DEV-3: { priority: P1, milestone: M5, tests: [] }
   DEV-4: { priority: P1, milestone: M5, tests: [] }
   DEV-5: { priority: P2, milestone: post-1.0, tests: [] }
@@ -2407,6 +2501,49 @@ sections:
       - PappuSelectionTests/doesNotReadWhereItWouldPrompt
       - PappuSelectionTests/noRecordCanHoldWhatWasWritten
   "PRD §7.4 built-ins (Dictionary, Reveal, Spelling)": { milestone: M4, tests: [] }
+  "PRD §7.5 Settings (App)":
+    milestone: M3
+    note: >-
+      Version and the source and issue links, Software Update (Off / Notify only / Install
+      automatically, include betas, check now) over the `SoftwareUpdating` seam, Start at login over
+      `SMAppService.mainApp`, and the Debug Console. Not yet: "Show in menu bar" and the website and
+      sponsor links. The DIA-3/DIA-4 opt-in toggles have a marked place in `AppTabView`.
+    tests:
+      - PappuSettingsTests/everyAppTabStringIsInItsTable
+      - PappuSettingsTests/thePolicyIsSparklesTwoSwitches
+      - PappuSettingsTests/theBetaChannelAddsTheBetaItemsToTheDefaultOnes
+      - PappuSettingsTests/choosingAPolicyReachesTheUpdater
+      - PappuSettingsTests/includingBetasIsStoredAndReachesTheUpdater
+      - PappuSettingsTests/checkNowAsksTheUpdaterOnlyWhenItCan
+      - PappuSettingsTests/theLastCheckIsSaidOrNeverChecked
+      - PappuSettingsTests/aBuildWithoutAnUpdaterOffersNothingToPress
+      - PappuSettingsTests/startAtLoginRegistersAndUnregisters
+      - PappuSettingsTests/aLoginItemAwaitingApprovalSaysWhereToAllowIt
+      - PappuSettingsTests/aFailedLoginItemChangeIsSaidAndCleared
+      - PappuSettingsTests/aCopyThatCannotBeALoginItemSaysSo
+      - PappuSettingsTests/theVersionIsTheBundlesTwoNumbers
+      - PappuSettingsTests/linksAndTheConsoleOpenWhatTheyName
+      - PappuSettingsTests/theSettingsModelCarriesTheAppTab
+      - manual:docs/checklists/m3-release.md
   "PRD §11.1 latency budgets": { milestone: M1, completes: M6, tests: [PappuCoreTests/initialTotalsMatchThePRD, PappuCoreTests/fallbackInheritsTimeSpentOnEarlierStrategies], note: "Table and clock exist from M0; measured against Tier A apps from M1; release gate in M6." }
+  "PRD §11.4 signing, notarization and Sparkle 2":
+    milestone: M3
+    note: >-
+      Scripts/release.sh builds universal, re-signs every piece inside out with Developer ID, the
+      hardened runtime and a timestamp, checks it (Scripts/verify-signature.sh), notarizes with a
+      notarytool keychain profile, staples, and makes the Sparkle zip and a DMG. Sparkle 2 with EdDSA
+      is compiled in only there (library validation refuses it under a certificate without a Team ID).
+      Scripts/appcast.sh signs archives and writes the appcast, with a "beta" channel. Notarization and
+      an update end to end need real credentials and are in the release checklist.
+    tests:
+      - PappuAppTests/theAppKeepsLibraryValidationAndIsNotSandboxed
+      - PappuAppTests/eachHelperHasItsOneEntitlement
+      - PappuAppTests/releaseBuildsUseTheHardenedRuntimeWithoutGetTaskAllow
+      - PappuAppTests/theReleaseScriptSignsNotarizesAndStaples
+      - PappuAppTests/aReleaseWithoutCredentialsFailsAndSaysWhy
+      - PappuAppTests/sparklesKeysComeFromBuildSettings
+      - PappuAppTests/onlyAReleaseBuildCompilesSparkleIn
+      - PappuAppTests/theAppcastKeyStaysOutOfTheRepository
+      - manual:docs/checklists/m3-release.md
   "PRD §11.5 app matrix": { milestone: M1, completes: M6, tests: [PappuHarnessTests/matrixMatchesThePRD] }
   "Localization: strings externalised from the start": { milestone: M1, completes: M4, tests: [] }

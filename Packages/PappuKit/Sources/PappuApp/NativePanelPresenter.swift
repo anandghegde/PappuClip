@@ -25,9 +25,7 @@ public final class NativePanelPresenter: ResultPresenting, TextPrompting {
     private let manager: InvocationManager
     private weak var bar: (any InvocationReporting)?
     /// The one prompt up, if any, and how to answer it.
-    private var prompt: (invocation: InvocationID, model: PromptPanelModel)?
-    /// Prompts cancelled before they were shown.
-    private var cancelledEarly: Set<InvocationID> = []
+    private var prompt: (call: PromptCall, model: PromptPanelModel)?
 
     public init(manager: InvocationManager) {
         self.manager = manager
@@ -99,19 +97,25 @@ public final class NativePanelPresenter: ResultPresenting, TextPrompting {
     // MARK: TextPrompting
 
     public nonisolated func prompt(_ request: TextPromptRequest, for invocation: InvocationID) async -> TextPromptAnswer {
-        await withTaskCancellationHandler {
+        // The call's own state, shared by the show and the cancel and gone with them: nothing about a
+        // call outlives it, whichever of the two reaches the main actor first.
+        let call = PromptCall()
+        return await withTaskCancellationHandler {
             await withCheckedContinuation { (continuation: CheckedContinuation<TextPromptAnswer, Never>) in
-                Task { @MainActor in self.show(request, for: invocation, answer: continuation) }
+                Task { @MainActor in self.show(request, call: call, answer: continuation) }
             }
         } onCancel: {
-            Task { @MainActor in self.cancelPrompt(for: invocation) }
+            Task { @MainActor in self.cancelPrompt(call) }
         }
     }
 
-    private func show(_ request: TextPromptRequest, for invocation: InvocationID, answer: CheckedContinuation<TextPromptAnswer, Never>) {
-        if cancelledEarly.remove(invocation) != nil { return answer.resume(returning: .cancelled) }
+    private func show(_ request: TextPromptRequest, call: PromptCall, answer: CheckedContinuation<TextPromptAnswer, Never>) {
+        guard call.begin() else { return answer.resume(returning: .cancelled) }
         // One prompt at a time: a second one while the first is up is refused, not stacked.
-        guard prompt == nil else { return answer.resume(returning: .unavailable) }
+        guard prompt == nil else {
+            call.finish()
+            return answer.resume(returning: .unavailable)
+        }
         bar?.dismiss(.actionRun)
         let manager = manager
         let model = PromptPanelModel(
@@ -120,11 +124,12 @@ public final class NativePanelPresenter: ResultPresenting, TextPrompting {
             defaultValue: request.defaultValue,
             source: request.source
         ) { [weak self] given in
+            call.finish()
             self?.prompt = nil
             Task { await manager.focusLeftOwnSurface() }
             answer.resume(returning: given == .cancelled ? .cancelled : .submitted(Self.text(of: given)))
         }
-        prompt = (invocation, model)
+        prompt = (call, model)
         let controller = PromptPanelController(model: model)
         Task { await manager.focusEnteredOwnSurface() }
         controller.show()
@@ -136,13 +141,50 @@ public final class NativePanelPresenter: ResultPresenting, TextPrompting {
     }
 
     /// The invocation ended while its prompt was up, or before it was shown.
-    private func cancelPrompt(for invocation: InvocationID) {
-        guard let prompt, prompt.invocation == invocation else {
-            cancelledEarly.insert(invocation)
-            return
-        }
+    private func cancelPrompt(_ call: PromptCall) {
+        guard call.cancel(), let prompt, prompt.call === call else { return }
         // Answered as cancelled so the waiting call returns; the run is already over, so the answer
         // is thrown away there (RUN-3c).
         prompt.model.cancel()
+    }
+}
+
+/// One `prompt` call's progress (JS-18). A cancel can reach the main actor before the show does, after
+/// it, or after the answer; each call keeps its own state, so none of these leaves anything behind in
+/// the presenter.
+@MainActor
+final class PromptCall {
+    enum State: Equatable {
+        case waiting, shown, cancelledEarly, finished
+    }
+
+    private(set) var state: State = .waiting
+
+    nonisolated init() {}
+
+    /// Whether to show the prompt: false when it was cancelled before it could be.
+    func begin() -> Bool {
+        guard state == .waiting else { return false }
+        state = .shown
+        return true
+    }
+
+    /// The prompt was answered, refused or closed.
+    func finish() {
+        state = .finished
+    }
+
+    /// Whether a prompt that is up must be closed. Before the show, the show is stopped instead; after
+    /// the answer there is nothing to do.
+    func cancel() -> Bool {
+        switch state {
+        case .waiting:
+            state = .cancelledEarly
+            return false
+        case .shown:
+            return true
+        case .cancelledEarly, .finished:
+            return false
+        }
     }
 }

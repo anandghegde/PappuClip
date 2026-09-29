@@ -4,7 +4,7 @@ This page covers what M3 needs from a person. The tests do not cover it.
 
 The helper's isolation and lifecycle are tested in-process (`PappuJSHostTests`), and the client's crash handling is tested against a helper that can be made to crash (`PappuRuntimeTests`). `PappuClip --check-js-host` runs the same things against the real, sandboxed `PappuClipJSHost.xpc`. What is left here is the sandbox as the system enforces it, and the Debug Console as a person reads it.
 
-**Status: weeks 1 to 5; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
+**Status: weeks 1 to 7; not yet run.** Build with `Scripts/build.sh PappuClip`. Record a run by filling in the Result column, dating it, and naming the macOS build.
 
 Fixtures:
 - **J**: a JavaScript snippet, `#popclip` / `name: Shout JS` / `javascript: print(popclip.input.text); return popclip.input.text.toUpperCase()`, with `after: paste-result`.
@@ -206,3 +206,41 @@ The panels are the functional M3 ones; their look is M4's (DIF-1a, DIF-3). Repla
 | 61 | With VoiceOver on, run Q | VoiceOver announces the field as "Your name, edit text, World"; Tab reaches Cancel and Submit; Return submits and Escape cancels without the mouse | |
 | 62 | Install a dynamic extension whose population calls `pappuclip.promptText({ label: 'x' })`, approve it and select a word | No prompt appears; the Debug Console has "promptText is not available in a population function." | |
 
+
+## Crash reports and beta diagnostics (DIA-3, DIA-4)
+
+Fixtures:
+- **HANG**: a JavaScript snippet, `#popclip` / `name: Hang` / `javascript: await new Promise(() => {})`.
+
+Both switches are in Settings → App under Diagnostics, between Startup and Troubleshooting. The endpoints in Info.plist are placeholders in `.invalid`, which the app reads as no endpoint: nothing leaves the Mac, and "Show What Is Sent…" is how the payload is checked. MetricKit delivers an app crash at a later launch, often a day later, so row 71 may have to be checked the next day.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| 63 | Quit PappuClip, run `defaults delete app.pappuclip.PappuClip diagnostics.crashReports`, the same for `diagnostics.betaDiagnostics` and `diagnostics.ledger` (a missing key is fine), launch it and open Settings → App | A Diagnostics section with "Send crash reports" and "Share beta diagnostics", both off, each with an explanation under it | |
+| 64 | Press Show What Is Sent… | A sheet says nothing is collected while both switches are off; Done closes it | |
+| 65 | Build with `PAPPU_RELEASE_CHANNEL` set to `release` in App/project.yml and open Settings | Only "Send crash reports" is shown | |
+| 66 | Back on the beta build, turn both switches on, select `hello` in TextEdit a few times so the bar shows, then press Show What Is Sent… | Beta diagnostics show today with `sessions` 1 and a `selectionToBar` histogram whose counts add up to the bars shown; app and macOS versions and `beta`; no `hello`, no `TextEdit`, no bundle identifier, no user name anywhere in the text | |
+| 67 | Install and approve HANG, press it, then `pkill -9 PappuClipJSHost` | The Debug Console says the extension crashed; the preview has one crash report with `process` `javaScriptHelper` and no frames, and `helperCrashes` 1 | |
+| 68 | `kill -9` PappuClip and launch it again | The preview shows `sessions` 2 and `appCrashes` 1 | |
+| 69 | Quit PappuClip from the menu bar and launch it again | `sessions` 3; `appCrashes` still 1 | |
+| 70 | Turn "Send crash reports" off and on again, and press Show What Is Sent… | No crash reports; the beta diagnostics are still there. Turning beta diagnostics off and on empties those the same way | |
+| 71 | With crash reports on, crash the app (for example `kill -SEGV` its pid) and relaunch it the next day | A crash report with `process` `app`, the signal, and frames that are binary UUIDs and offsets only: no binary names, paths or addresses | |
+| 72 | With VoiceOver on, move through the Diagnostics section | Each switch is read by its name with its explanation as the hint; Show What Is Sent… is a button; the preview's text is readable | |
+
+## Week 7: `pappuclip run`, the corpus pass and the built-ins (DEV-2)
+
+Build the CLI with `swift build --product pappuclip` in `Packages/PappuKit`; it is at `.build/debug/pappuclip`. The fixtures are the conformance suites under `Tests/conformance`, and a scratch package **R**: a folder `R.popclipext` holding `Config.js` with `exports.test = (input) => { print('ran'); return input.text.toUpperCase(); }; exports.broken = () => { throw new Error('nope'); }; exports.keys = () => popclip.pressKey('cmd b');`.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| CL1 | `pappuclip run Tests/conformance/environment/suite.js; echo $?` | Two `require(...) found nothing` lines, then `ok`, `passed` and `0` | |
+| CL2 | `pappuclip run Tests/conformance/api/suite.js; echo $?` | `host:` lines for each call, four of them `refused:` (pressKeys, performService, runShellScript, httpRequest); then `ok`, `passed`, `0`. No browser opens, nothing is pasted, and `pbpaste` is unchanged | |
+| CL3 | `pappuclip run R.popclipext/Config.js --text abc; echo $?` | `ran`, `ABC`, `passed`, `0` | |
+| CL4 | `pappuclip run R.popclipext/Config.js broken; echo $?` | `failed: Error: nope` and `1` | |
+| CL5 | `pappuclip run R.popclipext/Config.js missing; echo $?` | `error: The module exports no function missing.` and `1` | |
+| CL6 | `pappuclip run R.popclipext/Config.js keys`, then again with `--allow synthetic-input` | First: refused with "pressKeys needs the synthetic-input permission…" and exit 1. Second: `host: pressKeys … -> done`, exit 0, and no key reaches the frontmost app | |
+| CL7 | `pappuclip run --help` | Lists `--text`, `--option`, `--allow`, `--clipboard`, `--timeout`, `--script` and `--quiet` | |
+| CF1 | In `Packages/PappuKit`, `swift run pappu-dev corpus functional --dry-run --verbose` (the `Tests/corpus` submodule checked out) | One line per package that did not pass, each with its verdict (`blocked`, `load-only`, `untested`, `failed`) and why, then `N/381 functional (…%): …`. No browser opens, nothing is pasted, no key is pressed, no Service or Shortcut runs, and `pbpaste` is unchanged | |
+| CF2 | The same without `--dry-run` | Also `wrote …/Tests/results/corpus-functional/<timestamp>-macOS<version>-<arch>.json`; `pappu-dev results summarize` on it shows `functional-rate` and the counts; the file has no host name, user name or home path | |
+| CF3 | Install the corpus's `source/Email.popclipext`, approve it, turn on both of its actions in its settings and select `someone@example.com` in TextEdit | "New email to someone@example.com" (@ icon) and "New email with text" (envelope icon) are on the bar. Before this week both were left out, because their icons are package files | |
+| DM1 | With one development folder approved (DV2), uninstall its extension from Settings → Extensions, without opening Settings → Developer, then open the menu bar menu | No "Development Mode On" line | |

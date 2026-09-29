@@ -34,6 +34,9 @@ forbid PappuRunnerBridge "Pappu[A-Za-z]+" "must depend on no other module"
 forbid PappuRunnerHost "PappuCore|PappuAX|PappuSelection|PappuAnalysis|PappuRuntime|PappuExtensions|PappuSurfaces|PappuSettings|PappuRegistry|PappuDiagnostics|PappuJS[A-Za-z]+" \
   "must not import an app-side module"
 
+# The author's CLI (DEV-2) runs on a terminal, with nothing on screen and no app to reach.
+forbid PappuCLI "AppKit|Cocoa|SwiftUI|PappuApp|PappuSurfaces|PappuSettings" "must not reach a UI or the app assembly"
+
 # PappuApp is the top of the tree: the one module allowed to hold a surface and the runtime at once,
 # and therefore the one nothing else may reach for. A module that imported it would be asking the
 # assembly to depend on it and it to depend on the assembly.
