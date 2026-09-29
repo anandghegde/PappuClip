@@ -1,0 +1,27 @@
+/* Settings → Developer, the development review and the development-mode status (DEV-1). */
+"developer.tab" = "Developer";
+"developer.mode.on" = "Development mode is on";
+"developer.mode.on.help" = "Extensions from the folders below run unsigned code from this Mac. They get the same checks as any other extension, and each needs your approval again whenever it asks for more.";
+"developer.menu.status" = "Development Mode On";
+"developer.intro" = "Load an extension from a folder you are working on. It is reviewed like any install, and reloaded only when you press Reload.";
+"developer.folders" = "Development Folders";
+"developer.folders.none" = "No development folders.";
+"developer.folders.add" = "Add Folder\U2026";
+"developer.folders.add.help" = "Choose an extension package folder to review and load.";
+"developer.folders.reload" = "Reload";
+/* Accessibility label. %@ is the extension's name. */
+"developer.folders.reload.label" = "Reload %@";
+"developer.folders.remove" = "Remove";
+/* Accessibility label. %@ is the extension's name. */
+"developer.folders.remove.label" = "Remove %@";
+"developer.folders.choose" = "Load";
+"developer.options" = "While Developing";
+"developer.verbose" = "Verbose extension logging";
+"developer.verbose.help" = "Development folders write loads, runs and host calls to the Debug Console. Only their names and results are written, never the text they carry.";
+"developer.inspector" = "Allow Safari Web Inspector";
+"developer.inspector.help" = "Development folders' JavaScript appears in Safari's Develop menu. Other extensions are never inspectable.";
+"developer.result.unchanged" = "No changes to load.";
+"developer.result.reloaded" = "Reloaded.";
+"developer.result.approved" = "Reloaded after your approval.";
+"developer.result.cancelled" = "Not reloaded. The previous version is still loaded.";
+"developer.consent.provenance" = "Development folder. Its code is loaded from a folder on this Mac, is not signed, and nobody has reviewed it.";

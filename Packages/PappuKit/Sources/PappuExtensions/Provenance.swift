@@ -135,6 +135,8 @@ public enum LocalOrigin: String, Sendable, Hashable, Codable, CaseIterable {
     case snippetFile
     /// Text selected in another app, through the bar's Install Extension action (EXM-2).
     case selectedText
+    /// A folder a developer approved in Developer settings, reloaded from where it is (DEV-1).
+    case developmentFolder
 }
 
 /// Who vouches for an extension's code (SEC-8b).

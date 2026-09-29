@@ -80,12 +80,34 @@ public struct JSLoad: Codable, Sendable, Equatable {
     /// Every script and JSON file in the package, by path relative to its root: JavaScript, TypeScript
     /// and JSON (`PackageSources`).
     public var files: [String: String]
+    /// DEV-1: set only for an approved development folder while its developer preferences are on. Nil
+    /// for every other extension, and from an app that predates it.
+    public var debug: JSDebug?
 
-    public init(extensionName: String, generation: String, files: [String: String]) {
+    public init(extensionName: String, generation: String, files: [String: String], debug: JSDebug? = nil) {
         self.extensionName = extensionName
         self.generation = generation
         self.files = files
+        self.debug = debug
     }
+}
+
+/// DEV-1: what a development folder's world does beyond an installed extension's. Neither changes what
+/// the extension may do: every host call is still the app's to decide.
+public struct JSDebug: Codable, Sendable, Hashable {
+    /// `JSContext.isInspectable`, so Safari's Develop menu lists the world.
+    public var inspectable: Bool
+    /// Lines in the debug console for loads, invocations and host calls: their names and outcomes,
+    /// never their arguments or the text they carry.
+    public var verbose: Bool
+
+    public init(inspectable: Bool = false, verbose: Bool = false) {
+        self.inspectable = inspectable
+        self.verbose = verbose
+    }
+
+    /// Whether this asks for anything at all.
+    public var isEmpty: Bool { !inspectable && !verbose }
 }
 
 /// §8.8: an action's script, and what it runs on.

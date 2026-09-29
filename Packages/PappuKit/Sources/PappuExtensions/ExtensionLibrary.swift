@@ -54,6 +54,9 @@ public actor ExtensionLibrary {
         case snippetFile(URL)
         /// Selected text, through the bar's Install Extension action (EXM-2).
         case selectedText(String)
+        /// A package folder a developer approved for development (DEV-1), copied like `packageFolder`
+        /// every time it is loaded. Never made by `file(_:)`: only the Developer settings name one.
+        case developmentFolder(URL)
 
         /// Which source a file is, by its extension; nil for anything that is not an extension.
         public static func file(_ url: URL) -> Source? {
@@ -70,6 +73,7 @@ public actor ExtensionLibrary {
             case .packageFolder, .zippedPackage: .packageFile
             case .snippetFile: .snippetFile
             case .selectedText: .selectedText
+            case .developmentFolder: .developmentFolder
             }
         }
     }
@@ -168,8 +172,8 @@ public actor ExtensionLibrary {
 
     public nonisolated let paths: Paths
     public nonisolated let store: ExtensionStore
-    private let checkpoint: @Sendable (Checkpoint) -> Void
-    private var installing = false
+    let checkpoint: @Sendable (Checkpoint) -> Void
+    var installing = false
     /// JS-12: what approved module extensions' modules exported, by the bytes they were described from.
     /// Kept for the life of the app; a module is described again at the next launch.
     var moduleExports: [ModuleKey: ModuleExports] = [:]
@@ -349,11 +353,11 @@ public actor ExtensionLibrary {
 
     /// Copy, unpack or write the source into `staging` and load its manifest from there — never from
     /// the original, which may change after this.
-    private func stage(_ source: Source, into staging: URL) throws -> (ExtensionLoader.Loaded, StagedForm) {
+    func stage(_ source: Source, into staging: URL) throws -> (ExtensionLoader.Loaded, StagedForm) {
         let settings = ExtensionLoader.Settings(origin: .installed)
         do {
             switch source {
-            case .packageFolder(let url):
+            case .packageFolder(let url), .developmentFolder(let url):
                 try PackageStaging.copyFolder(url, to: staging)
                 return (try ExtensionLoader.loadPackage(at: staging, settings: settings), .package)
             case .zippedPackage(let url):
@@ -419,7 +423,7 @@ public actor ExtensionLibrary {
     }
 
     /// Delete folders the store no longer points at. A failure here is left for `recover()`.
-    private func retire(_ folders: [VersionFolder]) throws {
+    func retire(_ folders: [VersionFolder]) throws {
         for folder in folders {
             let url = paths.folder(folder)
             try? FileManager.default.removeItem(at: url)
@@ -427,7 +431,7 @@ public actor ExtensionLibrary {
         }
     }
 
-    private func removeIfEmpty(_ folder: URL) throws {
+    func removeIfEmpty(_ folder: URL) throws {
         let fileManager = FileManager.default
         if (try? fileManager.contentsOfDirectory(atPath: folder.path))?.isEmpty == true {
             try fileManager.removeItem(at: folder)

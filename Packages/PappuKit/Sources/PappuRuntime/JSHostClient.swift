@@ -87,6 +87,8 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
     private let names = Mutex<[String: String]>([:])
     /// JS-16, JS-19: what is kept loaded, and whether that is being done (see "The warm helper" below).
     private let warmth = Mutex(Warmth())
+    /// DEV-1: the development folders' debugging, by owner. Every other owner loads without any.
+    private let debugging = Mutex<[String: JSDebug]>([:])
 
     public init(
         transport: any JSHostTransport = XPCJSHostTransport(),
@@ -356,6 +358,25 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
         }
     }
 
+    /// DEV-1: which owners' worlds are inspectable or verbose, replacing what was set before. An owner
+    /// whose setting changed is reloaded at its next run, so the change reaches a world already loaded.
+    public func setDebugging(_ owners: [String: JSDebug]) {
+        let owners = owners.filter { !$0.value.isEmpty }
+        let changed = debugging.withLock { current in
+            defer { current = owners }
+            return Set(current.keys).union(owners.keys).filter { current[$0] != owners[$0] }
+        }
+        guard !changed.isEmpty else { return }
+        state.withLock { state in
+            for owner in changed { state.loaded[owner] = nil }
+        }
+    }
+
+    /// What `setDebugging` last said for `owner`.
+    public func debugging(for owner: String) -> JSDebug? {
+        debugging.withLock { $0[owner] }
+    }
+
     private func load(
         owner: String,
         generation: String,
@@ -376,7 +397,8 @@ public final class JSHostClient: JavaScriptRunning, ModuleDescribing, CodeScanni
         loading(owner, on: connection, true)
         defer { loading(owner, on: connection, false) }
         let reply = await withCheckedContinuation { continuation in
-            connection.send(.load(JSLoad(extensionName: owner, generation: generation, files: files))) {
+            let debug = debugging.withLock { $0[owner] }
+            connection.send(.load(JSLoad(extensionName: owner, generation: generation, files: files, debug: debug))) {
                 continuation.resume(returning: $0)
             }
         }

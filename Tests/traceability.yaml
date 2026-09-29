@@ -1039,7 +1039,17 @@ requirements:
       - PappuExtensionsTests/aCodeFileWithNoMarkerIsRefused
       - PappuExtensionsTests/sourceFilesAreRecognisedByExtension
       - PappuAppTests/theIconTakesOnlyExtensionFiles
-  EXM-4: { priority: P1, milestone: M3, tests: [] }
+  EXM-4:
+    priority: P1
+    milestone: M3
+    note: >-
+      PappuClip claims PopClip's package, zipped and snippet types as an Alternate handler only, and
+      imports rather than exports their UTIs; Open With routes into the install review.
+    tests:
+      - PappuAppTests/popClipTypesAreClaimedOnlyAsAnAlternate
+      - PappuAppTests/popClipTypesAreImportedAndNeverExported
+      - PappuAppTests/pappuClipOwnsOnlyItsOwnTypes
+      - PappuAppTests/claimedSuffixesMatchTheProductIdentityAndOpenAsAnInstall
   EXM-5a:
     priority: P0
     milestone: M2
@@ -2137,7 +2147,52 @@ requirements:
   DIA-4: { priority: P1, milestone: M3, tests: [] }
 
   # Developer tooling
-  DEV-1: { priority: P1, milestone: M3, tests: [] }
+  DEV-1:
+    priority: P1
+    milestone: M3
+    note: >-
+      A development folder is loaded and reloaded only with explicit approval; a reload that needs more
+      than was approved is reviewed again. Development mode shows a persistent warning, and verbose
+      logging and Safari Web Inspector reach only approved development folders. No consent, secure-input,
+      privacy or destination check is bypassed.
+    tests:
+      - PappuExtensionsTests/approvingAFolderReviewsItAsDevelopmentCodeAndRemembersIt
+      - PappuExtensionsTests/aCancelledApprovalInstallsNothing
+      - PappuExtensionsTests/aFileIsNotADevelopmentFolder
+      - PappuExtensionsTests/aDevelopmentFolderNeverReplacesAnInstalledExtension
+      - PappuExtensionsTests/reloadingUnchangedFilesDoesNothing
+      - PappuExtensionsTests/aChangeWithinWhatWasApprovedReloadsWithoutAReview
+      - PappuExtensionsTests/aNewCapabilityIsReviewedAndItsGateStartsOff
+      - PappuExtensionsTests/cancellingAReviewedReloadKeepsTheOldVersion
+      - PappuExtensionsTests/aSilentReloadKeepsOnlyGatesAlreadyGranted
+      - PappuExtensionsTests/aRevokedExtensionIsReviewedOnEveryReload
+      - PappuExtensionsTests/removingForgetsTheFolderAndLeavesItsFiles
+      - PappuExtensionsTests/anExtensionUninstalledElsewhereIsNoLongerADevelopmentFolder
+      - PappuExtensionsTests/developmentFoldersAreNeverRecognisedFromAFileAlone
+      - PappuExtensionsTests/exceedsComparesEveryPartOfWhatWasApproved
+      - PappuJSHostTests/onlyAWorldThatAsksIsInspectable
+      - PappuJSHostTests/aLoadFromAnOlderAppHasNoDebugging
+      - PappuJSHostTests/verboseLinesNameWhatHappenedAndNothingItCarried
+      - PappuJSHostTests/withoutDevelopmentOnlyTheScriptPrints
+      - PappuRuntimeTests/onlyADevelopmentOwnerIsVerbose
+      - PappuRuntimeTests/changingTheSettingReloadsALoadedWorld
+      - PappuRuntimeTests/anEmptySettingIsNoSetting
+      - PappuSettingsTests/everyDeveloperStringIsInItsTable
+      - PappuSettingsTests/theReviewSaysTheCodeIsAnUnreviewedDevelopmentFolder
+      - PappuSettingsTests/aWidenedReloadOffersOnlyUpdateOrCancel
+      - PappuSettingsTests/addingAFolderTurnsDevelopmentModeOnAndReportsTheChange
+      - PappuSettingsTests/aCancelledReviewAddsNothing
+      - PappuSettingsTests/reloadSaysWhatItDidAndOnlyRebuildsWhenSomethingLoaded
+      - PappuSettingsTests/removingTheLastFolderTurnsDevelopmentModeOff
+      - PappuSettingsTests/theSwitchesStartOffAndPersist
+      - PappuSettingsTests/everyReloadOutcomeHasAStatus
+      - PappuAppTests/withBothSwitchesOffNothingIsDebugged
+      - PappuAppTests/withoutAFolderNothingIsDebuggedWhateverTheSwitchesSay
+      - PappuAppTests/onlyTheNamedFoldersGetOnlyTheSwitchesTurnedOn
+      - PappuAppTests/thePreferencesAreReadTogetherWithTheFolders
+      - PappuAppTests/theMenuSaysDevelopmentModeIsOn
+      - PappuAppTests/theMenuSaysNothingAboutDevelopmentOtherwise
+      - PappuAppTests/aPauseIsStillSaidWhileDeveloping
   DEV-2: { priority: P1, milestone: M3, tests: [] }
   DEV-3: { priority: P1, milestone: M5, tests: [] }
   DEV-4: { priority: P1, milestone: M5, tests: [] }

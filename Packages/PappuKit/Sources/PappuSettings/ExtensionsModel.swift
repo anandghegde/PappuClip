@@ -103,6 +103,8 @@ public final class ExtensionsModel {
     /// The last failure, said once under whatever the user was doing.
     public private(set) var failure: String?
     private var installed: [LocalIdentity: InstalledExtension] = [:]
+    /// DEV-1: Settings → Developer, when the app has a library to load development folders into.
+    public var development: DevelopmentModel?
 
     public init(
         library: ExtensionLibrary,

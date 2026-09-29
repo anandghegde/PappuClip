@@ -22,6 +22,7 @@ public struct SettingsView: View {
         case general
         case actions
         case extensions
+        case developer
     }
 
     private let model: SettingsModel
@@ -47,6 +48,11 @@ public struct SettingsView: View {
                 ExtensionListView(model: extensions)
                     .tabItem { Label(ExtensionStrings.tab, systemImage: "puzzlepiece.extension") }
                     .tag(Tab.extensions)
+            }
+            if let development = model.extensions?.development {
+                DevelopmentView(model: development)
+                    .tabItem { Label(DeveloperStrings.tab, systemImage: "hammer") }
+                    .tag(Tab.developer)
             }
         }
         .frame(width: 520, height: 400)

@@ -55,6 +55,8 @@ public final class AppAssembly: SelectionInstalling {
     private let consentWindow: ConsentWindow
     private let onboardingWindow: OnboardingWindow
     private let consoleWindow: DebugConsoleWindow
+    /// DEV-1: tells the helper which worlds are development worlds, from the folders and the switches.
+    private let developmentDebugging: @Sendable () async -> Void
 
     /// The loops that read the three streams. Held so that `stop` can end them; an `AsyncStream` whose
     /// consumer is a detached task nobody kept would run for the life of the process either way, but a
@@ -79,6 +81,7 @@ public final class AppAssembly: SelectionInstalling {
         let shortcuts = ShortcutStore(storage: storage)
         let barPreferences = BarPreferences(storage: storage)
         let onboarding = OnboardingStore(storage: storage)
+        let developer = DeveloperPreferences(storage: storage)
 
         // A closure and not a copy: the gate is built once and every attempt after a setting changes
         // must be judged against the new one (architecture §4.4).
@@ -261,6 +264,33 @@ public final class AppAssembly: SelectionInstalling {
                 settingsRef?.refresh()
             }
         }
+        // DEV-1: development folders go through the same review window as every install.
+        let consentWindow = ConsentWindow()
+        let developmentDebugging: @Sendable () async -> Void = {
+            let folders = (try? await host?.library.developmentFolders()) ?? []
+            javaScript.setDebugging(DevelopmentMode.debugging(for: folders.map(\.identity), preferences: developer))
+        }
+        if let host, let extensionsModel {
+            extensionsModel.development = DevelopmentModel(
+                library: host.library,
+                preferences: developer,
+                review: { proposal in
+                    await consentWindow.review(proposal) { identity in
+                        host.snapshot.installed[identity.description]?.manifest.name.text(for: .current)
+                    }
+                }
+            ) { change in
+                // The helper first, so the world a rebuild warms is already a development world.
+                await developmentDebugging()
+                switch change {
+                case .updated(let identity): await host.handle(.updated(identity))
+                case .removed(let identity): await host.handle(.removed(identity))
+                case .preferences: return
+                }
+                await extensionsModel.refresh()
+                settingsRef?.refresh()
+            }
+        }
         let settingsModel = SettingsModel(
             rules: rules,
             shortcuts: shortcuts,
@@ -294,7 +324,13 @@ public final class AppAssembly: SelectionInstalling {
         // The status item is made before the assembly is, so a drop reaches it through a weak reference.
         weak var assemblyRef: AppAssembly?
         let statusItem = MenuBarItem(
-            menu: { MenuBarMenu(rules: rules.rules, grant: onboarding.grant) },
+            menu: {
+                MenuBarMenu(
+                    rules: rules.rules,
+                    grant: onboarding.grant,
+                    developmentMode: extensionsModel?.development?.isActive ?? false
+                )
+            },
             perform: { [rules] command in
                 switch command {
                 case .appearAutomatically:
@@ -345,7 +381,8 @@ public final class AppAssembly: SelectionInstalling {
         })
         self.host = host
         self.settingsModel = settingsModel
-        self.consentWindow = ConsentWindow()
+        self.consentWindow = consentWindow
+        self.developmentDebugging = developmentDebugging
         self.onboardingWindow = onboardingWindow
         self.consoleWindow = consoleWindow
         assemblyRef = self
@@ -359,8 +396,10 @@ public final class AppAssembly: SelectionInstalling {
     public func start() async {
         // Before the bar can appear, so that its first resolution already has the installed extensions.
         if let host {
+            await developmentDebugging()
             await host.start()
             await settingsModel.extensions?.refresh()
+            await settingsModel.extensions?.development?.refresh()
             settingsModel.refresh()
         }
         await bridge.attach(bar)
