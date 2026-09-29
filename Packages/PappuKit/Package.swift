@@ -56,6 +56,7 @@ let package = Package(
         .library(name: "PappuApp", targets: ["PappuApp"]),
         .library(name: "PappuHarness", targets: ["PappuHarness"]),
         .executable(name: "pappu-dev", targets: ["pappu-dev"]),
+        .executable(name: "pappuclip", targets: ["pappuclip"]),
     ],
     dependencies: [
         .package(url: "https://github.com/jpsim/Yams.git", from: "6.0.0"),
@@ -111,6 +112,21 @@ let package = Package(
             name: "pappu-dev",
             dependencies: [
                 "PappuDevTools",
+                "PappuCLI",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ]
+        ),
+        // DEV-2: the author's CLI (architecture §2.1, §10.8). It runs a script in the helper's own code,
+        // in process, with host calls answered by a headless stand-in that applies the app's refusals.
+        .target(
+            name: "PappuCLI",
+            dependencies: [core, "PappuJSBridge", "PappuJSHost", "PappuRuntime"]
+        ),
+        .executableTarget(
+            name: "pappuclip",
+            dependencies: [
+                "PappuCLI",
+                core,
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
         ),
@@ -133,5 +149,6 @@ let package = Package(
         .testTarget(name: "PappuSettingsTests", dependencies: ["PappuSettings", "PappuExtensions", "PappuTestSupport", "PappuDevTools"]),
         .testTarget(name: "PappuHarnessTests", dependencies: ["PappuHarness", "PappuTestSupport"]),
         .testTarget(name: "PappuDevToolsTests", dependencies: ["PappuDevTools"]),
+        .testTarget(name: "PappuCLITests", dependencies: ["PappuCLI", core, "PappuJSBridge", "PappuRuntime"]),
     ]
 )

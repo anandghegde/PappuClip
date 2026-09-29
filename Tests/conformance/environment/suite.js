@@ -3,8 +3,9 @@
 // JS-14), checked from inside a world as an extension would see them.
 //
 // This folder is a package. `suite.js` is an action's script: it runs every check and returns "ok",
-// or one line per failure. PappuJSHostTests runs it in the helper's own code (JSHostTests,
-// `theEnvironmentSectionOfTheConformanceSuitePasses`), and `pappuclip run` will run it as it stands.
+// or throws with one line per failure. PappuJSHostTests runs it in the helper's own code (JSHostTests,
+// `theEnvironmentSectionOfTheConformanceSuitePasses`), and so does `pappuclip run suite.js`, which
+// exits 0 or 1 by it (DEV-2; PappuCLITests, `theConformanceSuitePassesUnderPappuclipRun`).
 // The other files are what it requires.
 //
 // Not here yet, because their weeks have not come: `util`, `pasteboard`, `RichString`, `$` and the
@@ -284,4 +285,6 @@ await check('JS-12: define and defineExtension are one partial AMD', () => same(
   ['a+b', 'named', { last: true }, true, 'object'],
 ));
 
-return failures.length === 0 ? 'ok' : failures.join('\n');
+// A failure throws, so that `pappuclip run` exits 1 (DEV-2).
+if (failures.length > 0) throw new Error(failures.length + ' failed:\n' + failures.join('\n'));
+return 'ok';

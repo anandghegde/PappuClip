@@ -206,3 +206,17 @@ The panels are the functional M3 ones; their look is M4's (DIF-1a, DIF-3). Repla
 | 61 | With VoiceOver on, run Q | VoiceOver announces the field as "Your name, edit text, World"; Tab reaches Cancel and Submit; Return submits and Escape cancels without the mouse | |
 | 62 | Install a dynamic extension whose population calls `pappuclip.promptText({ label: 'x' })`, approve it and select a word | No prompt appears; the Debug Console has "promptText is not available in a population function." | |
 
+
+## Week 7: `pappuclip run`, the corpus pass and the built-ins (DEV-2)
+
+Build the CLI with `swift build --product pappuclip` in `Packages/PappuKit`; it is at `.build/debug/pappuclip`. The fixtures are the conformance suites under `Tests/conformance`, and a scratch package **R**: a folder `R.popclipext` holding `Config.js` with `exports.test = (input) => { print('ran'); return input.text.toUpperCase(); }; exports.broken = () => { throw new Error('nope'); }; exports.keys = () => popclip.pressKey('cmd b');`.
+
+| # | Do this | Expect | Result |
+|---|---------|--------|--------|
+| CL1 | `pappuclip run Tests/conformance/environment/suite.js; echo $?` | Two `require(...) found nothing` lines, then `ok`, `passed` and `0` | |
+| CL2 | `pappuclip run Tests/conformance/api/suite.js; echo $?` | `host:` lines for each call, four of them `refused:` (pressKeys, performService, runShellScript, httpRequest); then `ok`, `passed`, `0`. No browser opens, nothing is pasted, and `pbpaste` is unchanged | |
+| CL3 | `pappuclip run R.popclipext/Config.js --text abc; echo $?` | `ran`, `ABC`, `passed`, `0` | |
+| CL4 | `pappuclip run R.popclipext/Config.js broken; echo $?` | `failed: Error: nope` and `1` | |
+| CL5 | `pappuclip run R.popclipext/Config.js missing; echo $?` | `error: The module exports no function missing.` and `1` | |
+| CL6 | `pappuclip run R.popclipext/Config.js keys`, then again with `--allow synthetic-input` | First: refused with "pressKeys needs the synthetic-input permission…" and exit 1. Second: `host: pressKeys … -> done`, exit 0, and no key reaches the frontmost app | |
+| CL7 | `pappuclip run --help` | Lists `--text`, `--option`, `--allow`, `--clipboard`, `--timeout`, `--script` and `--quiet` | |

@@ -2315,7 +2315,41 @@ requirements:
       - PappuAppTests/theMenuSaysDevelopmentModeIsOn
       - PappuAppTests/theMenuSaysNothingAboutDevelopmentOtherwise
       - PappuAppTests/aPauseIsStillSaidWhileDeveloping
-  DEV-2: { priority: P1, milestone: M3, tests: [] }
+  DEV-2:
+    priority: P1
+    milestone: M3
+    note: >-
+      `pappuclip run <file> [function]` runs a module's exported function (by default `test`), or an action
+      script, in the helper's own code in process, and exits 0 or 1. Host calls get the app's refusals and
+      are recorded, not performed. The API conformance suites (architecture §17) are run by it.
+    tests:
+      - PappuCLITests/aModulesTestFunctionThatReturnsExitsZero
+      - PappuCLITests/aFunctionThatThrowsExitsOne
+      - PappuCLITests/aRejectedPromiseExitsOne
+      - PappuCLITests/aNamedFunctionIsCalledInsteadOfTest
+      - PappuCLITests/aMissingFunctionIsNotRunAndExitsOne
+      - PappuCLITests/aFileThatWillNotCompileExitsOne
+      - PappuCLITests/aMissingFileExitsOne
+      - PappuCLITests/aRunStillGoingAtTheTimeoutExitsOne
+      - PappuCLITests/aTestFunctionBesideADefaultExportIsFound
+      - PappuCLITests/anActionPathStillMeansTheExtensionObjects
+      - PappuCLITests/aFileWithNoExportsRunsAsAnActionScript
+      - PappuCLITests/aModuleCanBeForcedToRunAsAScript
+      - PappuCLITests/thePackagesOtherFilesCanBeRequired
+      - PappuCLITests/typeScriptIsTranspiled
+      - PappuCLITests/optionsReachTheFunction
+      - PappuCLITests/modulesAndScriptsAreToldApart
+      - PappuCLITests/thePackageIsTheNearestPackageFolder
+      - PappuCLITests/hostCallsAreRecordedAndNotPerformed
+      - PappuCLITests/aGatedCallIsRefusedInTheAppsWordsWithoutItsGrant
+      - PappuCLITests/noRequestIsSentEvenWithTheNetworkGrant
+      - PappuCLITests/theHeadlessClipboardKeepsWhatWasCopied
+      - PappuCLITests/anUnknownMethodIsRefused
+      - PappuCLITests/scriptsAreNeverRunHeadless
+      - PappuCLITests/theReportEndsWithTheVerdict
+      - PappuCLITests/theAPISectionOfTheConformanceSuitePasses
+      - PappuCLITests/theConformanceSuitePassesUnderPappuclipRun
+      - manual:docs/checklists/m3-manual.md
   DEV-3: { priority: P1, milestone: M5, tests: [] }
   DEV-4: { priority: P1, milestone: M5, tests: [] }
   DEV-5: { priority: P2, milestone: post-1.0, tests: [] }
