@@ -135,6 +135,9 @@ public enum LocalOrigin: String, Sendable, Hashable, Codable, CaseIterable {
     case snippetFile
     /// Text selected in another app, through the bar's Install Extension action (EXM-2).
     case selectedText
+    /// A folder in PopClip's own `Extensions/`, through Import from PopClip (EXM-11). Whatever PopClip
+    /// thought of it, here it is unsigned local code like any other folder (SEC-8b).
+    case popClipImport
 }
 
 /// Who vouches for an extension's code (SEC-8b).

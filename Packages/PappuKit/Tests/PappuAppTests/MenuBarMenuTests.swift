@@ -80,6 +80,14 @@ import Testing
         #expect(!menu.commands.contains(.onboarding))
     }
 
+    /// EXM-11: the import is offered from the menu only while PopClip's extensions folder is there.
+    @Test func importFromPopClipIsOfferedOnlyWhenThereIsSomethingToImport() {
+        #expect(!MenuBarMenu(rules: PrivacyRules(), now: noon).commands.contains(.importFromPopClip))
+        let menu = MenuBarMenu(rules: PrivacyRules(), now: noon, offersPopClipImport: true)
+        #expect(menu.item(.importFromPopClip)?.title == PopClipStrings.importMenu)
+        #expect(menu.commands.last == .quit)
+    }
+
     @Test func settingsAndQuitKeepTheirShortcuts() {
         let menu = MenuBarMenu(rules: PrivacyRules(), now: noon)
         #expect(menu.item(.settings)?.keyEquivalent == ",")
@@ -111,6 +119,7 @@ import Testing
     @Test func everyCommandIsReachableFromSomeState() {
         let shown = Set(MenuBarMenu(rules: PrivacyRules(), grant: .notTrusted, now: noon).commands)
             .union(MenuBarMenu(rules: PrivacyRules(pause: .untilResumed), now: noon).commands)
+            .union(MenuBarMenu(rules: PrivacyRules(), now: noon, offersPopClipImport: true).commands)
         #expect(shown == Set(MenuCommand.allCases))
     }
 }

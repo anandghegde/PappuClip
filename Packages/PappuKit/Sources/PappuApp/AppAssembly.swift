@@ -55,6 +55,10 @@ public final class AppAssembly: SelectionInstalling {
     private let consentWindow: ConsentWindow
     private let onboardingWindow: OnboardingWindow
     private let consoleWindow: DebugConsoleWindow
+    /// EXM-11, EXM-15: nil without a library to import into.
+    private let popClipImporter: PopClipImporter?
+    /// ONB-6: explains PopClip running beside PappuClip. It never touches PopClip.
+    private let coexistenceNotice: CoexistenceNotice
 
     /// The loops that read the three streams. Held so that `stop` can end them; an `AsyncStream` whose
     /// consumer is a detached task nobody kept would run for the life of the process either way, but a
@@ -294,7 +298,7 @@ public final class AppAssembly: SelectionInstalling {
         // The status item is made before the assembly is, so a drop reaches it through a weak reference.
         weak var assemblyRef: AppAssembly?
         let statusItem = MenuBarItem(
-            menu: { MenuBarMenu(rules: rules.rules, grant: onboarding.grant) },
+            menu: { MenuBarMenu(rules: rules.rules, grant: onboarding.grant, offersPopClipImport: host != nil && PopClipImport.isPresent()) },
             perform: { [rules] command in
                 switch command {
                 case .appearAutomatically:
@@ -311,6 +315,8 @@ public final class AppAssembly: SelectionInstalling {
                     settingsWindow.show()
                 case .debugConsole:
                     consoleWindow.show()
+                case .importFromPopClip:
+                    Task { await assemblyRef?.importFromPopClip() }
                 case .quit:
                     NSApp.terminate(nil)
                 }
@@ -348,6 +354,28 @@ public final class AppAssembly: SelectionInstalling {
         self.consentWindow = ConsentWindow()
         self.onboardingWindow = onboardingWindow
         self.consoleWindow = consoleWindow
+        // EXM-11, EXM-15: PopClip's folders are read, every package goes through one batch review, and
+        // a gated one arrives turned off unless its own switch was turned on.
+        let batchWindow = BatchConsentWindow()
+        self.popClipImporter = host.map { host in
+            PopClipImporter(
+                storage: storage,
+                rules: rules,
+                ask: { offer in PopClipAlerts.offer(offer) },
+                install: { sources, review in try await host.installBatch(sources, review: review) },
+                review: { proposals in
+                    await batchWindow.review(proposals) { identity in
+                        host.snapshot.installed[identity.description]?.manifest.name.text(for: .current)
+                    }
+                }
+            )
+        }
+        self.coexistenceNotice = CoexistenceNotice(
+            rules: rules,
+            storage: storage,
+            ask: { PopClipAlerts.coexistence() },
+            showHowTo: { PopClipAlerts.howTo() }
+        )
         assemblyRef = self
     }
 
@@ -375,6 +403,7 @@ public final class AppAssembly: SelectionInstalling {
         accessibility.start()
         frontmost.start()
         coexistence.start()
+        coexistenceNotice.observe(coexistence)
         watcher.start()
         health.start()
 
@@ -403,9 +432,26 @@ public final class AppAssembly: SelectionInstalling {
 
         // Last, because it takes the screen: a first run should find the app already working behind the
         // window it is being explained in. A launch that owes the user nothing opens nothing (ONB-1).
+        // EXM-11: once, when PopClip's extensions are there to bring across — but not over the
+        // onboarding window; a launch that still owes the user that asks at a later one.
         if onboardingWindow.hasSomethingToShow {
             onboardingWindow.show()
+        } else if let popClipImporter {
+            await finishImport(popClipImporter.offerAtFirstRun())
         }
+    }
+
+    /// The menu's Import from PopClip (EXM-11).
+    func importFromPopClip() async {
+        guard let popClipImporter else { return }
+        await finishImport(popClipImporter.importNow())
+    }
+
+    private func finishImport(_ report: PopClipImporter.Report?) async {
+        guard let report else { return }
+        await settingsModel.extensions?.refresh()
+        settingsModel.refresh()
+        PopClipAlerts.report(report)
     }
 
     /// The reverse, for a quit that wants to be tidy and for a host that builds more than one.

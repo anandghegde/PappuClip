@@ -129,3 +129,31 @@
 
 /* SEC-7b: beside a host call an extension made that was refused, and why. */
 "console.kind.refused" = "Not allowed";
+
+/* EXM-11: Import from PopClip, in the menu bar item's menu. */
+"popclip.import.menu" = "Import from PopClip…";
+"popclip.import.offer.title" = "Import from PopClip?";
+/* The first %lld is how many extensions were found, the second how many excluded apps. */
+"popclip.import.offer.body" = "PappuClip found PopClip’s extensions on this Mac. It can bring them across, together with the apps PopClip stays away from. Nothing in PopClip is changed.\n\nExtensions: %lld\nExcluded apps: %lld\n\nThe extensions are not signed. You will see what each one can do before anything is installed.";
+"popclip.import.offer.import" = "Review and Import…";
+"popclip.import.offer.notNow" = "Not Now";
+"popclip.import.result.title" = "Import from PopClip";
+/* %@ is a list of extension names. */
+"popclip.import.result.approved" = "Installed and turned on: %@";
+"popclip.import.result.waiting" = "Installed but turned off until you approve them in Settings › Extensions: %@";
+"popclip.import.result.alreadyInstalled" = "Already installed: %lld";
+/* %@ is one line per extension: its folder name and why. */
+"popclip.import.result.failed" = "Could not be imported:\n%@";
+"popclip.import.result.excluded" = "Apps the bar now stays away from: %lld";
+"popclip.import.result.nothing" = "There was nothing new to import.";
+"popclip.ok" = "OK";
+
+/* ONB-6: PopClip is running beside PappuClip. PappuClip never changes or quits PopClip. */
+"popclip.coexistence.title" = "PopClip Is Running";
+"popclip.coexistence.body" = "PopClip and PappuClip both show a bar when you select text, so you may see two. PappuClip does not change or quit PopClip.\n\nWhile PopClip is running, PappuClip does not copy text on your behalf when its bar appears on its own; the keyboard shortcut still works.";
+"popclip.coexistence.pause" = "Turn Off PappuClip’s Automatic Bar";
+"popclip.coexistence.howTo" = "How to Turn Off PopClip’s";
+"popclip.coexistence.keepBoth" = "Keep Both";
+"popclip.coexistence.suppress" = "Don’t show this again";
+"popclip.howTo.title" = "Turning Off PopClip’s Bar";
+"popclip.howTo.body" = "PappuClip leaves PopClip’s settings to you. In PopClip:\n\n1. Open PopClip’s menu from its icon in the menu bar.\n2. Turn PopClip off there, or quit it.\n3. To keep it from starting again, remove it under System Settings › General › Login Items.\n\nWhile PopClip is not running, PappuClip’s bar works as usual.";

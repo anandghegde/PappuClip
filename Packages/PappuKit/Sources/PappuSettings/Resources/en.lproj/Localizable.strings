@@ -161,3 +161,12 @@
 "extensions.options.none" = "This extension has no options.";
 "extensions.options.password" = "Asked for when signing in, and never stored.";
 "extensions.options.secret" = "Kept in your Keychain.";
+
+/* The batch review (EXM-15): several extensions arriving together, as Import from PopClip brings them. */
+"batch.title" = "Review Extensions";
+"batch.provenance" = "These come from files on this Mac. They are not signed, and nobody has reviewed them.";
+"batch.listed.heading" = "Approved together when you confirm:";
+"batch.gated.heading" = "These ask for more. Each stays installed but turned off unless you switch it on; you can approve it later in Extension Info.";
+"batch.confirm" = "Install";
+/* VoiceOver label for one gated extension's switch. %@ is its name. */
+"batch.switch.accessibility" = "Approve \U201C%@\U201D";
